@@ -72,16 +72,38 @@ def update_source_code_to_db(code, test_mode):
         src = code.replace("'", "''")
 
         try:
-            print('[INFO] Insert source code to DB')
             cur.execute('''
-            INSERT INTO contract (source_code, status)
-            VALUES ('{}', 'PENDING');
-            '''.format(src))
-            conn.commit()
+                        SELECT id FROM contract
+                        WHERE source_code = '{}';
+                        '''.format(src))
+
+            id_list = cur.fetchall()
+            if len(id_list) == 0:
+                print('[INFO] Insert source code to DB')
+                cur.execute('''
+                            INSERT INTO contract (source_code, status)
+                            VALUES ('{}', 'PENDING');
+                            '''.format(src))
+                conn.commit()
+            else:
+                print('[INFO] Source code is already in DB')
+
+            # delete rebundant source code in DB
+            if len(id_list) > 1:
+                print('[INFO] Delete rebundant source code in DB')
+                for id in enumerate(id_list):
+                    if id[0] > 0:
+                        cur.execute('''
+                                        DELETE FROM contract
+                                        WHERE id='{}';
+                                    '''.format(id[1][0]))
+                conn.commit()
+
             cur.execute('''
-            SELECT id FROM contract
-            WHERE source_code = '{}';
-            '''.format(src))
+                        SELECT id FROM contract
+                        WHERE source_code = '{}';
+                        '''.format(src))
+
             result = cur.fetchall()
         except Exception as ex:
             print('[FAIL] Failed to insert source code to database. ---')
@@ -175,11 +197,39 @@ def update_assembly_to_db(op, op_pre, row_id, json_name, test_mode):
         cur = conn.cursor()
 
         try:
+            print(json_name)
             cur.execute('''
-                            INSERT INTO preprocessing (contract_id, contract_name, opcode_pre, opcode_data)
-                            VALUES ('{}', '{}', '{}', '{}');
-                            '''.format(row_id, json_name, op_pre, op))
-            conn.commit()
+                        SELECT id FROM preprocessing
+                        WHERE contract_name='{}';
+                        '''.format(json_name))
+            id_list = cur.fetchall()
+            print(id_list)
+
+            if len(id_list) == 0:
+                cur.execute('''
+                                INSERT INTO preprocessing (contract_id, contract_name, opcode_pre, opcode_data)
+                                VALUES ('{}', '{}', '{}', '{}');
+                                '''.format(row_id, json_name, op_pre, op))
+                conn.commit()
+            else:
+                print('[INFO] Assembly is already in DB')
+                cur.execute('''
+                            UPDATE preprocessing
+                            SET opcode_pre = '{}', opcode_data = '{}'
+                            WHERE contract_name='{}'
+                            '''.format(op_pre, op, json_name))
+
+            # delete rebundant source code in DB
+            if len(id_list) > 1:
+                print('[INFO] Delete rebundant source code in DB')
+                for id in enumerate(id_list):
+                    if id[0] > 0:
+                        cur.execute('''
+                                    DELETE FROM preprocessing
+                                    WHERE id='{}';
+                                    '''.format(id[1][0]))
+                conn.commit()
+
             print('\t[INFO] Update assembly of contract id {}  to database.'.format(row_id))
         except Exception as ex:
             print('\t[FAIL] Failed to update assembly to database.')
