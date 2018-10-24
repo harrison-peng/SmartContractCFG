@@ -95,7 +95,8 @@ def asm_analysis(mode, contract_id):
         n, e = gas_path(nodes, edges)
         create_graph(n, e, 'MaxPath/%s' % contract_name, contract_name)
 
-        # symbolic_simulation(nodes, edges)
+        print('contract name = ', contract_name)
+        symbolic_simulation(nodes, edges)
         # cycle_detection(nodes, edges)
 
 
@@ -399,7 +400,7 @@ def symbolic_simulation(nodes, edges):
 
     print('gas SUM = ', gas_sum)
 
-    create_graph(c_nodes, c_edges, 'symbolic_simulation')
+    # create_graph(c_nodes, c_edges, 'symbolic_simulation')
 
 
 def gas_path(nodes, edges):

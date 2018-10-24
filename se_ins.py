@@ -1281,7 +1281,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
             stack.pop(0)
             stack.pop(0)
             z = stack.pop(0)
-            print(z)
+            # print(z)
             if isinstance(z, int):
                 gas = 2 + 3 * int(z)
             else:
@@ -1760,7 +1760,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
             l = stack.pop(0)
             num_of_pops -= 1
             if count == 1:
-                print(l)
+                # print(l)
                 if isinstance(l, str):
                     gas = str((int(opcode[3:]) + 1) * 375) + '+(8*' + l + ')'
                 else:
