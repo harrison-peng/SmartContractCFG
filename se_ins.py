@@ -28,11 +28,14 @@ def main():
 
 
 def stack_simulation(line, stack, storage, memory, sym_mem, jumpdest, gas, input_data, f_constraint, t_constraint):
+    # print('[stack sim]:', t_constraint)
     path_conditions_and_vars = {"path_condition": []}
     global_state = get_init_global_state(path_conditions_and_vars)
+    # print('[global_state]:', global_state)
 
     # analysis = init_analysis()
     params = Parameter(path_conditions_and_vars=path_conditions_and_vars, global_state=global_state)
+    # print('[params]:', params.path_conditions_and_vars)
     line = line.rstrip()
 
     if 'tag' in line.split(' ')[0]:
@@ -41,7 +44,7 @@ def stack_simulation(line, stack, storage, memory, sym_mem, jumpdest, gas, input
     else:
         # print(line)
         condition, target = sym_exec_ins(params, line, 0, storage, stack, memory, sym_mem, input_data, f_constraint, t_constraint)
-    # print('Stack = ', stack)
+    # print('[opcode]:', line.split(' ')[0], ', [stack]:', stack, ', [condition]:', condition, ', [target]:', target)
     return condition, target, f_constraint, t_constraint, stack
 
 
@@ -59,6 +62,7 @@ class Parameter:
         }
         for (attr, default) in six.iteritems(attr_defaults):
             setattr(self, attr, kwargs.get(attr, default))
+
 
     # def copy(self):
     #     _kwargs = custom_deepcopy(self.__dict__)
@@ -234,6 +238,8 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
     global calls_affect_state
     global data_source
 
+    # print('[stack]:', stack)
+    # print('[input data]:', input_data)
     # stack = params.stack
     mem = params.mem
     # memory = params.memory
@@ -1205,6 +1211,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
         stack.insert(0, new_var)
     elif opcode == "CALLDATACOPY":  # Copy input data to memory
         #  TODO: Don't know how to simulate this yet
+
         if len(stack) > 2:
             # global_state["pc"] += 1
             z = stack.pop(0)
@@ -1784,6 +1791,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
     #         raise ValueError('STACK underflow')
     elif opcode == "CALL":
         # TODO: Need to handle miu_i
+
         if len(stack) > 6:
             # calls.append(global_state["pc"])
             # for call_pc in calls:

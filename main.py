@@ -1,5 +1,6 @@
+# -*- coding: UTF-8 -*-
+
 from collections import deque
-from modules import dbconnect as db
 from gas_price import *
 from opcode_table import *
 import se_ins as se
@@ -13,108 +14,50 @@ import os
 import math
 from subprocess import check_output, call
 import json
+from pprint import pprint
 
 f_SE = os.path.join(os.path.dirname(__file__), 'SE')
 wSE = open(f_SE, 'w')
 loop_graph_count = 0
 
+# Global Variables
+count_sim = 0
+stack = []
+storage = []
+memory = []
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--i", help="input file name", action='store_true')
-    parser.add_argument("-f", "--f", help="read from DB", action='store_true')
-    parser.add_argument("-t", "--t", help="testing", action='store_true')
+    parser.add_argument("-l", "--l", help="input file without store to db", action='store_true')
     parser.add_argument("-code", "--code", help="source code")
 
     args = parser.parse_args()
 
-    # 分為三種模式
-    # -f : 分析資料庫中還沒跑過的合約
-    # -i : 分析單一合約，需要搭配 -code <filename> 使用
     # -t : 測試模式(測試結果不會寫入資料庫)，需要搭配 -code <filename> 使用
 
-    if args.f:
-        src = db.load_source_code_from_db()  # 讀取資料庫中全部SOURCE CODE
 
-        for i in src:
-            contract_id = i[0]
-            code = i[1]
-            print('[INFO] Start checking contract {}.\n'.format(contract_id))
-            preproc(contract_id, code, 'test.sol', 0)  # 將SOURCE CODE編譯成OPCODE
-        asm_analysis(0, '')  # 分析OPCODE(CFG, SYMBOLIC EXECUTION)
-    elif args.i:
+    if args.l:
         if args.code == '':
             print('Error')
             exit(0)
         else:
             f_src = os.path.join(os.path.dirname(__file__), args.code)  # 從使用者輸入讀取檔案
+            contract_name = os.path.basename(f_src).split('.')[0]
 
-            with open(f_src, 'r') as f:
-                src = f.read()  # 讀取檔案內容
-                contract = db.update_source_code_to_db(src, 0)  # 將SOURCE CODE存入資料庫
-                contract_id = contract[0][0]
-                print('[INFO] Start checking contract {}.\n'.format(contract_id))
-                preproc(contract_id, src, args.code, 1)  # 將SOURCE CODE編譯成OPCODE
+            print('[INFO] Start Transforming contract {} source code to Assembly.'.format(contract_name))
+            preproc(f_src)   # 將SOURCE CODE編譯成OPCODE
 
-            asm_analysis(1, contract_id)
-    elif args.t:
-        if args.code == '':
-            print('Error')
-            exit(0)
-        else:
-            f_src = os.path.join(os.path.dirname(__file__), args.code)
+            # asm_analysis(contract_name)
 
-            with open(f_src, 'r') as f:
-                src = f.read()
-                print('[INFO] Start checking contract.\n')
-                preproc('', src, args.code, 2)
-
-            asm_analysis(2, 1)
     else:
-        print('Must use an argument, -i for individual source code, -f use source code from DB')
+        print('Must use an argument, -l for individual source code')
 
 
-def asm_analysis(mode, contract_id):
-    test_mode = 0
-
-    if mode == 2:
-        test_mode = 1  # 非測試模式時，分析結果會寫入資料庫
-
-    opcode_data = db.load_assembly_from_db(mode, contract_id)  # 從資料庫中讀取OPCODE
-
-    for d in opcode_data:
-        nodes = []
-        edges = []
-        contract_opcode = d[0]
-        contract_name = d[1]
-        pre_id = d[2]
-        print('contract id = ', contract_id)
-        nodes, edges = cfg_construction(contract_opcode, contract_name, pre_id, nodes, edges, 0)  # 將OPCODE建成CFG
-        # db.update_status_to_db('CFG_CREATED', 'preprocessing', pre_id, test_mode)  # 更新資料庫中分析狀態
-
-        n, e = gas_path(nodes, edges)
-        create_graph(n, e, 'MaxPath/%s' % contract_name, contract_name)
-
-        print('contract name = ', contract_name)
-        symbolic_simulation(nodes, edges)
-        # cycle_detection(nodes, edges)
-
-
-def preproc(contract_id, code, file_name, mode):
-    f_src = os.path.join(os.path.dirname(__file__), file_name)
-
-    if mode == 0:
-        w_src = open(f_src, 'w')
-        w_src.write(code)
-        w_src.close()
-
-    if mode == 2:
-        test_mode = 1
-    else:
-        test_mode = 0
-
+def preproc(file_name):
     f_op = os.path.join(os.path.dirname(__file__), 'opcode', 'opcode')
     f_op_pre = os.path.join(os.path.dirname(__file__), 'opcode', 'opcode_pre')
+    contract_name = os.path.basename(file_name).split('.')[0]
 
     try:
         print('\n[INFO] Empty the output directory.')
@@ -125,7 +68,7 @@ def preproc(contract_id, code, file_name, mode):
 
     try:
         print('\n[INFO] Compiling source code to assembly.')
-        call(['solc', '--asm-json', '-o', './output', '--overwrite', f_src])
+        call(['solc', '--asm-json', '-o', './output', '--overwrite', file_name])
     except Exception as ex:
         print('Error: ', ex)
 
@@ -172,23 +115,40 @@ def preproc(contract_id, code, file_name, mode):
 
                 w_pre.close()
                 w_op.close()
-
-                with open(f_op_pre, 'r') as f:
-                    op_pre_content = f.read()
-                with open(f_op, 'r') as f1:
-                    op_content = f1.read()
-
-                db.update_assembly_to_db(op_content, op_pre_content, contract_id, name, test_mode)
-                db.update_status_to_db('DISASSEMBLED', 'contract', contract_id, test_mode)
-
             except Exception as ex:
                 print('[Error]: ', ex)
 
+            print('[CONTRACT NAME]:', name)
+            asm_analysis(contract_name, name)
 
-def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
+
+def asm_analysis(file_name, contract_name):
+    with open('./opcode/opcode', 'r') as f:
+        opcode_data = f.read()
+
+    contract_opcode = opcode_data
+    contract_name = contract_name
+    nodes, edges = cfg_construction(contract_opcode, contract_name, file_name)  # 將OPCODE建成CFG
+
+    # n, e = gas_path(nodes, edges)
+    # create_graph(n, e, 'MaxPath/%s' % contract_name, contract_name)
+
+    # print('contract name = ', contract_name)
+    # symbolic_simulation(nodes, edges)
+    # print('[count sim]:', count_sim)
+    # cycle_detection(nodes, edges)
+
+
+def cfg_construction(opcode_data, name, file_name):
     print('''[INFO] Constructing CFG for contract '{}'. '''.format(name))
+    # print(opcode_data)
+
+    nodes = []
+    edges = []
+    init_tag_num = 0
 
     opcode_list = opcode_data.split('\n')
+    # print('[opcode]:', opcode_list)
 
     segment_ins = ['tag', 'JUMP', 'JUMPI', 'STOP', 'REVERT', 'INVALID', 'RETURN']
 
@@ -209,18 +169,26 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
     not_out = False
     from_outer = False
     from_jump_out = False
+    tag_push_dict = dict()
+    push_stack_li = list()
+    left_jump_out = list()
 
-    # with open(read_file, 'r') as f:
     for idx, line in enumerate(opcode_list):
         s = line.rstrip().split(' ')
+        # print('[codes]:', s)
+
         if s[0] == '':
             continue
         elif s[0] in segment_ins:
+            # print('[PUSH STACK]:', push_stack_li)
             if s[0] == 'tag':
+                # print('[tag]', s)
                 if node_content == '':
                     tag_num = int(s[1]) + init_tag_num
                     node_content += str(idx) + ': ' + line.rstrip() + '\n'
                 else:
+                    # ***** NOTE: NOT RUN THIS PART *****
+                    # print('[node_content]', node_content)
                     node_content += 'Stack Sum: ' + str(stack_sum) + '\n' + 'Gas: ' + str(
                         gas_total)  # + ' + [' + gas_constraint + ']'
                     nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
@@ -238,20 +206,52 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
                                   {'label': '',
                                    'color': 'blue'}))
                     stack_sum = 0
+                # print('[node_content]', node_content)
+                # print('[edges]:', edges)
             else:
+                # print('[code]', s)
+
+                # COUNT GAS
                 gi = re.sub(r'\d+', '', str(s[0]))
                 gas = gas_table[gi]
                 gas_total += gas
+
+                if tag_num in tag_push_dict.keys() and len(tag_push_dict[tag_num]) > 1:
+                    # print('[dict]:', tag_num, tag_push_dict[tag_num], push_stack_li)
+                    stack_exist = False
+                    for push_stack in push_stack_li:
+                        if push_stack[-1] == tag_num:
+                            stack_exist = True
+                            push_stack.pop()
+                            for tag in tag_push_dict[tag_num]:
+                                push_stack.append(int(tag))
+
+                    if not stack_exist:
+                        push_stack = list()
+                        for tag in tag_push_dict[tag_num]:
+                            push_stack.append(int(tag))
+                        push_stack_li.append(push_stack)
+                # print('[dict]:', tag_num, push_stack_li)
+
                 if from_jumpi:
+                    # print('[tag_num]:', tag_num)
                     edges.append(((str(prev_tag), str(tag_num)),
                                   {'label': '',
                                    'color': edge_color}))
                     from_jumpi = False
                     # not_out = True
+
                 if s[0] == 'JUMP' and len(s) == 1 and len(prev_ins) > 1:
+                    for push_stack in push_stack_li:
+                        if tag_num == push_stack[-1]:
+                            push_stack.pop()
+                            push_stack.append(int(prev_ins[2]))
+
                     stack_sum -= 1
+                    # print('[node_content]:', node_content)
                     node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
                         stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
+                    # print('[node_content]:', node_content)
                     nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
                     # if from_jump_out:
                     #     jump_tag = int(jump_out_next_tag) + init_tag_num
@@ -261,9 +261,18 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
                     edges.append(((str(tag_num), str(jump_tag)),
                                   {'label': '',
                                    'color': 'blue'}))
+                    # print('[FROM]:', tag_num, ', [TO]:', jump_tag)
                     node_content = ''
                     not_out = False
                 elif s[0] == 'JUMPI':
+                    # print('[JUMPI]:', push_stack_li, tag_num)
+                    for push_stack in push_stack_li:
+                        if len(push_stack) > 0 and tag_num == push_stack[-1]:
+                            print('[JUMPI]:', push_stack)
+                            push_stack.pop()
+                            push_stack.append(int(prev_ins[2]))
+
+                    # print('[PUSH SIZE]:', prev_ins, len(push_tag_list))
                     stack_sum -= 2
                     node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
                         stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
@@ -272,6 +281,7 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
                     edges.append(((str(tag_num), str(jump_tag)),
                                   {'label': '',
                                    'color': edge_color}))
+                    # ***** NOTE: NOT RUN THIS PART *****
                     if from_outer:
                         for i in is_end:
                             edges.append(((str(i), str(tag_num)),
@@ -282,6 +292,13 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
                     prev_tag = tag_num
                     from_jumpi = True
                 elif len(s) > 1 and s[0] == 'JUMP' and s[1] == '[in]':
+                    # for push_stack in push_stack_li:
+                    #     if len(push_stack) > 0 and tag_num == push_stack[-1]:
+                    #         print('[STACK]:', push_stack)
+                            # push_stack.pop()
+                            # push_stack.append(int(prev_ins[2]))
+
+                    # print('[Code]:', s, prev_ins)
                     stack_sum -= 1
                     node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
                         stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
@@ -297,6 +314,20 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
                     node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
                         stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
                     nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
+                    add_edge = False
+                    for push_stack in push_stack_li:
+                        if len(push_stack) > 0 and tag_num == push_stack[-1]:
+                            # print('[JUMP OUT]:', push_stack)
+                            jump_from = push_stack.pop()
+                            jump_to = push_stack.pop()
+                            edges.append(((str(jump_from), str(jump_to)),
+                                          {'label': str(tag_value),
+                                           'color': edge_color}))
+                            add_edge = True
+                    if not add_edge:
+                        left_jump_out.append(tag_num)
+
+
                     # if not not_out:
                     #     edges.append(((str(tag_num), str(int(tag_num) - 1)),
                     #                   {'label': '',
@@ -351,17 +382,36 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
                 gas_total = 0
                 gas_constraint = ''
         else:
+            # print('[Code]:', s)
             gi = re.sub(r'\d+', '', str(s[0]))
             gas = gas_table[gi]
             gas_total += gas
 
             if 'LOG' in s[0]:
+                # print('[Code]:', s)
                 log_number = s[0].split('LOG')[1]
                 stack_sum -= int(log_number) + 2
             elif 'PUSH' in s and '[tag]' in s:
+                # print('[CURR TAG]:', tag_num)
+                try:
+                    tag_state = tag_push_dict[tag_num]
+                    tag_state.append(s[2])
+                    tag_push_dict.update({tag_num: tag_state})
+                except:
+                    tag_push_dict.update({tag_num: [s[2]]})
+
+                # for push_stack in push_stack_li:
+                #     if push_stack[-1] == tag_num:
+                #         temp_tag = tag_num
+                #         print('[PUSH TAG]:', push_stack)
+                #         curr_tag = push_stack.pop()
+
+
+
                 push_tag_list.append(s[2])
                 stack_sum += 1
             else:
+                # print('[Code]:', s)
                 instruction = re.sub(r'\d+', '', str(s[0]))
                 # print(s[0], instruction)
                 if instruction == 'PUSHLIB':
@@ -371,23 +421,34 @@ def cfg_construction(opcode_data, name, pre_id, nodes, edges, init_tag_num):
 
             node_content += str(idx) + ': ' + line.rstrip() + '\n'
         prev_ins = s
+        push_stack_li = [push_stack for push_stack in push_stack_li if len(push_stack) > 0]
 
     print('[INFO] CFG node count = ', len(nodes))
     print('[INFO] CFG edge count = ', len(edges))
 
     graph_detail(nodes)
+    # print('[EDGE]:', edges)
+    # print('[TAG STATE]:', push_stack_li)
+    print('[LEFT JUMP OUT]:', left_jump_out, push_stack_li)
+    if len(left_jump_out) > 0:
+        if len(left_jump_out) == 1 and len(push_stack_li) == 1:
+            jump_from = left_jump_out.pop()
+            jump_to = push_stack_li[0].pop()
+            edges.append(((str(jump_from), str(jump_to)),
+                          {'label': str(tag_value),
+                           'color': edge_color}))
 
-    g = create_graph(nodes, edges, 'CFG/%s' % name, name)
 
-    db.update_cfg_info_to_db(pre_id, g, 0)
+
+    create_graph(nodes, edges, 'CFG/%s' % file_name, name)
 
     return nodes, edges
 
 
 def symbolic_simulation(nodes, edges):
-    stack = []
-    storage = []
-    memory = []
+    # stack = []
+    # storage = []
+    # memory = []
     f_con = []
     t_con = []
     con = []
@@ -395,41 +456,462 @@ def symbolic_simulation(nodes, edges):
     conq = []
     sym_mem = []
     gasq = []
-    gas_sum, c_nodes, c_edges, q = stack_status_constraint(stack, storage, memory, sym_mem, nodes, edges, '0', '', f_con, t_con,
-                                                           0, 0, 0, 0, con, q, 0, conq, gasq)
+
+    # print('[stack begin]:', stack)
+    gas_sum, c_nodes, c_edges, q = stack_status_constraint(sym_mem,
+                                                           nodes, edges, '0', '',
+                                                           f_con, t_con, 0, 0,
+                                                           0, con, q, 0,
+                                                           conq, gasq)
+    # print('[stack final]:', memory)
 
     print('gas SUM = ', gas_sum)
 
     # create_graph(c_nodes, c_edges, 'symbolic_simulation')
 
 
+def stack_status_constraint(sym_mem,
+                            nodes, edges, tag, input_data,
+                            f_con, t_con, init_tag, s,
+                            gas_sum, con, q, count_condition,
+                            conq, gasq):
+    global count_sim
+    global stack
+    global storage
+    global memory
+
+    prev_ins = ''
+    print('[params]:', memory)
+
+    # print(count, tag, gas_sum)
+    if count_sim > 50:
+        return gas_sum, nodes, edges, q
+    else:
+        for n in nodes:
+            # print('[node]:', n)
+            n_tag = n[0]
+            # print('[n_tag]:', n_tag, ', [tag]:', tag)
+            if n_tag == tag:
+                # print('[node]:', n_tag)
+                n_label = n[1].get('label')
+                ins = n_label.split('\n')
+                print('[ins]:', ins)
+                for k in ins:
+                    p = k.split(': ')
+                    i = p[1]
+                    j = p[0]
+                    # print('[i]:', i, ', [j]:', j)
+                    if j != 'Stack Sum' and j != 'Gas':
+                        if len(stack) > 0:
+                            wSE.write('{}'.format(str(stack)))
+                        wSE.write('\n')
+                        wSE.write('{},'.format(str(i)))
+                    if i == 'JUMP':
+                        gas_conumption = gas_table[i]
+                        gas_sum  += gas_conumption
+                        flag, length, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0,
+                                                                                input_data, f_con, t_con)
+                        # print('[stack sim]:', flag, length, f_con, t_con, stack)
+
+                        # check = prev_ins.split(' ')
+                        # if check[1] == '[tag]':
+                        #     tag_num = check[2]
+                        #     for e in edges:
+                        #         if e[0][1] == tag_num and e[0][0] == tag:
+                        #             e[1]['color'] = 'red'
+                        #     if tag_num < tag:
+                        #         init_tag = tag_num
+                        #         print('--------------------------------------------------------------------')
+                        #         wSE.write(' {0:80} |'.format('X'))
+                        #         break
+                        #     else:
+                        #         wSE.write(' {0:80} |'.format('X'))
+                        #         value, init_tag, stack = stack_status_constraint(stack, storage, memory, nodes, edges,
+                        #  tag_num, input_data, f_con, t_con, count, init_tag, s)
+                        #         if value == 0:
+                        #             # print('123')
+                        #             break
+                        # else:
+                        #     continue
+
+                        for e in edges:
+                            if e[0][0] == n_tag:
+                                # print(e[0][0])
+                                for n1 in nodes:
+                                    if n1[0] == e[0][1]:
+                                        # print(n1[0])
+                                        # print(f_con, t_con)
+                                        l = n1[1].get('label')
+                                        no_pc = False
+                                        for l_content in l.split('\n'):
+                                            if 'PC' in l_content:
+                                                no_pc = False
+                                                l_content = l_content.split(': ')
+                                                if str(con) != l_content[1]:
+                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                            else:
+                                                no_pc = True
+                                        if no_pc:
+                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+
+                                        wSE.write('{},'.format('X'))
+                                        count_sim += 1
+                                        gas_sum, nodes, edges, q = stack_status_constraint(sym_mem,
+                                                                                           nodes, edges, n1[0], input_data,
+                                                                                           f_con, t_con, init_tag, s,
+                                                                                           gas_sum, con, q, count_condition,
+                                                                                           conq, gasq)
+                    elif i == 'JUMPI':
+                        # print('JUMPIII')
+                        gas_conumption = gas_table[i]
+                        gas_sum += gas_conumption
+                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0,
+                                                                                input_data, f_con, t_con)
+                        # print('[stack sim]:', flag, target, f_con, t_con, stack)
+
+                        # check = prev_ins.split(' ')
+                        # if flag == 1:
+                        #     if check[1] == '[tag]':
+                        #         tag_num = check[2]
+                        #         for e in edges:
+                        #             if e[0][1] == tag_num and e[0][0] == tag:
+                        #                 e[1]['color'] = 'red'
+                        #         wSE.write(' {0:80} |'.format('X'))
+                        #         value, init_tag, stack = stack_status_constraint(stack, storage, memory, nodes, edges, tag_num, input_data, f_con, t_con, count, init_tag, s)
+                        #         if value == 0:
+                        #             # print('4456')
+                        #             break
+                        # elif flag == 0:
+                        #     tag_num = str(int(check[2]) + 10000)
+                        #     for e in edges:
+                        #         if e[0][1] == tag_num:
+                        #             e[1]['color'] = 'red'
+                        #     wSE.write(' {0:80} |'.format('X'))
+                        #     value, init_tag, stack = stack_status_constraint(stack, storage, memory, nodes, edges, tag_num, input_data, f_con, t_con, count, init_tag, s)
+                        #     if value == 0:
+                        #         # print('789')
+                        #         break
+                        # else:
+                        #     constraint_jump(nodes, edges, stack, storage, memory, check, tag, input_data, f_con, t_con, count, init_tag, s)
+                        #     break
+
+                        # q = deque([])
+
+                        n[1]['id'] = 'Stack now'
+                        # print('[n]:', n[1])
+                        for item in stack:
+                            n[1]['id'] += ' ' + str(item)
+                        start_tag = tag
+                        for nn in nodes:
+                            if nn[0] == start_tag:
+                                # print('[nn]:', nn)
+                                tmp = nn[1].get('id').split('Stack now ')
+                                if len(tmp) == 1:
+                                    stack_new = []
+                                else:
+                                    stack_new = tmp[1].split(' ')
+                                q.append(stack_new)
+                                break
+
+                        n[1]['id'] += 'Con now'
+                        # print('[n]:', n[1])
+                        for item in con:
+                            n[1]['id'] += ' ' + str(item)
+                        start_tag = tag
+                        for nn in nodes:
+                            if nn[0] == start_tag:
+                                tmp = nn[1].get('id').split('Con now ')
+                                if len(tmp) == 1:
+                                    con_new = []
+                                else:
+                                    con_new = tmp[1].split(' ')
+                                conq.append(con_new)
+                                break
+
+                        n[1]['id'] += 'Gas now ' + str(gas_sum)
+                        # print('[n]:', n[1])
+                        start_tag = tag
+                        for nn in nodes:
+                            if nn[0] == start_tag:
+                                tmp = nn[1].get('id').split('Gas now ')
+                                if len(tmp) == 1:
+                                    gas_new = []
+                                else:
+                                    gas_new = tmp[1]
+                                # print(int(56.0))
+                                gasq.append(float(gas_new))
+                                break
+
+                        count_condition = 0
+
+                        for e in edges:
+                            # print('[edge]:', e)
+                            if e[0][0] == n_tag:
+                                count_condition += 1
+                                if count_condition > 1:
+                                    stack = q.pop()
+                                    con = conq.pop()
+                                    gas_sum = gasq.pop()
+                                # print('From: ', e[0][0])
+                                # print('Stack:', stack)
+                                # print('Con: ', con)
+                                for n1 in nodes:
+                                    if n1[0] == e[0][1]:
+                                        # print('To: ', e[0][1])
+                                        l = n1[1].get('label')
+                                        if int(e[0][1]) > 10000:
+                                            if flag != 1 and flag != 0:
+                                                no_pc = False
+                                                for l_content in l.split('\n'):
+                                                    if 'PC' in l_content:
+                                                        no_pc = False
+                                                        l_content = l_content.split(': ')
+                                                        if f_con[-1] != l_content[1]:
+                                                            con.append(f_con[-1])
+                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                    else:
+                                                        no_pc = True
+                                                if no_pc:
+                                                    con.append(f_con[-1])
+                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                wSE.write('{},'.format(f_con[-1]))
+                                            else:
+                                                no_pc = False
+                                                for l_content in l.split('\n'):
+                                                    if 'PC' in l_content:
+                                                        no_pc = False
+                                                        l_content = l_content.split(': ')
+                                                        if str(con) != l_content[1]:
+                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                    else:
+                                                        no_pc = True
+                                                if no_pc:
+                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                wSE.write('{},'.format('X'))
+                                        else:
+                                            if flag != 1 and flag != 0:
+                                                no_pc = False
+                                                for l_content in l.split('\n'):
+                                                    if 'PC' in l_content:
+                                                        no_pc = False
+                                                        l_content = l_content.split(': ')
+                                                        if t_con[-1] != l_content[1]:
+                                                            con.append(t_con[-1])
+                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                    else:
+                                                        no_pc = True
+                                                if no_pc:
+                                                    con.append(t_con[-1])
+                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                wSE.write('{},'.format(t_con[-1]))
+                                            else:
+                                                no_pc = False
+                                                for l_content in l.split('\n'):
+                                                    if 'PC' in l_content:
+                                                        no_pc = False
+                                                        l_content = l_content.split(': ')
+                                                        if str(con) != l_content[1]:
+                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                    else:
+                                                        no_pc = True
+                                                if no_pc:
+                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                                wSE.write('{},'.format('X'))
+                                        count_sim += 1
+                                        gas_sum, nodes, edges, q = stack_status_constraint(sym_mem,
+                                                                                           nodes, edges, n1[0], input_data,
+                                                                                           f_con, t_con, init_tag, s,
+                                                                                           gas_sum, con, q, count_condition,
+                                                                                           conq, gasq)
+                                        # print('NEXT')
+
+                    # elif i == 'REVERT' or i == 'STOP' or i == 'RETURN' or i == 'JUMP [out]':
+                    #     # print('RRRRRRRRRRRRRRRRR')
+                    #     return 0, 0, 0
+
+                    elif j == 'Stack Sum' and (prev_ins == 'POP' or prev_ins == 'SWAP1' or 'PUSH' in prev_ins or
+                                                       prev_ins == 'TIMESTAMP' or prev_ins == 'JUMPDEST'):
+                        for e in edges:
+                            if e[0][0] == n_tag:
+                                # print(e[0][0])
+                                for n1 in nodes:
+                                    if n1[0] == e[0][1]:
+                                        l = n1[1].get('label')
+                                        no_pc = False
+                                        for l_content in l.split('\n'):
+                                            # print('[content]:', l_content)
+                                            if 'PC' in l_content:
+                                                no_pc = False
+                                                l_content = l_content.split(': ')
+                                                if str(con) != l_content[1]:
+                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                            else:
+                                                no_pc = True
+                                        if no_pc:
+                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
+                                        # print(n1[0])
+                                        wSE.write('{},'.format('X'))
+                                        count_sim += 1
+                                        gas_sum, nodes, edges, q = stack_status_constraint(sym_mem,
+                                                                                           nodes, edges, n1[0], input_data,
+                                                                                           f_con, t_con, init_tag, s,
+                                                                                           gas_sum, con, q, count_condition,
+                                                                                           conq, gasq)
+                    elif j == 'Stack Sum' or j == 'Gas' or j == 'PC':
+                        # print('GAS = ', gas_sum)
+                        # print('Gas constraint:', con)
+                        return gas_sum, nodes, edges, q
+                    else:
+                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0, input_data, f_con, t_con)
+                        if flag != 'no':
+                            # print(flag)
+                            gas = flag
+                            # print('gas = ', gas)
+                            if isinstance(gas, str):
+                                print('Gas Constraint: ', gas)
+                            else:
+                                gas_sum += gas
+                        else:
+                            if 'PUSH' in i:
+                                i = i.split(' ')[0]
+                                gas_conumption = gas_table[i]
+                                # print('[opcode]:', i, ', [gas]:', gas_conumption)
+                                gas_sum += gas_conumption
+                            elif 'tag' in i:
+                                continue
+                            else:
+                                t = re.sub(r'\d+', '', str(i))
+                                gas_conumption = gas_table[t]
+                                # print('[opcode]:', i, ', [gas]:', gas_conumption)
+                                gas_sum += gas_conumption
+                        wSE.write('{},'.format('X'))
+                    prev_ins = i
+                    # print('[i]:', i)
+                    # wSE.write(' {0:80} |'.format('X'))
+                    # if int(init_tag) > 0:
+                    #     # print('init_tag = ', init_tag)
+                    #     break
+
+        # create_graph(nodes, edges, 'cfg_with_constraint_{}'.format(666))
+        # return 0, init_tag, stack
+
+        return gas_sum, nodes, edges, q
+
+
+def graph_detail(nodes):
+    count = 0
+
+    for n in nodes:
+        label = n[1].get('label')
+        label_content = label.split('\n')
+        for l in label_content:
+            if 'Stack' in l or 'Gas' in l or 'PC' in l:
+                break
+            else:
+                count += 1
+
+    print('[INFO] Total instructions: ', count)
+
+
+def create_graph(n, e, dir_name, row_id):
+    # print('[INFO] Constructing visualizing graph')
+    digraph = functools.partial(gv.Digraph, format='svg')
+    g = add_edges(add_nodes(digraph(), n), e)
+    filename = 'img/{}/{}'.format(dir_name, row_id)
+    g.render(filename=filename)
+    # print('[COMPLETE - CFG construction]')
+
+    return g
+
+
+
+
+
+# ***** NOT USE *****
+
+def max_gas_path(nodes, edges):
+    max_gas = 0
+
+    # indexing nodes
+    node_list = list()
+    for n in nodes:
+        node = {
+            'index': n[0],
+            'gas': n[1].get('label').split('Gas: ')[1],
+            'node': n,
+            'check': False
+        }
+        node_list.append(node)
+
+    tmp_e_list = []
+    gas_sum = 0
+    run = True
+    while(run):
+        tmp_n_list = [nodes[0]]
+        for n in node_list:
+            tmp_gas = 0
+            if n in tmp_n_list or len(tmp_n_list) == 0:
+                tmp_e = ()
+                tmp_n = ()
+                for e in edges:
+                    is_check = None
+                    for node in node_list:
+                        if e[0][1] == node['index']:
+                            is_check = node['check']
+
+                    if e[0][1] == n[0] and is_check == False:
+                        for n1 in nodes:
+                            if e[0][1] == n1[0]:
+                                gas = n1[1].get('label').split('Gas: ')[1]
+                                print('GAS: ' + gas)
+                                tmp_gas = int(gas)
+                                tmp_e = e
+                                tmp_n = n1
+                print('tmp_gas:', tmp_gas)
+                gas_sum += tmp_gas
+
+                if tmp_e != () and tmp_n != ():
+                    tmp_e_list.append(tmp_e)
+                    tmp_n_list.append(tmp_n)
+
+
 def gas_path(nodes, edges):
+    # pprint(nodes)
     tmp_n_list = [nodes[0]]
     tmp_e_list = []
+    gas_sum = 0
     for n in nodes:
+        # print(n[0])
         # tmp_e = ()
         tmp_gas = 0
+        # print(tmp_n_list)
         if n in tmp_n_list or len(tmp_n_list) == 0:
             tmp_e = ()
             tmp_n = ()
             for e in edges:
+                # pprint(e)
                 if e[0][0] == n[0]:
+                    # print('Yesssssss')
                     for n1 in nodes:
                         if e[0][1] == n1[0]:
                             gas = n1[1].get('label').split('Gas: ')[1]
-                            # print('GAS: ' + gas)
+                            print('GAS: ' + gas)
                             if tmp_gas == 0:
                                 tmp_gas = int(gas)
                                 tmp_e = e
                                 tmp_n = n1
                             elif int(gas) >= tmp_gas > 0:
+                                tmp_gas = int(gas)
                                 tmp_e = e
                                 tmp_n = n1
+            print('tmp_gas:', tmp_gas)
+            gas_sum += tmp_gas
             # print(tmp_e, tmp_n)
             if tmp_e != () and tmp_n != ():
                 tmp_e_list.append(tmp_e)
                 tmp_n_list.append(tmp_n)
 
+    print('GAS SUM: ', gas_sum)
     return tmp_n_list, tmp_e_list
 
 
@@ -584,6 +1066,24 @@ def stack_simulation_evm(function_input, binrun):
         print('Error: ', ex)
 
 
+def add_nodes(graph, nodes):
+    for n in nodes:
+        if isinstance(n, tuple):
+            graph.node(n[0], **n[1])
+        else:
+            graph.node(n)
+    return graph
+
+
+def add_edges(graph, edges):
+    for e in edges:
+        if isinstance(e[0], tuple):
+            graph.edge(*e[0], **e[1])
+        else:
+            graph.edge(*e)
+    return graph
+
+
 def constraint_jump(nodes, edges, stack, storage, memory, check, tag, input_data, f_con, t_con, count, init_tag, s):
     if count > 8:
         print('count = ', count)
@@ -682,352 +1182,6 @@ def constraint_jump(nodes, edges, stack, storage, memory, check, tag, input_data
                     # print(f_con)
                     # print(t_con)
     # constraint_graph(t_con, f_con)
-
-
-def stack_status_constraint(stack, storage, memory, sym_mem, nodes, edges, tag, input_data, f_con, t_con, count, init_tag, s,
-                            gas_sum, con, q, count_condition, conq, gasq):
-    prev_ins = ''
-    # print(con)
-
-    # print(count, tag, gas_sum)
-    if count > 50:
-        return gas_sum, nodes, edges, q
-    else:
-        for n in nodes:
-            n_tag = n[0]
-            if n_tag == tag:
-                n_label = n[1].get('label')
-                ins = n_label.split('\n')
-                # print(ins)
-                for k in ins:
-                    p = k.split(': ')
-                    i = p[1]
-                    j = p[0]
-                    if j != 'Stack Sum' and j != 'Gas':
-                        if len(stack) > 0:
-                            wSE.write('{}'.format(str(stack)))
-                        wSE.write('\n')
-                        wSE.write('{},'.format(str(i)))
-                    if i == 'JUMP':
-                        gas_conumption = gas_table[i]
-                        gas_sum += gas_conumption
-                        flag, length, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0,
-                                                                                input_data, f_con, t_con)
-                        # check = prev_ins.split(' ')
-                        # if check[1] == '[tag]':
-                        #     tag_num = check[2]
-                        #     for e in edges:
-                        #         if e[0][1] == tag_num and e[0][0] == tag:
-                        #             e[1]['color'] = 'red'
-                        #     if tag_num < tag:
-                        #         init_tag = tag_num
-                        #         print('--------------------------------------------------------------------')
-                        #         wSE.write(' {0:80} |'.format('X'))
-                        #         break
-                        #     else:
-                        #         wSE.write(' {0:80} |'.format('X'))
-                        #         value, init_tag, stack = stack_status_constraint(stack, storage, memory, nodes, edges,
-                        #  tag_num, input_data, f_con, t_con, count, init_tag, s)
-                        #         if value == 0:
-                        #             # print('123')
-                        #             break
-                        # else:
-                        #     continue
-
-                        for e in edges:
-                            if e[0][0] == n_tag:
-                                # print(e[0][0])
-                                for n1 in nodes:
-                                    if n1[0] == e[0][1]:
-                                        # print(n1[0])
-                                        # print(f_con, t_con)
-                                        l = n1[1].get('label')
-                                        no_pc = False
-                                        for l_content in l.split('\n'):
-                                            if 'PC' in l_content:
-                                                no_pc = False
-                                                l_content = l_content.split(': ')
-                                                if str(con) != l_content[1]:
-                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                            else:
-                                                no_pc = True
-                                        if no_pc:
-                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-
-                                        wSE.write('{},'.format('X'))
-                                        count += 1
-                                        gas_sum, nodes, edges, q = stack_status_constraint(stack, storage, memory, sym_mem, nodes,
-                                                                                        edges, n1[0], input_data,
-                                                                                        f_con, t_con, count, init_tag,
-                                                                                        s, gas_sum, con, q,
-                                                                                           count_condition, conq, gasq)
-                    elif i == 'JUMPI':
-                        gas_conumption = gas_table[i]
-                        gas_sum += gas_conumption
-                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0,
-                                                                                input_data, f_con, t_con)
-                        # check = prev_ins.split(' ')
-                        # if flag == 1:
-                        #     if check[1] == '[tag]':
-                        #         tag_num = check[2]
-                        #         for e in edges:
-                        #             if e[0][1] == tag_num and e[0][0] == tag:
-                        #                 e[1]['color'] = 'red'
-                        #         wSE.write(' {0:80} |'.format('X'))
-                        #         value, init_tag, stack = stack_status_constraint(stack, storage, memory, nodes, edges, tag_num, input_data, f_con, t_con, count, init_tag, s)
-                        #         if value == 0:
-                        #             # print('4456')
-                        #             break
-                        # elif flag == 0:
-                        #     tag_num = str(int(check[2]) + 10000)
-                        #     for e in edges:
-                        #         if e[0][1] == tag_num:
-                        #             e[1]['color'] = 'red'
-                        #     wSE.write(' {0:80} |'.format('X'))
-                        #     value, init_tag, stack = stack_status_constraint(stack, storage, memory, nodes, edges, tag_num, input_data, f_con, t_con, count, init_tag, s)
-                        #     if value == 0:
-                        #         # print('789')
-                        #         break
-                        # else:
-                        #     constraint_jump(nodes, edges, stack, storage, memory, check, tag, input_data, f_con, t_con, count, init_tag, s)
-                        #     break
-
-                        # q = deque([])
-
-                        n[1]['id'] = 'Stack now'
-                        for item in stack:
-                            n[1]['id'] += ' ' + str(item)
-                        start_tag = tag
-                        for nn in nodes:
-                            if nn[0] == start_tag:
-                                tmp = nn[1].get('id').split('Stack now ')
-                                if len(tmp) == 1:
-                                    stack_new = []
-                                else:
-                                    stack_new = tmp[1].split(' ')
-                                q.append(stack_new)
-                                break
-
-                        n[1]['id'] += 'Con now'
-                        for item in con:
-                            n[1]['id'] += ' ' + str(item)
-                        start_tag = tag
-                        for nn in nodes:
-                            if nn[0] == start_tag:
-                                tmp = nn[1].get('id').split('Con now ')
-                                if len(tmp) == 1:
-                                    con_new = []
-                                else:
-                                    con_new = tmp[1].split(' ')
-                                conq.append(con_new)
-                                break
-
-                        n[1]['id'] += 'Gas now ' + str(gas_sum)
-                        start_tag = tag
-                        for nn in nodes:
-                            if nn[0] == start_tag:
-                                tmp = nn[1].get('id').split('Gas now ')
-                                if len(tmp) == 1:
-                                    gas_new = []
-                                else:
-                                    gas_new = tmp[1]
-                                # print(int(56.0))
-                                gasq.append(float(gas_new))
-                                break
-
-                        count_condition = 0
-
-                        for e in edges:
-                            if e[0][0] == n_tag:
-                                count_condition += 1
-                                if count_condition > 1:
-                                    stack = q.pop()
-                                    con = conq.pop()
-                                    gas_sum = gasq.pop()
-                                # print('From: ', e[0][0])
-                                # print('Stack:', stack)
-                                # print('Con: ', con)
-                                for n1 in nodes:
-                                    if n1[0] == e[0][1]:
-                                        # print('To: ', e[0][1])
-                                        l = n1[1].get('label')
-                                        if int(e[0][1]) > 10000:
-                                            if flag != 1 and flag != 0:
-                                                no_pc = False
-                                                for l_content in l.split('\n'):
-                                                    if 'PC' in l_content:
-                                                        no_pc = False
-                                                        l_content = l_content.split(': ')
-                                                        if f_con[-1] != l_content[1]:
-                                                            con.append(f_con[-1])
-                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                    else:
-                                                        no_pc = True
-                                                if no_pc:
-                                                    con.append(f_con[-1])
-                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                wSE.write('{},'.format(f_con[-1]))
-                                            else:
-                                                no_pc = False
-                                                for l_content in l.split('\n'):
-                                                    if 'PC' in l_content:
-                                                        no_pc = False
-                                                        l_content = l_content.split(': ')
-                                                        if str(con) != l_content[1]:
-                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                    else:
-                                                        no_pc = True
-                                                if no_pc:
-                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                wSE.write('{},'.format('X'))
-                                        else:
-                                            if flag != 1 and flag != 0:
-                                                no_pc = False
-                                                for l_content in l.split('\n'):
-                                                    if 'PC' in l_content:
-                                                        no_pc = False
-                                                        l_content = l_content.split(': ')
-                                                        if t_con[-1] != l_content[1]:
-                                                            con.append(t_con[-1])
-                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                    else:
-                                                        no_pc = True
-                                                if no_pc:
-                                                    con.append(t_con[-1])
-                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                wSE.write('{},'.format(t_con[-1]))
-                                            else:
-                                                no_pc = False
-                                                for l_content in l.split('\n'):
-                                                    if 'PC' in l_content:
-                                                        no_pc = False
-                                                        l_content = l_content.split(': ')
-                                                        if str(con) != l_content[1]:
-                                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                    else:
-                                                        no_pc = True
-                                                if no_pc:
-                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                                wSE.write('{},'.format('X'))
-                                        count += 1
-                                        gas_sum, nodes, edges, q = stack_status_constraint(stack, storage, memory, sym_mem, nodes,
-                                                                                        edges, n1[0], input_data,
-                                                                                        f_con, t_con, count, init_tag,
-                                                                                        s, gas_sum, con, q,
-                                                                                           count_condition, conq, gasq)
-                                        # print('NEXT')
-
-                    # elif i == 'REVERT' or i == 'STOP' or i == 'RETURN' or i == 'JUMP [out]':
-                    #     # print('RRRRRRRRRRRRRRRRR')
-                    #     return 0, 0, 0
-
-                    elif j == 'Stack Sum' and (prev_ins == 'POP' or prev_ins == 'SWAP1' or 'PUSH' in prev_ins or
-                                                       prev_ins == 'TIMESTAMP' or prev_ins == 'JUMPDEST'):
-                        for e in edges:
-                            if e[0][0] == n_tag:
-                                # print(e[0][0])
-                                for n1 in nodes:
-                                    if n1[0] == e[0][1]:
-                                        l = n1[1].get('label')
-                                        no_pc = False
-                                        for l_content in l.split('\n'):
-                                            if 'PC' in l_content:
-                                                no_pc = False
-                                                l_content = l_content.split(': ')
-                                                if str(con) != l_content[1]:
-                                                    n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                            else:
-                                                no_pc = True
-                                        if no_pc:
-                                            n1[1].update({'label': l + '\n' + 'PC: ' + str(con)})
-                                        # print(n1[0])
-                                        wSE.write('{},'.format('X'))
-                                        count += 1
-                                        gas_sum, nodes, edges, q = stack_status_constraint(stack, storage, memory, sym_mem, nodes,
-                                                                                        edges, n1[0], input_data,
-                                                                                        f_con, t_con, count, init_tag,
-                                                                                        s, gas_sum, con, q,
-                                                                                           count_condition, conq, gasq)
-                    elif j == 'Stack Sum' or j == 'Gas' or j == 'PC':
-                        print('GAS = ', gas_sum)
-                        print(con)
-                        return gas_sum, nodes, edges, q
-                    else:
-                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0, input_data, f_con, t_con)
-                        if flag != 'no':
-                            # print(flag)
-                            gas = flag
-                            # print('gas = ', gas)
-                            if isinstance(gas, str):
-                                print('Gas Constraint: ', gas)
-                            else:
-                                gas_sum += gas
-                        else:
-                            if 'PUSH' in i:
-                                i = i.split(' ')[0]
-                                gas_conumption = gas_table[i]
-                                gas_sum += gas_conumption
-                            elif 'tag' in i:
-                                continue
-                            else:
-                                t = re.sub(r'\d+', '', str(i))
-                                gas_conumption = gas_table[t]
-                                gas_sum += gas_conumption
-                        wSE.write('{},'.format('X'))
-                    prev_ins = i
-                    # wSE.write(' {0:80} |'.format('X'))
-                    # if int(init_tag) > 0:
-                    #     # print('init_tag = ', init_tag)
-                    #     break
-
-        # create_graph(nodes, edges, 'cfg_with_constraint_{}'.format(666))
-        # return 0, init_tag, stack
-
-        return gas_sum, nodes, edges, q
-
-
-def graph_detail(nodes):
-    count = 0
-
-    for n in nodes:
-        label = n[1].get('label')
-        label_content = label.split('\n')
-        for l in label_content:
-            if 'Stack' in l or 'Gas' in l or 'PC' in l:
-                break
-            else:
-                count += 1
-
-    print('[INFO] Total instructions: ', count)
-
-
-def create_graph(n, e, dir_name, row_id):
-    # print('[INFO] Constructing visualizing graph')
-    digraph = functools.partial(gv.Digraph, format='png')
-    g = add_edges(add_nodes(digraph(), n), e)
-    filename = 'img/{}/{}'.format(dir_name, row_id)
-    g.render(filename=filename)
-    # print('[COMPLETE - CFG construction]')
-
-    return g
-
-
-def add_nodes(graph, nodes):
-    for n in nodes:
-        if isinstance(n, tuple):
-            graph.node(n[0], **n[1])
-        else:
-            graph.node(n)
-    return graph
-
-
-def add_edges(graph, edges):
-    for e in edges:
-        if isinstance(e[0], tuple):
-            graph.edge(*e[0], **e[1])
-        else:
-            graph.edge(*e)
-    return graph
 
 
 def apply_styles(graph, styles):

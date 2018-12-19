@@ -203,7 +203,6 @@ def update_assembly_to_db(op, op_pre, row_id, json_name, test_mode):
                         WHERE contract_name='{}';
                         '''.format(json_name))
             id_list = cur.fetchall()
-            print(id_list)
 
             if len(id_list) == 0:
                 cur.execute('''
