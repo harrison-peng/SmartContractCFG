@@ -1,20 +1,16 @@
 # -*- coding: UTF-8 -*-
 
-from collections import deque
 from gas_price import *
 from opcode_table import *
 import se_ins as se
-import sys
 import graphviz as gv
 import functools
 import argparse
 import re
-import time
 import os
-import math
 from subprocess import check_output, call
 import json
-from pprint import pprint
+import sys
 
 f_SE = os.path.join(os.path.dirname(__file__), 'SE')
 wSE = open(f_SE, 'w')
@@ -25,6 +21,8 @@ count_sim = 0
 stack = []
 storage = []
 memory = []
+nodes = []
+edges = []
 
 
 def main():
@@ -36,7 +34,6 @@ def main():
 
     # -t : 測試模式(測試結果不會寫入資料庫)，需要搭配 -code <filename> 使用
 
-
     if args.l:
         if args.code == '':
             print('Error')
@@ -46,23 +43,29 @@ def main():
             contract_name = os.path.basename(f_src).split('.')[0]
 
             print('[INFO] Start Transforming contract {} source code to Assembly.'.format(contract_name))
-            preproc(f_src)   # 將SOURCE CODE編譯成OPCODE
+            preproc(f_src)  # 將SOURCE CODE編譯成OPCODE
 
-            # asm_analysis(contract_name)
+            for file in os.listdir("./opcode"):
+                file_name, contract_name = file.split('_')
+                asm_analysis(file_name, contract_name)
 
     else:
         print('Must use an argument, -l for individual source code')
 
 
 def preproc(file_name):
-    f_op = os.path.join(os.path.dirname(__file__), 'opcode', 'opcode')
-    f_op_pre = os.path.join(os.path.dirname(__file__), 'opcode', 'opcode_pre')
     contract_name = os.path.basename(file_name).split('.')[0]
 
     try:
         print('\n[INFO] Empty the output directory.')
         call(['rm', '-rf', './output'])
         call(['mkdir', './output'])
+
+        print('\n[INFO] Empty the opcode directory.')
+        call(['rm', '-rf', './opcode'])
+        call(['rm', '-rf', './opcode_pre'])
+        call(['mkdir', './opcode'])
+        call(['mkdir', './opcode_pre'])
     except Exception as ex:
         print('Error: ', ex)
 
@@ -78,6 +81,8 @@ def preproc(file_name):
             name = f_asm_json.split('./output/')[1].split('_evm.json')[0]
 
             try:
+                f_op = os.path.join(os.path.dirname(__file__), 'opcode', '%s_%s' % (contract_name, name))
+                f_op_pre = os.path.join(os.path.dirname(__file__), 'opcode_pre', '%s_%s' % (contract_name, name))
                 w_pre = open(f_op_pre, 'w')
                 w_op = open(f_op, 'w')
 
@@ -118,17 +123,23 @@ def preproc(file_name):
             except Exception as ex:
                 print('[Error]: ', ex)
 
-            print('[CONTRACT NAME]:', name)
-            asm_analysis(contract_name, name)
-
 
 def asm_analysis(file_name, contract_name):
-    with open('./opcode/opcode', 'r') as f:
+    global nodes
+    global edges
+    nodes = []
+    edges = []
+
+    with open('./opcode/%s_%s' % (file_name, contract_name), 'r') as f:
         opcode_data = f.read()
 
-    contract_opcode = opcode_data
-    contract_name = contract_name
-    nodes, edges = cfg_construction(contract_opcode, contract_name, file_name)  # 將OPCODE建成CFG
+    cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
+
+    print('[INFO] CFG node count = ', len(nodes))
+    print('[INFO] CFG edge count = ', len(edges))
+
+    graph_detail()
+    create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
 
     # n, e = gas_path(nodes, edges)
     # create_graph(n, e, 'MaxPath/%s' % contract_name, contract_name)
@@ -139,310 +150,256 @@ def asm_analysis(file_name, contract_name):
     # cycle_detection(nodes, edges)
 
 
-def cfg_construction(opcode_data, name, file_name):
-    print('''[INFO] Constructing CFG for contract '{}'. '''.format(name))
-    # print(opcode_data)
+def cfg_construction(opcode_data, contract_name):
+    global nodes
+    global edges
 
-    nodes = []
-    edges = []
-    init_tag_num = 0
+    print('''[INFO] Constructing CFG for contract '{}'. '''.format(contract_name))
 
     opcode_list = opcode_data.split('\n')
-    # print('[opcode]:', opcode_list)
+    for i in range(len(opcode_list)):
+        opcode_list[i] = (i, opcode_list[i])
+
+    tag_num = 0
+    stack_sum = 0
+    tag_line_dict = dict()
+    stacks = list()
+
+    for _ in range(10):
+        cfg_implement(opcode_list, 0, stacks, tag_num, stack_sum, tag_line_dict)
+
+
+
+def cfg_implement(opcode_list, line, stacks, tag_num, stack_sum, tag_line_dict):
+    global nodes
+    global edges
 
     segment_ins = ['tag', 'JUMP', 'JUMPI', 'STOP', 'REVERT', 'INVALID', 'RETURN']
 
-    tag_num = 0 + init_tag_num
-    jump_tag = 0
-    stack_sum = 0
-    gas_total = 0
-    prev_tag = 0
     node_content = ''
     prev_ins = ''
-    gas_constraint = ''
-    tag_value = ''
-    jump_out_next_tag = ''
-    edge_color = 'blue'
-    is_end = []
-    push_tag_list = []
+    prev_tag = 0
+    gas_total = 0
+    jump_tag = 0
     from_jumpi = False
-    not_out = False
-    from_outer = False
-    from_jump_out = False
-    tag_push_dict = dict()
-    push_stack_li = list()
-    left_jump_out = list()
+    push_tag = list()
 
-    for idx, line in enumerate(opcode_list):
+    opcode_sublist = opcode_list[line:]
+    for index, line in opcode_sublist:
         s = line.rstrip().split(' ')
-        # print('[codes]:', s)
 
         if s[0] == '':
             continue
         elif s[0] in segment_ins:
-            # print('[PUSH STACK]:', push_stack_li)
             if s[0] == 'tag':
-                # print('[tag]', s)
+                tag_line_dict.update({int(s[1]): index})
                 if node_content == '':
-                    tag_num = int(s[1]) + init_tag_num
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n'
+                    tag_num = int(s[1])
+                    node_content += str(index) + ': ' + line.rstrip() + '\n'
                 else:
-                    # ***** NOTE: NOT RUN THIS PART *****
-                    # print('[node_content]', node_content)
-                    node_content += 'Stack Sum: ' + str(stack_sum) + '\n' + 'Gas: ' + str(
-                        gas_total)  # + ' + [' + gas_constraint + ']'
-                    nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-                    node_content = ''
-                    if from_jumpi:
-                        edges.append(((str(prev_tag), str(tag_num)),
-                                      {'label': '',
-                                       'color': edge_color}))
-                        from_jumpi = False
-                        # not_out = True
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n'
-                    prev_tag = tag_num
-                    tag_num = int(s[1]) + init_tag_num
-                    edges.append(((str(prev_tag), str(tag_num)),
-                                  {'label': '',
-                                   'color': 'blue'}))
-                    stack_sum = 0
-                # print('[node_content]', node_content)
-                # print('[edges]:', edges)
-            else:
-                # print('[code]', s)
+                    node_content += 'Stack Sum: ' + str(stack_sum) + '\n' + 'Gas: ' + str(gas_total)
+                    node_exist = is_nodes_exist(tag_num)
+                    if not node_exist:
+                        node_content = '[TAG: %d]\n\n' % tag_num + node_content
+                        nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
 
+
+                    if from_jumpi:
+                        edge_exist = is_edge_exist(prev_tag, tag_num)
+                        if not edge_exist:
+                            edges.append(((str(prev_tag), str(tag_num)),
+                                          {'label': '',
+                                           'color': 'blue'}))
+                        from_jumpi = False
+
+                    edge_exist = is_edge_exist(tag_num, int(s[1]))
+                    if not edge_exist:
+                        edges.append(((str(tag_num), s[1]),
+                                      {'label': '',
+                                       'color': 'blue'}))
+
+                    for push_stack in stacks:
+                        if push_stack[-1][1] == tag_num:
+                            push_stack.pop()
+                            push_stack.append((index, int(s[1])))
+
+                    stack_sum = 0
+                    node_content = ''
+                    node_content += str(index) + ': ' + line.rstrip() + '\n'
+                    prev_tag = tag_num
+                    tag_num = int(s[1])
+            else:
                 # COUNT GAS
                 gi = re.sub(r'\d+', '', str(s[0]))
                 gas = gas_table[gi]
                 gas_total += gas
 
-                if tag_num in tag_push_dict.keys() and len(tag_push_dict[tag_num]) > 1:
-                    # print('[dict]:', tag_num, tag_push_dict[tag_num], push_stack_li)
-                    stack_exist = False
-                    for push_stack in push_stack_li:
-                        if push_stack[-1] == tag_num:
-                            stack_exist = True
-                            push_stack.pop()
-                            for tag in tag_push_dict[tag_num]:
-                                push_stack.append(int(tag))
-
-                    if not stack_exist:
-                        push_stack = list()
-                        for tag in tag_push_dict[tag_num]:
-                            push_stack.append(int(tag))
-                        push_stack_li.append(push_stack)
-                # print('[dict]:', tag_num, push_stack_li)
-
                 if from_jumpi:
-                    # print('[tag_num]:', tag_num)
-                    edges.append(((str(prev_tag), str(tag_num)),
-                                  {'label': '',
-                                   'color': edge_color}))
+                    edge_exist = is_edge_exist(prev_tag, tag_num)
+                    if not edge_exist:
+                        edges.append(((str(prev_tag), str(tag_num)),
+                                      {'label': '',
+                                       'color': 'blue'}))
                     from_jumpi = False
-                    # not_out = True
 
                 if s[0] == 'JUMP' and len(s) == 1 and len(prev_ins) > 1:
-                    for push_stack in push_stack_li:
-                        if tag_num == push_stack[-1]:
-                            push_stack.pop()
-                            push_stack.append(int(prev_ins[2]))
+                    push_stack = list()
+                    for tag in push_tag:
+                        push_stack.append(tag)
+                    stacks.append(push_stack)
 
                     stack_sum -= 1
-                    # print('[node_content]:', node_content)
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
-                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
-                    # print('[node_content]:', node_content)
-                    nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-                    # if from_jump_out:
-                    #     jump_tag = int(jump_out_next_tag) + init_tag_num
-                    #     from_jump_out = False
-                    # else:
-                    jump_tag = int(prev_ins[2]) + init_tag_num
-                    edges.append(((str(tag_num), str(jump_tag)),
-                                  {'label': '',
-                                   'color': 'blue'}))
-                    # print('[FROM]:', tag_num, ', [TO]:', jump_tag)
-                    node_content = ''
-                    not_out = False
-                elif s[0] == 'JUMPI':
-                    # print('[JUMPI]:', push_stack_li, tag_num)
-                    for push_stack in push_stack_li:
-                        if len(push_stack) > 0 and tag_num == push_stack[-1]:
-                            print('[JUMPI]:', push_stack)
-                            push_stack.pop()
-                            push_stack.append(int(prev_ins[2]))
+                    node_content += str(index) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
+                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)
+                    node_exist = is_nodes_exist(tag_num)
+                    if not node_exist:
+                        node_content = '[TAG: %d]\n\n' % tag_num + node_content
+                        nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
 
-                    # print('[PUSH SIZE]:', prev_ins, len(push_tag_list))
-                    stack_sum -= 2
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
-                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
-                    nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-                    jump_tag = int(prev_ins[2]) + init_tag_num
-                    edges.append(((str(tag_num), str(jump_tag)),
-                                  {'label': '',
-                                   'color': edge_color}))
-                    # ***** NOTE: NOT RUN THIS PART *****
-                    if from_outer:
-                        for i in is_end:
-                            edges.append(((str(i), str(tag_num)),
-                                          {'label': '',
-                                           'color': edge_color}))
-                        from_outer = False
+                    jump_tag = int(prev_ins[2])
+                    edge_exist = is_edge_exist(tag_num, jump_tag)
+                    if not edge_exist:
+                        edges.append(((str(tag_num), str(jump_tag)),
+                                      {'label': '',
+                                       'color': 'blue'}))
+                    push_tag = list()
                     node_content = ''
+                elif s[0] == 'JUMPI':
+                    stack_sum -= 2
+                    node_content += str(index) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
+                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)
+                    node_exist = is_nodes_exist(tag_num)
+                    if not node_exist:
+                        node_content = '[TAG: %d]\n\n' % tag_num + node_content
+                        nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
+
+                    jump_tag = int(prev_ins[2])
+                    edge_exist = is_edge_exist(tag_num, jump_tag)
+                    if not edge_exist:
+                        edges.append(((str(tag_num), str(jump_tag)),
+                                      {'label': '',
+                                       'color': 'blue'}))
+
+                    for push_stack in stacks:
+                        if tag_num == push_stack[-1][1]:
+                            push_stack.pop()
+                            for tag in push_tag:
+                                push_stack.append(tag)
+
+                    node_content = ''
+                    push_tag = list()
                     prev_tag = tag_num
                     from_jumpi = True
                 elif len(s) > 1 and s[0] == 'JUMP' and s[1] == '[in]':
-                    # for push_stack in push_stack_li:
-                    #     if len(push_stack) > 0 and tag_num == push_stack[-1]:
-                    #         print('[STACK]:', push_stack)
-                            # push_stack.pop()
-                            # push_stack.append(int(prev_ins[2]))
+                    for push_stack in stacks:
+                        if push_stack[-1][1] == tag_num:
+                            push_stack.pop()
+                            for tag in push_tag:
+                                push_stack.append(tag)
 
-                    # print('[Code]:', s, prev_ins)
                     stack_sum -= 1
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
-                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
-                    nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-                    jump_tag = int(push_tag_list[-1]) + init_tag_num
-                    edges.append(((str(tag_num), str(jump_tag)),
-                                  {'label': str(tag_value),
-                                   'color': edge_color}))
+                    node_content += str(index) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
+                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)
+                    node_exist = is_nodes_exist(tag_num)
+                    if not node_exist:
+                        node_content = '[TAG: %d]\n\n' % tag_num + node_content
+                        nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
+                    edge_exist = is_edge_exist(tag_num, push_tag[-1][1])
+                    if not edge_exist:
+                        edges.append(((str(tag_num), str(push_tag[-1][1])),
+                                      {'label': '',
+                                       'color': 'blue'}))
+
                     node_content = ''
+                    push_tag = list()
                     prev_tag = tag_num
+
                 elif len(s) > 1 and s[0] == 'JUMP' and s[1] == '[out]':
+                    find_out = False
+                    jump_to_line = sys.maxsize
+                    jump_to_tag = -1
+                    for push_stack in stacks:
+                        if len(push_stack) > 1 and push_stack[-1][1] == tag_num:
+                            jump_from = push_stack.pop()[1]
+                            jump_to = push_stack[-1][1]
+                            edge_exist = is_edge_exist(jump_from, jump_to)
+                            if not edge_exist:
+                                find_out = True
+                                if tag_line_dict[push_stack[-1][1]] < jump_to_line:
+                                    jump_to_line = tag_line_dict[push_stack[-1][1]]
+                                    jump_to_tag = push_stack[-1][1]
+                                edges.append(((str(jump_from), str(jump_to)),
+                                              {'label': '',
+                                               'color': 'blue'}))
+                    if find_out:
+                        return cfg_implement(opcode_list, jump_to_line,
+                                                 stacks, jump_to_tag,
+                                                 stack_sum, tag_line_dict)
+
                     stack_sum -= 1
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
-                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
-                    nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-                    add_edge = False
-                    for push_stack in push_stack_li:
-                        if len(push_stack) > 0 and tag_num == push_stack[-1]:
-                            # print('[JUMP OUT]:', push_stack)
-                            jump_from = push_stack.pop()
-                            jump_to = push_stack.pop()
-                            edges.append(((str(jump_from), str(jump_to)),
-                                          {'label': str(tag_value),
-                                           'color': edge_color}))
-                            add_edge = True
-                    if not add_edge:
-                        left_jump_out.append(tag_num)
+                    node_content += str(index) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
+                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)
+                    node_exist = is_nodes_exist(tag_num)
+                    if not node_exist:
+                        node_content = '[TAG: %d]\n\n' % tag_num + node_content
+                        nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
 
-
-                    # if not not_out:
-                    #     edges.append(((str(tag_num), str(int(tag_num) - 1)),
-                    #                   {'label': '',
-                    #                    'color': edge_color}))
-                    not_out = False
-                    from_jump_out = True
                     node_content = ''
+                    push_tag = list()
                     prev_tag = tag_num
-                # elif s[0] == 'CREATE' or s[0] == 'CALL':
-                #     # # if c2c:
-                #     # from_outer = True
-                #     # node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
-                #     #     stack_sum) + '\n' + 'Gas: ' + str(gas_total) + ' + [' + gas_constraint + ']'
-                #     # nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-                #     # node_content = ''
-                #     # if s[0] == 'CREATE':
-                #     #     tmp = opcode['CREATE']
-                #     #     stack_sum += tmp[1] - tmp[0]
-                #     #     f_op_cons = os.path.join(os.path.dirname(__file__), 'opcode_cons')
-                #     #     edges.append(((str(tag_num), str(500)),
-                #     #                   {'label': '',
-                #     #                    'color': edge_color}))
-                #     #     nodes, edges, is_end = cfg_construction(f_op_cons, nodes, edges, 500)
-                #     # if s[0] == 'CALL':
-                #     #     tmp = opcode['CALL']
-                #     #     stack_sum += tmp[1] - tmp[0]
-                #     #     f_op_two = os.path.join(os.path.dirname(__file__), 'opcode_two')
-                #     #     edges.append(((str(tag_num), str(800)),
-                #     #                   {'label': '',
-                #     #                    'color': edge_color}))
-                #     #     nodes, edges, is_end = cfg_construction(f_op_two, nodes, edges, 800)
-                #     # else:
-                #     instruction = re.sub(r'\d+', '', str(s[0]))
-                #     tmp = opcode[instruction]
-                #     stack_sum += tmp[1] - tmp[0]
-                #     node_content += str(idx) + ': ' + line.rstrip() + '\n'
-                #     print(s, tag_num)
                 else:
                     if s[0] in ['REVERT', 'RETURN']:
                         stack_sum -= 2
-                        if init_tag_num != 0:
-                            is_end.append(tag_num)
-                    node_content += str(idx) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
-                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)  # + ' + [' + gas_constraint + ']'
-                    nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
+                    node_content += str(index) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
+                        stack_sum) + '\n' + 'Gas: ' + str(gas_total)
+                    node_exist = is_nodes_exist(tag_num)
+                    if not node_exist:
+                        node_content = '[TAG: %d]\n\n' % tag_num + node_content
+                        nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
                     node_content = ''
-                if from_outer:
-                    tag_num = int(jump_tag) + 100000 + init_tag_num
-                else:
-                    tag_num = int(jump_tag) + 10000 + init_tag_num
+                    push_tag = list()
+                tag_num = int(tag_num) + 10000
                 stack_sum = 0
                 gas_total = 0
-                gas_constraint = ''
         else:
-            # print('[Code]:', s)
             gi = re.sub(r'\d+', '', str(s[0]))
             gas = gas_table[gi]
             gas_total += gas
 
             if 'LOG' in s[0]:
-                # print('[Code]:', s)
                 log_number = s[0].split('LOG')[1]
                 stack_sum -= int(log_number) + 2
             elif 'PUSH' in s and '[tag]' in s:
-                # print('[CURR TAG]:', tag_num)
-                try:
-                    tag_state = tag_push_dict[tag_num]
-                    tag_state.append(s[2])
-                    tag_push_dict.update({tag_num: tag_state})
-                except:
-                    tag_push_dict.update({tag_num: [s[2]]})
-
-                # for push_stack in push_stack_li:
-                #     if push_stack[-1] == tag_num:
-                #         temp_tag = tag_num
-                #         print('[PUSH TAG]:', push_stack)
-                #         curr_tag = push_stack.pop()
-
-
-
-                push_tag_list.append(s[2])
+                push_tag.append((index, int(s[2])))
                 stack_sum += 1
             else:
-                # print('[Code]:', s)
                 instruction = re.sub(r'\d+', '', str(s[0]))
-                # print(s[0], instruction)
                 if instruction == 'PUSHLIB':
                     instruction = 'PUSH'
                 tmp = opcode[instruction]
                 stack_sum += tmp[1] - tmp[0]
 
-            node_content += str(idx) + ': ' + line.rstrip() + '\n'
+            node_content += str(index) + ': ' + line.rstrip() + '\n'
         prev_ins = s
-        push_stack_li = [push_stack for push_stack in push_stack_li if len(push_stack) > 0]
-
-    print('[INFO] CFG node count = ', len(nodes))
-    print('[INFO] CFG edge count = ', len(edges))
-
-    graph_detail(nodes)
-    # print('[EDGE]:', edges)
-    # print('[TAG STATE]:', push_stack_li)
-    print('[LEFT JUMP OUT]:', left_jump_out, push_stack_li)
-    if len(left_jump_out) > 0:
-        if len(left_jump_out) == 1 and len(push_stack_li) == 1:
-            jump_from = left_jump_out.pop()
-            jump_to = push_stack_li[0].pop()
-            edges.append(((str(jump_from), str(jump_to)),
-                          {'label': str(tag_value),
-                           'color': edge_color}))
 
 
+def is_edge_exist(from_tag, to_tag):
+    global edges
 
-    create_graph(nodes, edges, 'CFG/%s' % file_name, name)
+    for edge in edges:
+        jump_pair = list(map(int, edge[0]))
+        if from_tag == jump_pair[0] and to_tag == jump_pair[1]:
+            return True
+    return False
 
-    return nodes, edges
+def is_nodes_exist(tag):
+    global nodes
+
+    for node in nodes:
+        tag_in_node = int(node[0])
+        if tag_in_node == tag:
+            return True
+    return False
 
 
 def symbolic_simulation(nodes, edges):
@@ -508,8 +465,9 @@ def stack_status_constraint(sym_mem,
                         wSE.write('{},'.format(str(i)))
                     if i == 'JUMP':
                         gas_conumption = gas_table[i]
-                        gas_sum  += gas_conumption
-                        flag, length, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0,
+                        gas_sum += gas_conumption
+                        flag, length, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0,
+                                                                                0,
                                                                                 input_data, f_con, t_con)
                         # print('[stack sim]:', flag, length, f_con, t_con, stack)
 
@@ -557,15 +515,18 @@ def stack_status_constraint(sym_mem,
                                         wSE.write('{},'.format('X'))
                                         count_sim += 1
                                         gas_sum, nodes, edges, q = stack_status_constraint(sym_mem,
-                                                                                           nodes, edges, n1[0], input_data,
+                                                                                           nodes, edges, n1[0],
+                                                                                           input_data,
                                                                                            f_con, t_con, init_tag, s,
-                                                                                           gas_sum, con, q, count_condition,
+                                                                                           gas_sum, con, q,
+                                                                                           count_condition,
                                                                                            conq, gasq)
                     elif i == 'JUMPI':
                         # print('JUMPIII')
                         gas_conumption = gas_table[i]
                         gas_sum += gas_conumption
-                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0,
+                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0,
+                                                                                0,
                                                                                 input_data, f_con, t_con)
                         # print('[stack sim]:', flag, target, f_con, t_con, stack)
 
@@ -719,9 +680,11 @@ def stack_status_constraint(sym_mem,
                                                 wSE.write('{},'.format('X'))
                                         count_sim += 1
                                         gas_sum, nodes, edges, q = stack_status_constraint(sym_mem,
-                                                                                           nodes, edges, n1[0], input_data,
+                                                                                           nodes, edges, n1[0],
+                                                                                           input_data,
                                                                                            f_con, t_con, init_tag, s,
-                                                                                           gas_sum, con, q, count_condition,
+                                                                                           gas_sum, con, q,
+                                                                                           count_condition,
                                                                                            conq, gasq)
                                         # print('NEXT')
 
@@ -730,7 +693,7 @@ def stack_status_constraint(sym_mem,
                     #     return 0, 0, 0
 
                     elif j == 'Stack Sum' and (prev_ins == 'POP' or prev_ins == 'SWAP1' or 'PUSH' in prev_ins or
-                                                       prev_ins == 'TIMESTAMP' or prev_ins == 'JUMPDEST'):
+                                               prev_ins == 'TIMESTAMP' or prev_ins == 'JUMPDEST'):
                         for e in edges:
                             if e[0][0] == n_tag:
                                 # print(e[0][0])
@@ -753,16 +716,19 @@ def stack_status_constraint(sym_mem,
                                         wSE.write('{},'.format('X'))
                                         count_sim += 1
                                         gas_sum, nodes, edges, q = stack_status_constraint(sym_mem,
-                                                                                           nodes, edges, n1[0], input_data,
+                                                                                           nodes, edges, n1[0],
+                                                                                           input_data,
                                                                                            f_con, t_con, init_tag, s,
-                                                                                           gas_sum, con, q, count_condition,
+                                                                                           gas_sum, con, q,
+                                                                                           count_condition,
                                                                                            conq, gasq)
                     elif j == 'Stack Sum' or j == 'Gas' or j == 'PC':
                         # print('GAS = ', gas_sum)
                         # print('Gas constraint:', con)
                         return gas_sum, nodes, edges, q
                     else:
-                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0, 0, input_data, f_con, t_con)
+                        flag, target, f_con, t_con, stack = se.stack_simulation(i, stack, storage, memory, sym_mem, 0,
+                                                                                0, input_data, f_con, t_con)
                         if flag != 'no':
                             # print(flag)
                             gas = flag
@@ -798,7 +764,8 @@ def stack_status_constraint(sym_mem,
         return gas_sum, nodes, edges, q
 
 
-def graph_detail(nodes):
+def graph_detail():
+    global nodes
     count = 0
 
     for n in nodes:
@@ -824,248 +791,6 @@ def create_graph(n, e, dir_name, row_id):
     return g
 
 
-
-
-
-# ***** NOT USE *****
-
-def max_gas_path(nodes, edges):
-    max_gas = 0
-
-    # indexing nodes
-    node_list = list()
-    for n in nodes:
-        node = {
-            'index': n[0],
-            'gas': n[1].get('label').split('Gas: ')[1],
-            'node': n,
-            'check': False
-        }
-        node_list.append(node)
-
-    tmp_e_list = []
-    gas_sum = 0
-    run = True
-    while(run):
-        tmp_n_list = [nodes[0]]
-        for n in node_list:
-            tmp_gas = 0
-            if n in tmp_n_list or len(tmp_n_list) == 0:
-                tmp_e = ()
-                tmp_n = ()
-                for e in edges:
-                    is_check = None
-                    for node in node_list:
-                        if e[0][1] == node['index']:
-                            is_check = node['check']
-
-                    if e[0][1] == n[0] and is_check == False:
-                        for n1 in nodes:
-                            if e[0][1] == n1[0]:
-                                gas = n1[1].get('label').split('Gas: ')[1]
-                                print('GAS: ' + gas)
-                                tmp_gas = int(gas)
-                                tmp_e = e
-                                tmp_n = n1
-                print('tmp_gas:', tmp_gas)
-                gas_sum += tmp_gas
-
-                if tmp_e != () and tmp_n != ():
-                    tmp_e_list.append(tmp_e)
-                    tmp_n_list.append(tmp_n)
-
-
-def gas_path(nodes, edges):
-    # pprint(nodes)
-    tmp_n_list = [nodes[0]]
-    tmp_e_list = []
-    gas_sum = 0
-    for n in nodes:
-        # print(n[0])
-        # tmp_e = ()
-        tmp_gas = 0
-        # print(tmp_n_list)
-        if n in tmp_n_list or len(tmp_n_list) == 0:
-            tmp_e = ()
-            tmp_n = ()
-            for e in edges:
-                # pprint(e)
-                if e[0][0] == n[0]:
-                    # print('Yesssssss')
-                    for n1 in nodes:
-                        if e[0][1] == n1[0]:
-                            gas = n1[1].get('label').split('Gas: ')[1]
-                            print('GAS: ' + gas)
-                            if tmp_gas == 0:
-                                tmp_gas = int(gas)
-                                tmp_e = e
-                                tmp_n = n1
-                            elif int(gas) >= tmp_gas > 0:
-                                tmp_gas = int(gas)
-                                tmp_e = e
-                                tmp_n = n1
-            print('tmp_gas:', tmp_gas)
-            gas_sum += tmp_gas
-            # print(tmp_e, tmp_n)
-            if tmp_e != () and tmp_n != ():
-                tmp_e_list.append(tmp_e)
-                tmp_n_list.append(tmp_n)
-
-    print('GAS SUM: ', gas_sum)
-    return tmp_n_list, tmp_e_list
-
-
-def cycle_detection(nodes, edges):
-    visited = []
-    rec_stack = []
-
-    start_node = nodes[0]
-
-    dfs_check(start_node, nodes, edges, visited, rec_stack)
-
-
-def dfs_check(node, nodes, edges, visited, rec_stack):
-    stack_impact = 0
-    stack_sum = 0
-    gas_consumption = 0
-    is_jump = False
-
-    visited.append(node)
-    rec_stack.append(node)
-
-    node_ins = node[1].get('label').split('\n')
-
-    for i in node_ins:
-        i = i.split(': ')[1]
-        if i == 'JUMP' or i == 'JUMPI':
-            is_jump = True
-
-    for e in edges:
-        if e[0][0] == node[0]:
-            for n in nodes:
-                if n[0] == e[0][1]:
-                    neighbour_node = n
-
-                    if neighbour_node not in visited and neighbour_node != '':
-                        if dfs_check(neighbour_node, nodes, edges, visited, rec_stack):
-                            break
-                            # return True
-                    elif neighbour_node in rec_stack and is_jump:
-                        if int(node[0]) > int(neighbour_node[0]):
-                            print('[INFO] Cycle found')
-
-                            start = False
-
-                            for block in rec_stack:
-                                block_tag = block[0]
-                                if block_tag == neighbour_node[0] or start:
-                                    start = True
-                                    block_label = block[1].get('label').split('\n')
-                                    for block_ins in block_label:
-                                        if 'Stack Sum' in block_ins:
-                                            stack_impact = int(block_ins.split(': ')[1])
-                                            stack_sum += stack_impact
-
-                            # print('Stack : ', stack_sum)
-
-                            loop_graph(rec_stack, edges)
-
-                            if stack_sum > 0:
-                                print('[INFO] Positive cycle')
-                                print('\n')
-                                if stack_sum > 1024:
-                                    print('[WARN] STACK OVERFLOW')
-                                    return True
-                            else:
-                                print('[INFO] Not positive cycle')
-                                print('\n')
-                                return True
-                        else:
-                            return False
-
-    rec_stack.pop()
-
-    return False
-
-
-def loop_graph(nodes, edges):
-
-    global loop_graph_count
-    loop_graph_count += 1
-    create_graph(nodes, edges, './cfg_loop/cfg_loop_part_{}'.format(loop_graph_count))
-
-    # wSE.write('\n\n{},{},{}'.format('Opcode', 'Constraints', 'Stack'))
-    # wSE.write('\n')
-
-    stack = []
-    storage = []
-    memory = []
-    f_con = []
-    t_con = []
-    con = []
-    q = []
-    conq = []
-    sym_mem = []
-    gas_sum, c_nodes, c_edges, q = stack_status_constraint(stack, storage, memory, sym_mem, nodes, edges, '0', '',
-                                                           f_con, t_con,
-                                                           0, 0, 0, 0, con, q, 0, conq)
-
-    print('gas SUM = ', gas_sum)
-
-    create_graph(c_nodes, c_edges, './cfg_constraint/cfg_with_constraints_{}'.format(loop_graph_count))
-
-    print('Done')
-
-
-def stack_status(src):
-
-    output = []
-    f_funchash = os.path.join(os.path.dirname(__file__), 'functionHash')
-    f_src = os.path.join(os.path.dirname(__file__), src)
-
-    try:
-        w = open(f_funchash, 'w')
-        print('\n[INFO] Function Hashes')
-        call(['solc', '--combined-json', 'hashes', f_src], stdout=w)
-    except Exception as ex:
-        print('Error: ', ex)
-
-    with open(f_funchash, 'r') as fh:
-        function_dict = json.load(fh)
-        for key, val in function_dict.items():
-            if key == 'contracts':
-                for key2, val2 in val.items():
-                    for key3, val3 in val2.items():
-                        if key3 == 'hashes':
-                            for key4, val4 in val3.items():
-                                output.append(val4)
-
-    return output
-
-
-def stack_simulation_evm(function_input, binrun):
-
-    gas_cost = 0
-    input_data = function_input
-    f_binary = os.path.join(os.path.dirname(__file__), binrun)
-    f_result = os.path.join(os.path.dirname(__file__), 'ana_status')
-
-    try:
-        w = open(f_result, 'w')
-        try:
-            with open(f_binary, 'r') as bf:
-                bf_data = bf.readline()
-                print('\n[INFO] Stack simulating')
-                check_output(['evm', '--debug', '--code', bf_data, '--input', input_data, 'run'], stderr=w)
-            w.close()
-        except Exception as ex:
-            print('[ERROR] Failed to open file \'ana_status.txt\'')
-            print('Error: ', ex)
-    except Exception as ex:
-        print('[ERROR] Failed to open file \'{}\''.format(binrun))
-        print('Error: ', ex)
-
-
 def add_nodes(graph, nodes):
     for n in nodes:
         if isinstance(n, tuple):
@@ -1082,120 +807,6 @@ def add_edges(graph, edges):
         else:
             graph.edge(*e)
     return graph
-
-
-def constraint_jump(nodes, edges, stack, storage, memory, check, tag, input_data, f_con, t_con, count, init_tag, s):
-    if count > 8:
-        print('count = ', count)
-    else:
-        count += 1
-        for n in nodes:
-            n_tag = n[0]
-            if n_tag == tag:
-                q = deque([])
-                n[1]['id'] = '\nStack now'
-                print('======================================================== ')
-                for item in stack:
-                    n[1]['id'] += ' ' + str(item)
-                start_tag = tag
-                for n1 in nodes:
-                    if n1[0] == start_tag:
-                        tmp = n1[1].get('id').split('Stack now ')[1]
-                        stack_new = tmp.split(' ')
-                        q.appendleft(stack_new)
-                        break
-                # print('q before jumpi = ', q)
-                stack_now = q.popleft()
-                # print('stack for True = ', stack_now, t_con[-1])
-                print('True Constraint: ', t_con[-1])
-                wSE.write(' {0:80} |'.format(t_con[-1]))
-                tag_num_1 = check[2]
-                tag_num_0 = str(int(check[2]) + 10000)
-                for e in edges:
-                    if e[0][1] == tag_num_1:
-                        # e[1]['label'] += '\n' + str(count) + ' ' + str(t_con[-1])
-                        e[1]['color'] = 'red'
-                        t_con.append(count)
-                        t_con.append(tag_num_1)
-                        t_con.append(s)
-                # print('\n0<<<<<<<<<<0')
-                value, init_tag, stack_new_0 = stack_status_constraint(stack_now, storage, memory, nodes, edges,
-                                                                       tag_num_1, input_data,
-                                                                       f_con, t_con, count, init_tag,
-                                                                       str(int(tag_num_1)+int(s)))
-                # print(value, init_tag, stack_new_0)
-                # print('0>>>>>>>>>>0\n')
-                if int(init_tag) > 0 or stack_new_0 == 0:
-                    q.appendleft(stack_new_0)
-                    # print('XXXXX')
-                    for n1 in nodes:
-                        if n1[0] == start_tag:
-                            tmp = n1[1].get('id').split('Stack now ')[1]
-                            stack_new = tmp.split(' ')
-                            q.appendleft(stack_new)
-                            break
-                    stack_now = q.popleft()
-                    # print('stack for False = ', stack_now, f_con[-1])
-                    print('False Constraint: ', f_con[-1])
-                    wSE.write(' {0:80} |'.format(f_con[-1]))
-                    for e in edges:
-                        if e[0][1] == tag_num_0:
-                            # e[1]['label'] += '\n' + str(count) + ' ' + str(f_con[-1])
-                            e[1]['color'] = 'red'
-                            f_con.append(count)
-                            f_con.append(tag_num_0)
-                            f_con.append(s)
-                    # print('\n1<<<<<<<<<<1')
-                    # print('stack in = {}, tag num = {}'.format(stack_now, tag_num_0))
-                    value, init_tag, stack_new_1 = stack_status_constraint(stack_now, storage, memory, nodes, edges,
-                                                                           tag_num_0,
-                                                                           input_data,
-                                                                           f_con, t_con, count, init_tag,
-                                                                           str(int(tag_num_0)+int(s)))
-                    # print(value, init_tag, stack_new_1)
-                    # print('1>>>>>>>>>>1\n')
-                    q.append(stack_new_1)
-
-                if int(init_tag) < 1 or count > 4:
-                    break
-                else:
-                    stack_1 = q.popleft()
-                    tmp_count = count
-                    tag_num_1 = int(tag_num_1) + int(s)
-                    # print('tagnum1 = ', tag_num_1)
-                    value, init_tag, stack_start = stack_status_constraint(stack_1, storage, memory, nodes, edges,
-                                                                           init_tag,
-                                                                           input_data,
-                                                                           f_con, t_con, count, init_tag,
-                                                                           str(tag_num_1))
-                    # print(init_tag, stack_start)
-                    stack_0 = q.popleft()
-                    # print('next stack = ', stack_0)
-                    tag_num_0 = int(tag_num_0) + int(s)
-                    # print('tagnum0 = ', tag_num_0)
-                    value, init_tag, stack_start = stack_status_constraint(stack_0, storage, memory, nodes, edges,
-                                                                           init_tag,
-                                                                           input_data,
-                                                                           f_con, t_con, tmp_count, init_tag,
-                                                                           str(tag_num_0))
-                    # print(init_tag, stack_start)
-                    # print(f_con)
-                    # print(t_con)
-    # constraint_graph(t_con, f_con)
-
-
-def apply_styles(graph, styles):
-    graph.graph_attr.update(
-        ('graph' in styles and styles['graph']) or {}
-    )
-    graph.node_attr.update(
-        ('nodes' in styles and styles['nodes']) or {}
-    )
-    graph.edge_attr.update(
-        ('edges' in styles and styles['edges']) or {}
-    )
-    return graph
-
 
 if __name__ == '__main__':
     main()

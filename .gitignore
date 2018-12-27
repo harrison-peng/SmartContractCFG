@@ -5,3 +5,7 @@ venv/
 img/
 output/
 opcode/
+opcode_pre/
+
+.DS_Store
+.idea
