@@ -8,7 +8,7 @@ import functools
 import argparse
 import re
 import os
-from subprocess import check_output, call
+from subprocess import call
 import json
 import sys
 
@@ -31,8 +31,6 @@ def main():
     parser.add_argument("-code", "--code", help="source code")
 
     args = parser.parse_args()
-
-    # -t : 測試模式(測試結果不會寫入資料庫)，需要搭配 -code <filename> 使用
 
     if args.l:
         if args.code == '':
@@ -61,7 +59,7 @@ def preproc(file_name):
         call(['rm', '-rf', './output'])
         call(['mkdir', './output'])
 
-        print('\n[INFO] Empty the opcode directory.')
+        print('\n[INFO] Empty the opcode & opcode_pre directory.')
         call(['rm', '-rf', './opcode'])
         call(['rm', '-rf', './opcode_pre'])
         call(['mkdir', './opcode'])
@@ -140,6 +138,7 @@ def asm_analysis(file_name, contract_name):
 
     graph_detail()
     create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
+    print('\n')
 
     # n, e = gas_path(nodes, edges)
     # create_graph(n, e, 'MaxPath/%s' % contract_name, contract_name)
@@ -180,9 +179,9 @@ def cfg_implement(opcode_list, line, stacks, tag_num, stack_sum, tag_line_dict):
     prev_ins = ''
     prev_tag = 0
     gas_total = 0
-    jump_tag = 0
     from_jumpi = False
     push_tag = list()
+    left_push_tag = list()
 
     opcode_sublist = opcode_list[line:]
     for index, line in opcode_sublist:
@@ -196,13 +195,16 @@ def cfg_implement(opcode_list, line, stacks, tag_num, stack_sum, tag_line_dict):
                 if node_content == '':
                     tag_num = int(s[1])
                     node_content += str(index) + ': ' + line.rstrip() + '\n'
+
+                    if len(left_push_tag) > 0 and left_push_tag[-1][1] == prev_tag:
+                        left_push_tag.pop()
+                        left_push_tag.append((index, tag_num))
                 else:
                     node_content += 'Stack Sum: ' + str(stack_sum) + '\n' + 'Gas: ' + str(gas_total)
                     node_exist = is_nodes_exist(tag_num)
                     if not node_exist:
                         node_content = '[TAG: %d]\n\n' % tag_num + node_content
                         nodes.append((str(tag_num), {'label': node_content, 'shape': 'box'}))
-
 
                     if from_jumpi:
                         edge_exist = is_edge_exist(prev_tag, tag_num)
@@ -228,6 +230,17 @@ def cfg_implement(opcode_list, line, stacks, tag_num, stack_sum, tag_line_dict):
                     node_content += str(index) + ': ' + line.rstrip() + '\n'
                     prev_tag = tag_num
                     tag_num = int(s[1])
+
+                    if push_tag:
+                        all_exist = True
+                        for tag in push_tag:
+                            if tag[1] not in tag_line_dict:
+                                all_exist = False
+                        if all_exist:
+                            for tag in push_tag:
+                                left_push_tag.append((tag_line_dict[tag[1]], tag[1]))
+                            left_push_tag.append((index, tag_num))
+                    push_tag = list()
             else:
                 # COUNT GAS
                 gi = re.sub(r'\d+', '', str(s[0]))
@@ -348,6 +361,25 @@ def cfg_implement(opcode_list, line, stacks, tag_num, stack_sum, tag_line_dict):
                     push_tag = list()
                     prev_tag = tag_num
                 else:
+                    if len(s) == 1 and s[0] == 'JUMP':
+                        if len(left_push_tag) > 0 and left_push_tag[-1][1] == tag_num:
+                            left_push_tag.pop()
+                            jump_to = left_push_tag.pop()
+                            edge_exist = is_edge_exist(tag_num, jump_to[1])
+
+                            for push_stack in stacks:
+                                if len(push_stack) > 0 and push_stack[-1][1] == tag_num:
+                                    push_stack.pop()
+                                    push_stack.append(jump_to)
+
+                            if not edge_exist:
+                                edges.append(((str(tag_num), str(jump_to[1])),
+                                              {'label': '',
+                                               'color': 'blue'}))
+                                return cfg_implement(opcode_list, jump_to[0],
+                                                     stacks, jump_to[1],
+                                                     stack_sum, tag_line_dict)
+
                     if s[0] in ['REVERT', 'RETURN']:
                         stack_sum -= 2
                     node_content += str(index) + ': ' + line.rstrip() + '\n' + 'Stack Sum: ' + str(
@@ -774,6 +806,8 @@ def graph_detail():
         for l in label_content:
             if 'Stack' in l or 'Gas' in l or 'PC' in l:
                 break
+            elif l == '' or (l.startswith('[TAG:') and l.endswith(']')):
+                continue
             else:
                 count += 1
 
