@@ -1298,24 +1298,24 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
     # elif opcode == "GASPRICE":
     #     global_state["pc"] += 1
     #     stack.insert(0, global_state["gas_price"])
-    # elif opcode == "EXTCODESIZE":
-    #     if len(stack) > 0:
-    #         global_state["pc"] += 1
-    #         address = stack.pop(0)
-    #         if isReal(address) and global_params.USE_GLOBAL_BLOCKCHAIN:
-    #             code = data_source.getCode(address)
-    #             stack.insert(0, len(code)/2)
-    #         else:
-    #             #not handled yet
-    #             new_var_name = gen.gen_code_size_var(address)
-    #             if new_var_name in path_conditions_and_vars:
-    #                 new_var = path_conditions_and_vars[new_var_name]
-    #             else:
-    #                 new_var = BitVec(new_var_name, 256)
-    #                 path_conditions_and_vars[new_var_name] = new_var
-    #             stack.insert(0, new_var)
-    #     else:
-    #         raise ValueError('STACK underflow')
+    elif opcode == "EXTCODESIZE":
+        if len(stack) > 0:
+            global_state["pc"] += 1
+            address = stack.pop(0)
+            if isReal(address) and global_params.USE_GLOBAL_BLOCKCHAIN:
+                code = data_source.getCode(address)
+                stack.insert(0, len(code)/2)
+            else:
+                #not handled yet
+                new_var_name = gen.gen_code_size_var(address)
+                if new_var_name in path_conditions_and_vars:
+                    new_var = path_conditions_and_vars[new_var_name]
+                else:
+                    new_var = BitVec(new_var_name, 256)
+                    path_conditions_and_vars[new_var_name] = new_var
+                stack.insert(0, new_var)
+        else:
+            raise ValueError('STACK underflow')
     # elif opcode == "EXTCODECOPY":
     #     if len(stack) > 3:
     #         global_state["pc"] += 1
@@ -1773,17 +1773,18 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
     # #
     # #  f0s: System Operations
     # #
-    # elif opcode == "CREATE":
-    #     if len(stack) > 2:
-    #         global_state["pc"] += 1
-    #         stack.pop(0)
-    #         stack.pop(0)
-    #         stack.pop(0)
-    #         new_var_name = gen.gen_arbitrary_var()
-    #         new_var = BitVec(new_var_name, 256)
-    #         stack.insert(0, new_var)
-    #     else:
-    #         raise ValueError('STACK underflow')
+    elif opcode == "CREATE":
+        if len(stack) > 2:
+            global_state["pc"] += 1
+            stack.pop(0)
+            stack.pop(0)
+            stack.pop(0)
+            new_var_name = gen.gen_arbitrary_var()
+            new_var = BitVec(new_var_name, 256)
+            print('[CREATE]:', new_var)
+            stack.insert(0, new_var)
+        else:
+            raise ValueError('STACK underflow')
     elif opcode == "CALL":
         # TODO: Need to handle miu_i
 

@@ -4,6 +4,8 @@ import re
 import se_ins as se
 import symbolic_simulation_old as ss
 import state_simulation
+import copy
+import cfg
 
 count_sim = 0
 stack = []
@@ -53,6 +55,7 @@ def symbolic_simulation(nodes_in, edges_in):
 
 
 def symbolic_implement(state, gas, tag, prev_tag, tag_stack, has_jump_in, jump_in_num):
+    # print('[TAG]:', tag)
     """
     param:
     [tag]: the tag of the node to run the symbolic simulation
@@ -73,7 +76,7 @@ def symbolic_implement(state, gas, tag, prev_tag, tag_stack, has_jump_in, jump_i
     # NOTE: if the node run more than 10 times, stop -> cycle
     try:
         run_time = tag_run_time[tag]
-        if run_time > 10:
+        if run_time > 3:
             tag_run_time.update({tag: 0})
             return
         else:
@@ -192,6 +195,13 @@ def symbolic_implement(state, gas, tag, prev_tag, tag_stack, has_jump_in, jump_i
 
                     # NOTE: if len(tag_stack) == 0 -> it comes from JUMPI second path, so don't run this way
                     if len(tag_stack) > 0:
+                        # NOTE: make up the missed edge
+                        edge_exist = cfg.is_edge_exist(int(tag), int(tag_stack[-1]))
+                        if not edge_exist:
+                            edges.append(((str(tag), str(tag_stack[-1])),
+                                          {'label': '',
+                                           'color': 'blue'}))
+
                         next_tag = tag_stack[-1]
                         for index, edge in enumerate(edges):
                             if edge[0][0] == tag and edge[0][1] == next_tag:
@@ -257,8 +267,18 @@ def symbolic_implement(state, gas, tag, prev_tag, tag_stack, has_jump_in, jump_i
                                 tag_stack_second.append(second_tag)
 
                     # NOTE: run two path
-                    symbolic_implement(state, gas, first_tag, tag, tag_stack_first, has_jump_in, jump_in_num)
-                    return symbolic_implement(state, gas, second_tag, tag, tag_stack_second, has_jump_in, jump_in_num)
+                    state_1 = copy.deepcopy(state)
+                    state_2 = copy.deepcopy(state)
+                    gas_1 = copy.deepcopy(gas)
+                    gas_2 = copy.deepcopy(gas)
+                    tag_1 = copy.deepcopy(tag)
+                    tag_2 = copy.deepcopy(tag)
+                    has_jump_in_1 = copy.deepcopy(has_jump_in)
+                    has_jump_in_2 = copy.deepcopy(has_jump_in)
+                    jump_in_num_1 = copy.deepcopy(jump_in_num)
+                    jump_in_num_2 = copy.deepcopy(jump_in_num)
+                    symbolic_implement(state_1, gas_1, first_tag, tag_1, tag_stack_first, has_jump_in_1, jump_in_num_1)
+                    return symbolic_implement(state_2, gas_2, second_tag, tag_2, tag_stack_second, has_jump_in_2, jump_in_num_2)
                 elif opcode in ['STOP', 'RETURN', 'REVERT', 'INVALID']:
                     '''
                     STOP, RETURN, REVERT, INVALID:
@@ -279,7 +299,7 @@ def symbolic_implement(state, gas, tag, prev_tag, tag_stack, has_jump_in, jump_i
                     '''
 
                     # NOTE: update gas of the node on CFG
-                    # node = node_add_gas(node, node_gas)
+                    node = node_add_gas(node, node_gas)
 
                     for index, edge in enumerate(edges):
                         if edge[0][0] == tag:
@@ -287,7 +307,9 @@ def symbolic_implement(state, gas, tag, prev_tag, tag_stack, has_jump_in, jump_i
                             next_tag = edge[0][1]
                             tag_stack.append(next_tag)
                             return symbolic_implement(state, gas, next_tag, tag, tag_stack, has_jump_in, jump_in_num)
+                    return
                 else:
+
                     # TODO: stack simulation
                     state, ins_gas = state_simulation.state_simulation(opcode, state)
                     if isinstance(ins_gas, int):

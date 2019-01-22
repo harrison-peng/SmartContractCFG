@@ -631,17 +631,17 @@ def state_simulation(instruction, state):
     elif opcode in ['SHA3', 'KECCAK256']:
         if len(stack) > 1:
             row = len(stack) - 1
+            # print('[ROW]:', row, row - 1, stack)
             position = stack.pop(row)
-            stack.pop(row - 1)
-
-            # TODO: handle gas
+            to = stack.pop(row - 1)
+            # print('[TO]:', position, to)
 
             # FIXME: NEED TO CHECK INT OR NOT
             try:
-                data = memory[str(position)]
+                data = str(memory[str(position)])
                 computed = sha3.sha3_224(data.encode('utf-8')).hexdigest()
             except KeyError:
-                data = 'memory[%s]' % str(position)
+                data = 'memory[%s:%s]' % (str(position), str(to))
                 computed = 'SHA3(%s)' % data
 
             row = len(stack)
@@ -796,6 +796,13 @@ def state_simulation(instruction, state):
             for key, val in memory.items():
                 if address == key:
                     value = val
+
+            if value == '':
+                if is_real(address):
+                    value = 'memory[%s:%s]' % (str(address), str(address + 32))
+                else:
+                    value = 'memory[%s:%s]' % (str(address), str(address) + '+32')
+
             row = len(stack)
             stack[row] = value
 
@@ -920,7 +927,7 @@ def state_simulation(instruction, state):
             raise ValueError('STACK underflow')
     elif opcode in ('LOG0', 'LOG1', 'LOG2', 'LOG3', 'LOG4'):
         num_of_pops = 2 + int(opcode[3:])
-        if len(stack) > num_of_pops:
+        if len(stack) >= num_of_pops:
             count = 0
             gas = 0
             while num_of_pops > 0:
@@ -1004,10 +1011,37 @@ def state_simulation(instruction, state):
             gas = gas_table[opcode]
         else:
             raise ValueError('STACK underflow')
+    elif opcode == 'CREATE':
+        if len(stack) > 2:
+            row = len(stack) - 1
+            wei = stack.pop(row)
+            position = stack.pop(row - 1)
+            length = stack.pop(row - 2)
+
+            row = len(stack)
+            stack[row] = 'NewAddress'
+
+            # NOTE: GAS
+            gas = gas_table[opcode]
+        else:
+            raise ValueError('STACK underflow')
+    elif opcode == 'EXTCODESIZE':
+        if len(stack) > 0:
+            row = len(stack) - 1
+            address = stack.pop(row)
+
+            row = len(stack)
+            stack[row] = 'CodeAt%s' % str(address)
+
+            # NOTE: GAS
+            gas = gas_table[opcode]
+        else:
+            raise ValueError('STACK underflow')
     else:
         raise Exception('UNKNOWN INSTRUCTION:', opcode)
 
-    # print('[state]:', state)
+    if isinstance(gas, float):
+        gas = int(round(gas))
     return state, gas
 
 
