@@ -1,4 +1,5 @@
 import six
+import sha3
 from z3 import *
 from gas_price import gas_table
 import re
@@ -9,7 +10,6 @@ import math
 from generator import *
 import json
 import global_params
-import sha3
 
 
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
@@ -36,14 +36,18 @@ def stack_simulation(line, stack, storage, memory, sym_mem, jumpdest, gas, input
     # analysis = init_analysis()
     params = Parameter(path_conditions_and_vars=path_conditions_and_vars, global_state=global_state)
     # print('[params]:', params.path_conditions_and_vars)
+    # print('[global]:', params.global_state)
     line = line.rstrip()
+    # print('[LINE]:', line)
 
     if 'tag' in line.split(' ')[0]:
-        # print(line)
+        # print('[TAG]:', line)
         condition, target = sym_exec_ins(params, 'JUMPDEST', 0, storage, stack, memory, sym_mem, input_data, f_constraint, t_constraint)
     else:
-        # print(line)
+        # if 'JUMPDEST' in line:
+        #     print(line)
         condition, target = sym_exec_ins(params, line, 0, storage, stack, memory, sym_mem, input_data, f_constraint, t_constraint)
+        # print('[COND]:', condition, target)
     # print('[opcode]:', line.split(' ')[0], ', [stack]:', stack, ', [condition]:', condition, ', [target]:', target)
     return condition, target, f_constraint, t_constraint, stack
 
@@ -229,6 +233,7 @@ def get_init_global_state(path_conditions_and_vars):
 
 # Symbolically executing an instruction
 def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_data,  f_constraint, t_constraint):
+    # print('[ins]:', instr)
     global MSIZE
     global visited_pcs
     global solver
@@ -240,6 +245,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
 
     # print('[stack]:', stack)
     # print('[input data]:', input_data)
+    # print('[CONS]:', f_constraint, t_constraint)
     # stack = params.stack
     mem = params.mem
     # memory = params.memory
@@ -255,12 +261,14 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
     # print("\n")
     visited_pcs.add(global_state["pc"])
 
+    # print('[ins]:', instr)
     instr_parts = str.split(instr, ' ')
     opcode = instr_parts[0]
 
     if opcode == "INVALID":
         print('inininivalid')
         global_state["pc"] += 1
+
     # elif opcode == "ASSERTFAIL":
     #     if g_src_map:
     #         source_code = g_src_map.get_source_code(global_state['pc'])
@@ -281,12 +289,6 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
     # if opcode == "CALL" and analysis["reentrancy_bug"] and analysis["reentrancy_bug"][-1]:
     #     global_problematic_pcs["reentrancy_bug"].append(global_state["pc"])
 
-    # log.debug("==============================")
-    # log.debug("EXECUTING: " + instr)
-
-    #
-    #  0s: Stop and Arithmetic Operations
-    #
     elif opcode == "STOP":
         global_state["pc"] += 1
     elif opcode == "TIMESTAMP":
@@ -299,15 +301,6 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
             global_state["pc"] += + 1
             first = stack.pop(0)
             second = stack.pop(0)
-
-            # Type conversion is needed when they are mismatched
-            # if isReal(first) and isSymbolic(second):
-            #     first = BitVecVal(first, 256)
-            #     computed = first + second
-            # elif isSymbolic(first) and isReal(second):
-            #     second = BitVecVal(second, 256)
-            # print('first = ' + str(first) + ' type= ' + str(type(first)))
-            # print('second = ' + str(second) + ' type= ' + str(type(second)))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = first + second
@@ -351,7 +344,6 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
             #         if check_sat(solver) == sat:
             #             global_problematic_pcs['integer_overflow'].append(Overflow(global_state['pc'] - 1, solver.model()))
             #         solver.pop()
-
             stack.insert(0, computed)
         else:
             raise ValueError('STACK underflow')
@@ -551,6 +543,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
             stack.insert(0, computed)
         else:
             raise ValueError('STACK underflow')
+    # NOTE: HERE
     elif opcode == "MOD":
         if len(stack) > 1:
             global_state["pc"] += 1
@@ -1300,7 +1293,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
         global_state["pc"] += 1
         # new_var_name = gen.gen_arbitrary_var()
         # new_var = BitVec(new_var_name, 256)
-        new_var = 'size(returndata)'
+        new_var = ''
         stack.insert(0, new_var)
     # elif opcode == "GASPRICE":
     #     global_state["pc"] += 1
@@ -1637,16 +1630,18 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
         else:
             raise ValueError('STACK underflow')
     elif opcode == "JUMPI":
-        # We need to prepare two branches
+        # NOTE: We need to prepare two branches
         if len(stack) > 1:
             target_address = stack.pop(0)
+            flag = stack.pop(0)
+            # print('[JUMPI]:', target_address, flag)
             # if isSymbolic(target_address):
             #     try:
             #         target_address = int(str(simplify(target_address)))
             #     except:
             #         raise TypeError("Target address must be an integer")
             # vertices[block].set_jump_target(target_address)
-            flag = stack.pop(0)
+
             # branch_expression = False
             # if isReal(flag):
             #     if flag != 0:
@@ -1687,7 +1682,7 @@ def sym_exec_ins(params, instr, block, storage, stack, memory, sym_mem, input_da
         # new_var_name = gen.gen_gas_var()
         # new_var = BitVec(new_var_name, 256)
         # path_conditions_and_vars[new_var_name] = new_var
-        new_var = 'GasAvaliable'
+        new_var = 'GasAvailable'
         stack.insert(0, new_var)
     elif opcode == "JUMPDEST":
         # Literally do nothing
