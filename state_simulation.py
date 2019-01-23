@@ -15,6 +15,7 @@ def state_simulation(instruction, state):
     instruction_set = instruction.split(' ')
     opcode = instruction_set[0]
     gas = 0
+    path_constraint = ''
 
     if opcode in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
         pass
@@ -658,7 +659,7 @@ def state_simulation(instruction, state):
         # NOTE: get address of currently executing account
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'CurrentAddress'
+        stack[row] = 'address(this)'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -669,7 +670,7 @@ def state_simulation(instruction, state):
             address = stack.pop(row)
 
             row = len(stack)
-            stack[row] = 'BalanceOf%s' % str(address)
+            stack[row] = 'address(%s).balance' % str(address)
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -679,7 +680,7 @@ def state_simulation(instruction, state):
         # NOTE: get caller address
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'CallerAddress'
+        stack[row] = 'msg.caller	'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -687,7 +688,7 @@ def state_simulation(instruction, state):
         # NOTE: get value of this transaction
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'DepositedValue'
+        stack[row] = 'msg.value'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -699,7 +700,10 @@ def state_simulation(instruction, state):
             position = stack.pop(row)
 
             row = len(stack)
-            stack[row] = 'DataAt%s' % str(position)
+            if is_real(position):
+                stack[row] = 'msg.data[%s:%s]' % (str(position), str(position+32))
+            else:
+                stack[row] = 'msg.data[%s:%s]' % (str(position), str(position) + '+32')
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -708,7 +712,7 @@ def state_simulation(instruction, state):
     elif opcode == 'CALLDATASIZE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'InputDataSize'
+        stack[row] = 'msg.data.size	'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -728,7 +732,7 @@ def state_simulation(instruction, state):
     elif opcode == 'CODESIZE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'CurrentCodeSize'
+        stack[row] = 'address(this).code.size'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -747,7 +751,7 @@ def state_simulation(instruction, state):
     elif opcode == 'GASPRICE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'CurrentGasPrice'
+        stack[row] = 'tx.gasprice'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -774,7 +778,7 @@ def state_simulation(instruction, state):
         # NOTE: information from block header
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'currentNumber'
+        stack[row] = 'block.number'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -868,6 +872,9 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             address = stack.pop(row)
             constraint = stack.pop(row - 1)
+
+            # NOTE: Path Constraint
+            path_constraint = str(constraint)
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -1042,7 +1049,7 @@ def state_simulation(instruction, state):
 
     if isinstance(gas, float):
         gas = int(round(gas))
-    return state, gas
+    return state, gas, path_constraint
 
 
 def to_unsigned(number):
