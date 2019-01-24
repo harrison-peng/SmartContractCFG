@@ -9,9 +9,9 @@ UNSIGNED_BOUND_NUMBER = 2**256 - 1
 def state_simulation(instruction, state):
     global solver
 
-    stack = state[0]
-    memory = state[1]
-    storage = state[2]
+    stack = state['Stack']
+    memory = state['Memory']
+    storage = state['Storage']
     instruction_set = instruction.split(' ')
     opcode = instruction_set[0]
     gas = 0
@@ -21,15 +21,15 @@ def state_simulation(instruction, state):
         pass
     elif opcode == 'TIMESTAMP':
         row = len(stack)
-        stack[row] = 'TIMESTAMP'
+        stack[str(row)] = 'TIMESTAMP'
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'ADD':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = first + second
@@ -37,7 +37,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '+' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -46,8 +46,8 @@ def state_simulation(instruction, state):
     elif opcode == 'MUL':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = first * second & UNSIGNED_BOUND_NUMBER
@@ -55,7 +55,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '*' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -64,8 +64,8 @@ def state_simulation(instruction, state):
     elif opcode == 'SUB':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = first - second
@@ -73,7 +73,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '-' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -82,8 +82,8 @@ def state_simulation(instruction, state):
     elif opcode == 'DIV':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 if second == 0:
@@ -96,7 +96,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '/' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -105,8 +105,8 @@ def state_simulation(instruction, state):
     elif opcode == 'SDIV':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if is_all_real(first, second):
                 first = to_signed(first)
@@ -144,7 +144,7 @@ def state_simulation(instruction, state):
             computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -153,8 +153,8 @@ def state_simulation(instruction, state):
     elif opcode == 'MOD':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 if second == 0:
@@ -167,7 +167,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '%' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -176,8 +176,8 @@ def state_simulation(instruction, state):
     elif opcode == 'SMOD':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if is_all_real(first, second):
                 if second == 0:
@@ -213,7 +213,7 @@ def state_simulation(instruction, state):
 
             computed = simplify(computed) if is_expr(computed) else computed
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -222,9 +222,9 @@ def state_simulation(instruction, state):
     elif opcode == 'ADDMOD':
         if len(stack) > 2:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
-            third = stack.pop(row - 2)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
+            third = stack.pop(str(row - 2))
 
             if is_all_real(first, second, third):
                 if third == 0:
@@ -257,9 +257,9 @@ def state_simulation(instruction, state):
     elif opcode == 'MULMOD':
         if len(stack) > 2:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
-            third = stack.pop(row - 2)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
+            third = stack.pop(str(row - 2))
 
             if is_all_real(first, second, third):
                 if third == 0:
@@ -283,7 +283,7 @@ def state_simulation(instruction, state):
 
             computed = simplify(computed) if is_expr(computed) else computed
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -292,14 +292,14 @@ def state_simulation(instruction, state):
     elif opcode == 'EXP':
         if len(stack) > 1:
             row = len(stack) - 1
-            base = stack.pop(row)
-            exponent = stack.pop(row - 1)
+            base = stack.pop(str(row))
+            exponent = stack.pop(str(row - 1))
 
             computed = 0
             if is_all_real(base, exponent):
                 computed = pow(base, exponent, 2 ** 256)
                 row = len(stack)
-                stack[row] = computed
+                stack[str(row)] = computed
 
                 # NOTE: GAS
                 if computed == 0:
@@ -313,7 +313,7 @@ def state_simulation(instruction, state):
                     computed = '(' + str(base) + '**' + exponent + ')'
 
                 row = len(stack)
-                stack[row] = computed
+                stack[str(row)] = computed
 
                 # NOTE: GAS
                 gas = '10+(10*(1+log256(%s)))' % computed
@@ -322,8 +322,8 @@ def state_simulation(instruction, state):
     elif opcode == 'SIGNEXTEND':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if is_all_real(first, second):
                 if first >= 32 or first < 0:
@@ -363,8 +363,8 @@ def state_simulation(instruction, state):
     elif opcode == 'LT':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 first = to_unsigned(first)
@@ -385,7 +385,7 @@ def state_simulation(instruction, state):
                     computed = '(' + str(first) + '<' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -394,8 +394,8 @@ def state_simulation(instruction, state):
     elif opcode == 'GT':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 first = to_unsigned(first)
@@ -416,7 +416,7 @@ def state_simulation(instruction, state):
                     computed = '(' + str(first) + '>' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -440,7 +440,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '<' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -450,8 +450,8 @@ def state_simulation(instruction, state):
         # FIXME: Not fully faithful to signed comparison
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 first = to_signed(first)
@@ -464,7 +464,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '>' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -473,8 +473,8 @@ def state_simulation(instruction, state):
     elif opcode == 'EQ':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 if first == second:
@@ -493,7 +493,7 @@ def state_simulation(instruction, state):
                         computed = 0
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -502,7 +502,7 @@ def state_simulation(instruction, state):
     elif opcode == 'ISZERO':
         if len(stack) > 0:
             row = len(stack) - 1
-            first = stack.pop(row)
+            first = stack.pop(str(row))
 
             if isinstance(first, int):
                 if first == 0:
@@ -519,7 +519,7 @@ def state_simulation(instruction, state):
                     computed = '(' + str(first) + '==0' + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -528,8 +528,8 @@ def state_simulation(instruction, state):
     elif opcode == 'AND':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = int(first) & second
@@ -537,7 +537,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '&' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -546,8 +546,8 @@ def state_simulation(instruction, state):
     elif opcode == 'OR':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = first | second
@@ -555,7 +555,7 @@ def state_simulation(instruction, state):
                 computed = '(' + str(first) + '|' + str(second) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -564,8 +564,8 @@ def state_simulation(instruction, state):
     elif opcode == 'XOR':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
 
             if isinstance(first, int) and isinstance(second, int):
                 computed = first ^ second
@@ -573,7 +573,7 @@ def state_simulation(instruction, state):
                 computed = str(first) + '^' + str(second)
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -582,7 +582,7 @@ def state_simulation(instruction, state):
     elif opcode == 'NOT':
         if len(stack) > 0:
             row = len(stack) - 1
-            first = stack.pop(row)
+            first = stack.pop(str(row))
 
             if isinstance(first, int):
                 computed = (~first) & UNSIGNED_BOUND_NUMBER
@@ -590,7 +590,7 @@ def state_simulation(instruction, state):
                 computed = '(' + '~' + str(first) + ')'
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -599,8 +599,8 @@ def state_simulation(instruction, state):
     elif opcode == 'BYTE':
         if len(stack) > 1:
             row = len(stack) - 1
-            first = stack.pop(row)
-            second = stack.pop(row - 1)
+            first = stack.pop(str(row))
+            second = stack.pop(str(row - 1))
             byte_index = 32 - first - 1
 
             if is_all_real(first, second):
@@ -623,7 +623,7 @@ def state_simulation(instruction, state):
 
             computed = simplify(computed) if is_expr(computed) else computed
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -632,10 +632,8 @@ def state_simulation(instruction, state):
     elif opcode in ['SHA3', 'KECCAK256']:
         if len(stack) > 1:
             row = len(stack) - 1
-            # print('[ROW]:', row, row - 1, stack)
-            position = stack.pop(row)
-            to = stack.pop(row - 1)
-            # print('[TO]:', position, to)
+            position = stack.pop(str(row))
+            to = stack.pop(str(row - 1))
 
             # FIXME: NEED TO CHECK INT OR NOT
             try:
@@ -646,7 +644,7 @@ def state_simulation(instruction, state):
                 computed = 'SHA3(%s)' % data
 
             row = len(stack)
-            stack[row] = computed
+            stack[str(row)] = computed
 
             # NOTE: GAS
             if isinstance(data, int):
@@ -659,7 +657,7 @@ def state_simulation(instruction, state):
         # NOTE: get address of currently executing account
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'address(this)'
+        stack[str(row)] = 'address(this)'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -667,10 +665,10 @@ def state_simulation(instruction, state):
         # TODO: handle it
         if len(stack) > 0:
             row = len(stack) - 1
-            address = stack.pop(row)
+            address = stack.pop(str(row))
 
             row = len(stack)
-            stack[row] = 'address(%s).balance' % str(address)
+            stack[str(row)] = 'address(%s).balance' % str(address)
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -680,7 +678,7 @@ def state_simulation(instruction, state):
         # NOTE: get caller address
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'msg.caller	'
+        stack[str(row)] = 'msg.caller'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -688,7 +686,7 @@ def state_simulation(instruction, state):
         # NOTE: get value of this transaction
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'msg.value'
+        stack[str(row)] = 'msg.value'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -697,13 +695,13 @@ def state_simulation(instruction, state):
         # TODO: handle it
         if len(stack) > 0:
             row = len(stack) - 1
-            position = stack.pop(row)
+            position = stack.pop(str(row))
 
             row = len(stack)
             if is_real(position):
-                stack[row] = 'msg.data[%s:%s]' % (str(position), str(position+32))
+                stack[str(row)] = 'msg.data[%s:%s]' % (str(position), str(position+32))
             else:
-                stack[row] = 'msg.data[%s:%s]' % (str(position), str(position) + '+32')
+                stack[str(row)] = 'msg.data[%s:%s]' % (str(position), str(position) + '+32')
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -712,7 +710,7 @@ def state_simulation(instruction, state):
     elif opcode == 'CALLDATASIZE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'msg.data.size	'
+        stack[str(row)] = 'msg.data.size	'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -720,9 +718,9 @@ def state_simulation(instruction, state):
         # NOTE: Copy input data to memory
         if len(stack) > 2:
             row = len(stack) - 1
-            memory_position = stack.pop(row)
-            data_position = stack.pop(row - 1)
-            num_bytes = stack.pop(row - 2)
+            memory_position = stack.pop(str(row))
+            data_position = stack.pop(str(row - 1))
+            num_bytes = stack.pop(str(row - 2))
 
             # TODO: handle gas and memory
             # NOTE: GAS
@@ -732,16 +730,16 @@ def state_simulation(instruction, state):
     elif opcode == 'CODESIZE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'address(this).code.size'
+        stack[str(row)] = 'address(this).code.size'
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'CODECOPY':
         if len(stack) > 2:
             row = len(stack) - 1
-            memory_position = stack.pop(row)
-            code_position = stack.pop(row - 1)
-            num_bytes = stack.pop(row - 2)
+            memory_position = stack.pop(str(row))
+            code_position = stack.pop(str(row - 1))
+            num_bytes = stack.pop(str(row - 2))
 
             # TODO: handle gas and memory
             # NOTE: GAS
@@ -751,16 +749,16 @@ def state_simulation(instruction, state):
     elif opcode == 'GASPRICE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'tx.gasprice'
+        stack[str(row)] = 'tx.gasprice'
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'RETURNDATACOPY':
         if len(stack) > 2:
             row = len(stack) - 1
-            z = stack.pop(row)
-            y = stack.pop(row - 1)
-            x = stack.pop(row - 2)
+            z = stack.pop(str(row))
+            y = stack.pop(str(row - 1))
+            x = stack.pop(str(row - 2))
 
             # TODO: handle gas and memory
             # NOTE: GAS
@@ -770,7 +768,7 @@ def state_simulation(instruction, state):
     elif opcode == 'RETURNDATASIZE':
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'size(returndata)'
+        stack[str(row)] = 'size(returndata)'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -778,14 +776,14 @@ def state_simulation(instruction, state):
         # NOTE: information from block header
         # TODO: handle it
         row = len(stack)
-        stack[row] = 'block.number'
+        stack[str(row)] = 'block.number'
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'POP':
         if len(stack) > 0:
             row = len(stack) - 1
-            stack.pop(row)
+            stack.pop(str(row))
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -794,7 +792,7 @@ def state_simulation(instruction, state):
     elif opcode == 'MLOAD':
         if len(stack) > 0:
             row = len(stack) - 1
-            address = stack.pop(row)
+            address = stack.pop(str(row))
 
             value = ''
             for key, val in memory.items():
@@ -808,7 +806,7 @@ def state_simulation(instruction, state):
                     value = 'memory[%s:%s]' % (str(address), str(address) + '+32')
 
             row = len(stack)
-            stack[row] = value
+            stack[str(row)] = value
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -817,8 +815,8 @@ def state_simulation(instruction, state):
     elif opcode == 'MSTORE':
         if len(stack) > 1:
             row = len(stack) - 1
-            address = stack.pop(row)
-            value = stack.pop(row - 1)
+            address = stack.pop(str(row))
+            value = stack.pop(str(row - 1))
             memory[str(address)] = value
 
             # NOTE: GAS
@@ -828,14 +826,14 @@ def state_simulation(instruction, state):
     elif opcode == 'SLOAD':
         if len(stack) > 0:
             row = len(stack) - 1
-            address = stack.pop(row)
+            address = stack.pop(str(row))
 
             value = ''
             for key, val in storage.items():
                 if key == address:
                     value = val
             row = len(stack)
-            stack[row] = value
+            stack[str(row)] = value
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -844,8 +842,8 @@ def state_simulation(instruction, state):
     elif opcode == 'SSTORE':
         if len(stack) > 1:
             row = len(stack) - 1
-            address = stack.pop(row)
-            value = stack.pop(row - 1)
+            address = stack.pop(str(row))
+            value = stack.pop(str(row - 1))
             storage[str(address)] = value
 
             if is_all_real(address, value):
@@ -861,7 +859,7 @@ def state_simulation(instruction, state):
     elif opcode == 'JUMP':
         if len(stack) > 0:
             row = len(stack) - 1
-            stack.pop(row)
+            stack.pop(str(row))
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -870,8 +868,8 @@ def state_simulation(instruction, state):
     elif opcode == 'JUMPI':
         if len(stack) > 1:
             row = len(stack) - 1
-            address = stack.pop(row)
-            constraint = stack.pop(row - 1)
+            address = stack.pop(str(row))
+            constraint = stack.pop(str(row - 1))
 
             # NOTE: Path Constraint
             path_constraint = str(constraint)
@@ -884,7 +882,7 @@ def state_simulation(instruction, state):
             raise ValueError('STACK underflow')
     elif opcode == 'GAS':
         row = len(stack)
-        stack[row] = 'GasAvailable'
+        stack[str(row)] = 'GasAvailable'
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -905,16 +903,16 @@ def state_simulation(instruction, state):
                 else:
                     pushed_value = int(instruction_set[1], 16)
         row = len(stack)
-        stack[row] = pushed_value
+        stack[str(row)] = pushed_value
 
         # NOTE: GAS
         gas = gas_table['PUSH']
     elif opcode.startswith('DUP', 0):
         position = int(opcode[3:], 10) - 1
         if len(stack) > position:
-            duplicate_value = stack[position]
+            duplicate_value = stack[str(position)]
             row = len(stack)
-            stack[row] = duplicate_value
+            stack[str(row)] = duplicate_value
 
             # NOTE: GAS
             gas = gas_table['DUP']
@@ -923,10 +921,10 @@ def state_simulation(instruction, state):
     elif opcode.startswith('SWAP', 0):
         position = int(opcode[4:], 10)
         if len(stack) > position:
-            temp_value = stack[position]
+            temp_value = stack[str(position)]
             row = len(stack) - 1
-            stack[position] = stack[row]
-            stack[row] = temp_value
+            stack[str(position)] = stack[str(row)]
+            stack[str(row)] = temp_value
 
             # NOTE: GAS
             gas = gas_table['SWAP']
@@ -940,7 +938,7 @@ def state_simulation(instruction, state):
             while num_of_pops > 0:
                 num_of_pops -= 1
                 row = len(stack) - 1
-                pop_value = stack.pop(row)
+                pop_value = stack.pop(str(row))
 
                 # NOTE: GAS
                 if count == 1:
@@ -954,16 +952,16 @@ def state_simulation(instruction, state):
         # TODO: Need to handle miu_i
         if len(stack) > 6:
             row = len(stack) - 1
-            out_gas = stack.pop(row)
-            recipient = stack.pop(row - 1)
-            out_wei = stack.pop(row - 2)
-            in_value = stack.pop(row - 3)
-            in_size = stack.pop(row - 4)
-            out_value = stack.pop(row - 5)
-            out_size = stack.pop(row - 6)
+            out_gas = stack.pop(str(row))
+            recipient = stack.pop(str(row - 1))
+            out_wei = stack.pop(str(row - 2))
+            in_value = stack.pop(str(row - 3))
+            in_size = stack.pop(str(row - 4))
+            out_value = stack.pop(str(row - 5))
+            out_size = stack.pop(str(row - 6))
 
             row = len(stack)
-            stack[row] = 'CallReturn'
+            stack[str(row)] = 'CallReturn'
 
             # NOTE: GAS
             # TODO: handle gas
@@ -973,16 +971,16 @@ def state_simulation(instruction, state):
     elif opcode == 'CALLCODE':
         if len(stack) > 6:
             row = len(stack) - 1
-            out_gas = stack.pop(row)
-            recipient = stack.pop(row - 1)
-            out_wei = stack.pop(row - 2)
-            in_value = stack.pop(row - 3)
-            in_size = stack.pop(row - 4)
-            out_value = stack.pop(row - 5)
-            out_size = stack.pop(row - 6)
+            out_gas = stack.pop(str(row))
+            recipient = stack.pop(str(row - 1))
+            out_wei = stack.pop(str(row - 2))
+            in_value = stack.pop(str(row - 3))
+            in_size = stack.pop(str(row - 4))
+            out_value = stack.pop(str(row - 5))
+            out_size = stack.pop(str(row - 6))
 
             row = len(stack)
-            stack[row] = 'CallCodeReturn'
+            stack[str(row)] = 'CallCodeReturn'
 
             # NOTE: GAS
             # TODO: handle gas
@@ -992,15 +990,15 @@ def state_simulation(instruction, state):
     elif opcode in ['DELEGATECALL', 'STATICCALL']:
         if len(stack) > 2:
             row = len(stack) - 1
-            out_gas = stack.pop(row)
-            recipient = stack.pop(row - 1)
-            in_value = stack.pop(row - 2)
-            in_size = stack.pop(row - 3)
-            out_value = stack.pop(row - 4)
-            out_size = stack.pop(row - 5)
+            out_gas = stack.pop(str(row))
+            recipient = stack.pop(str(row - 1))
+            in_value = stack.pop(str(row - 2))
+            in_size = stack.pop(str(row - 3))
+            out_value = stack.pop(str(row - 4))
+            out_size = stack.pop(str(row - 5))
 
             row = len(stack)
-            stack[row] = 'DelegateCallStaticCallReturn'
+            stack[str(row)] = 'DelegateCallStaticCallReturn'
 
             # NOTE: GAS
             # TODO: handle gas
@@ -1011,8 +1009,8 @@ def state_simulation(instruction, state):
         # TODO: Need to handle miu_i
         if len(stack) > 1:
             row = len(stack) - 1
-            stack.pop(row)
-            stack.pop(row - 1)
+            stack.pop(str(row))
+            stack.pop(str(row - 1))
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -1021,12 +1019,12 @@ def state_simulation(instruction, state):
     elif opcode == 'CREATE':
         if len(stack) > 2:
             row = len(stack) - 1
-            wei = stack.pop(row)
-            position = stack.pop(row - 1)
-            length = stack.pop(row - 2)
+            wei = stack.pop(str(row))
+            position = stack.pop(str(row - 1))
+            length = stack.pop(str(row - 2))
 
             row = len(stack)
-            stack[row] = 'NewAddress'
+            stack[str(row)] = 'NewAddress'
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -1035,10 +1033,10 @@ def state_simulation(instruction, state):
     elif opcode == 'EXTCODESIZE':
         if len(stack) > 0:
             row = len(stack) - 1
-            address = stack.pop(row)
+            address = stack.pop(str(row))
 
             row = len(stack)
-            stack[row] = 'CodeAt%s' % str(address)
+            stack[str(row)] = 'CodeAt%s' % str(address)
 
             # NOTE: GAS
             gas = gas_table[opcode]
