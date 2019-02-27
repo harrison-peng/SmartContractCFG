@@ -8,6 +8,8 @@ import functools
 import argparse
 import os
 import json
+import global_vars
+import result_file
 
 f_SE = os.path.join(os.path.dirname(__file__), 'SE')
 wSE = open(f_SE, 'w')
@@ -118,6 +120,8 @@ def preproc(file_name):
 
 
 def asm_analysis(file_name, contract_name):
+    global_vars.init()
+
     with open('./opcode/%s_%s' % (file_name, contract_name), 'r') as f:
         opcode_data = f.read()
 
@@ -131,6 +135,8 @@ def asm_analysis(file_name, contract_name):
 
     nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
     create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
+    result_file.output_result(file_name, contract_name)
+
     print('')
     # print('[count sim]:', count_sim)
     # cycle_detection(nodes, edges)
