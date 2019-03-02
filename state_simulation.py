@@ -931,7 +931,7 @@ def state_simulation(instruction, state):
 
             value = ''
             for key, val in storage.items():
-                if key == address:
+                if str(key) == str(address):
                     value = val
 
             row = len(stack)
