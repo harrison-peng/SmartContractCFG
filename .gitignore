@@ -6,6 +6,7 @@ img/
 output/
 opcode/
 opcode_pre/
+result/
 
 .DS_Store
 .idea

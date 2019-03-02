@@ -319,10 +319,12 @@ def symbolic_implement(state, gas, path_cons,
                                     if path_constraint != 1:
                                         print('[PATH CONS]: %s not go true way' % tag)
                                         go_true = False
-                                if isinstance(path_constraint, z3.z3.BoolRef):
-                                    constraint = path_constraint
-                                else:
-                                    constraint = BitVec(path_constraint, 256) == 1
+
+                                constraint = path_constraint == 1
+                                # if isinstance(path_constraint, z3.z3.BoolRef):
+                                #     constraint = path_constraint
+                                # else:
+                                #     constraint = BitVec(path_constraint, 256) == 1
                                 # print('[CONS==1]:', type(constraint), constraint)
                                 path_cons_1.add(constraint)
                                 constraint = str(path_constraint).replace('&', '\n&').replace(',', ',\n')
@@ -332,10 +334,12 @@ def symbolic_implement(state, gas, path_cons,
                                     if path_constraint != 0:
                                         print('[PATH CONS]: %s not go False way' % tag)
                                         go_false = False
-                                if isinstance(path_constraint, z3.z3.BoolRef):
-                                    constraint = Not(path_constraint)
-                                else:
-                                    constraint = BitVec(path_constraint, 256) == 0
+
+                                constraint = path_constraint == 0
+                                # if isinstance(path_constraint, z3.z3.BoolRef):
+                                #     constraint = Not(path_constraint)
+                                # else:
+                                #     constraint = BitVec(path_constraint, 256) == 0
                                 # print('[CONS==0]:', type(constraint), constraint)
                                 path_cons_2.add(constraint)
                                 constraint = str(constraint).replace('&', '\n&').replace(',', ',\n')
@@ -395,11 +399,14 @@ def symbolic_implement(state, gas, path_cons,
                     count_path += 1
 
                     # print('[GAS]:', tag, path_cons)
-                    print('[INFO] Check Path Constraints:', path_cons.check())
+                    print('[INFO] Checking Satisfiability of Path Constraints...')
                     if path_cons.check() == sat:
+                        print('[INFO] Path Constraints: sat')
                         ans = path_cons.model()
                         new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas}
-                        global_vars.FINAL_PC_GAS.append(new_pc_gas)
+                        global_vars.add_pc_gas(new_pc_gas)
+                    else:
+                        print('[INFO] Path Constraints: unsat')
 
                     return
                 elif line == 'Stack Sum':

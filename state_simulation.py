@@ -438,7 +438,7 @@ def state_simulation(instruction, state):
                     if isinstance(second, str):
                         second = to_z3_symbolic(second)
 
-                    computed = first < second
+                    computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
                     # computed = '(' + str(first) + '<' + str(second) + ')'
 
             row = len(stack)
@@ -475,7 +475,7 @@ def state_simulation(instruction, state):
                     if isinstance(second, str):
                         second = to_z3_symbolic(second)
 
-                    computed = first > second
+                    computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
                     # computed = '(' + str(first) + '>' + str(second) + ')'
 
             row = len(stack)
@@ -505,7 +505,7 @@ def state_simulation(instruction, state):
                 if isinstance(second, str):
                     second = to_z3_symbolic(second)
 
-                computed = first < second
+                computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = '(' + str(first) + '<' + str(second) + ')'
 
             row = len(stack)
@@ -535,7 +535,7 @@ def state_simulation(instruction, state):
                 if isinstance(second, str):
                     second = to_z3_symbolic(second)
 
-                computed = first > second
+                computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = '(' + str(first) + '>' + str(second) + ')'
 
             row = len(stack)
@@ -562,7 +562,7 @@ def state_simulation(instruction, state):
                 if isinstance(second, str):
                     second = to_z3_symbolic(second)
 
-                computed = first == second
+                computed = If(first == second, BitVecVal(1, 256), BitVecVal(0, 256))
 
                 # if isinstance(first, str):
                 #     computed = '(' + str(first) + '==' + str(second) + ')'
@@ -601,10 +601,10 @@ def state_simulation(instruction, state):
                     if isinstance(first, str):
                         first = to_z3_symbolic(first)
 
-                    if isinstance(first, z3.z3.BoolRef):
-                        computed = Not(first)
-                    else:
-                        computed = first == 0
+                    # if isinstance(first, z3.z3.BoolRef):
+                    #     computed = Not(first)
+                    # else:
+                    computed = If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
 
             row = len(stack)
             stack[str(row)] = computed
