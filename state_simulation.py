@@ -2,8 +2,10 @@ import six
 import sha3
 from z3 import *
 from gas_price import gas_table
+from global_vars import *
 
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
+solver = Solver()
 
 
 def state_simulation(instruction, state):
@@ -16,6 +18,18 @@ def state_simulation(instruction, state):
     opcode = instruction_set[0]
     gas = 0
     path_constraint = ''
+    for key, val in stack.items():
+        if isinstance(val, str):
+            print('[STACK]', instruction, stack)
+            raise Exception
+    for key, val in memory.items():
+        if isinstance(val, str):
+            print('[MEMORY]', instruction)
+            raise Exception
+    for key, val in storage.items():
+        if isinstance(val, str):
+            print('[STORAGE]', instruction)
+            raise Exception
 
     if opcode in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
         pass
@@ -31,22 +45,21 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if not isinstance(first, int) and not isinstance(first, z3.z3.BitVecRef):
-                first = to_z3_symbolic(first)
-            if not isinstance(second, int) and not isinstance(second, z3.z3.BitVecRef):
-                second = to_z3_symbolic(second)
-            computed = first + second
+            # if isinstance(first, str):
+            #     first = to_z3_symbolic(first)
+            # if isinstance(second, str):
+            #     second = to_z3_symbolic(second)
+            # computed = first + second
 
-            # if isinstance(first, int) and isinstance(second, int):
-            #     computed = first + second
-            # else:
-            #     # if not isinstance(first, int) and not isinstance(first, z3.z3.ArithRef):
-            #     #     first = to_z3_symbolic(first)
-            #     # if not isinstance(second, int) and not isinstance(second, z3.z3.ArithRef):
-            #     #     second = to_z3_symbolic(second)
-            #     print('[ADD]:', type(first), type(second), second)
-            #     computed = (first + second)
-            #     print('[ADD]:', type(first), type(second), computed)
+            if is_real(first) and is_symbolic(second):
+                first = BitVecVal(first, 256)
+                computed = first + second
+            elif is_symbolic(first) and is_real(second):
+                second = BitVecVal(second, 256)
+                computed = first + second
+            else:
+                computed = (first + second) % (2 ** 256)
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -61,14 +74,21 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
-                computed = first * second & UNSIGNED_BOUND_NUMBER
-            else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-                computed = first * second
+            # if isinstance(first, int) and isinstance(second, int):
+            #     computed = first * second & UNSIGNED_BOUND_NUMBER
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #     computed = first * second
+
+            if is_real(first) and is_symbolic(second):
+                first = BitVecVal(first, 256)
+            elif is_symbolic(first) and is_real(second):
+                second = BitVecVal(second, 256)
+            computed = first * second & UNSIGNED_BOUND_NUMBER
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -83,14 +103,24 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     computed = first - second
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #     computed = first - second
+
+            if is_real(first) and is_symbolic(second):
+                first = BitVecVal(first, 256)
+                computed = first - second
+            elif is_symbolic(first) and is_real(second):
+                second = BitVecVal(second, 256)
                 computed = first - second
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-                computed = first - second
+                computed = (first - second) % (2 ** 256)
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -105,19 +135,38 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     if second == 0:
+            #         computed = 0
+            #     else:
+            #         first = to_unsigned(first)
+            #         second = to_unsigned(second)
+            #         computed = int(first / second)
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #     computed = first / second
+
+            if is_all_real(first, second):
                 if second == 0:
                     computed = 0
                 else:
                     first = to_unsigned(first)
                     second = to_unsigned(second)
-                    computed = int(first / second)
+                    computed = first / second
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-                computed = first / second
+                first = to_symbolic(first)
+                second = to_symbolic(second)
+                solver.push()
+                solver.add(Not(second == 0))
+                if check_sat(solver) == unsat:
+                    computed = 0
+                else:
+                    computed = UDiv(first, second)
+                solver.pop()
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -180,19 +229,41 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     if second == 0:
+            #         computed = 0
+            #     else:
+            #         first = to_unsigned(first)
+            #         second = to_unsigned(second)
+            #         computed = first % second & UNSIGNED_BOUND_NUMBER
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #     computed = first % second
+
+            if is_all_real(first, second):
                 if second == 0:
                     computed = 0
                 else:
                     first = to_unsigned(first)
                     second = to_unsigned(second)
                     computed = first % second & UNSIGNED_BOUND_NUMBER
+
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-                computed = first % second
+                first = to_symbolic(first)
+                second = to_symbolic(second)
+
+                solver.push()
+                solver.add(Not(second == 0))
+                if check_sat(solver) == unsat:
+                    # it is provable that second is indeed equal to zero
+                    computed = 0
+                else:
+                    computed = URem(first, second)
+                solver.pop()
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -254,35 +325,41 @@ def state_simulation(instruction, state):
             second = stack.pop(str(row - 1))
             third = stack.pop(str(row - 2))
 
+            # if is_all_real(first, second, third):
+            #     if third == 0:
+            #         computed = 0
+            #     else:
+            #         computed = (first + second) % third
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #     if isinstance(third, str):
+            #         third = to_z3_symbolic(third)
+            #     computed = (first + second) % third
+
             if is_all_real(first, second, third):
                 if third == 0:
                     computed = 0
                 else:
                     computed = (first + second) % third
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-                if isinstance(third, str):
-                    third = to_z3_symbolic(third)
-                computed = (first + second) % third
-
-                # first = to_symbolic(first)
-                # second = to_symbolic(second)
-                # solver.push()
-                # solver.add(Not(third == 0))
-                # if check_sat(solver) == unsat:
-                #     computed = 0
-                # else:
-                #     first = ZeroExt(256, first)
-                #     second = ZeroExt(256, second)
-                #     third = ZeroExt(256, third)
-                #     computed = (first + second) % third
-                #     computed = Extract(255, 0, computed)
-                # solver.pop()
-
+                first = to_symbolic(first)
+                second = to_symbolic(second)
+                solver.push()
+                solver.add( Not(third == 0) )
+                if check_sat(solver) == unsat:
+                    computed = 0
+                else:
+                    first = ZeroExt(256, first)
+                    second = ZeroExt(256, second)
+                    third = ZeroExt(256, third)
+                    computed = (first + second) % third
+                    computed = Extract(255, 0, computed)
+                solver.pop()
             computed = simplify(computed) if is_expr(computed) else computed
+
             row = len(stack)
             stack[row] = computed
 
@@ -297,35 +374,41 @@ def state_simulation(instruction, state):
             second = stack.pop(str(row - 1))
             third = stack.pop(str(row - 2))
 
+            # if is_all_real(first, second, third):
+            #     if third == 0:
+            #         computed = 0
+            #     else:
+            #         computed = (first * second) % third
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #     if isinstance(third, str):
+            #         third = to_z3_symbolic(third)
+            #     computed = (first * second) % third
+
             if is_all_real(first, second, third):
                 if third == 0:
                     computed = 0
                 else:
                     computed = (first * second) % third
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-                if isinstance(third, str):
-                    third = to_z3_symbolic(third)
-                computed = (first * second) % third
-
-                # first = to_symbolic(first)
-                # second = to_symbolic(second)
-                # solver.push()
-                # solver.add(Not(third == 0))
-                # if check_sat(solver) == unsat:
-                #     computed = 0
-                # else:
-                #     first = ZeroExt(256, first)
-                #     second = ZeroExt(256, second)
-                #     third = ZeroExt(256, third)
-                #     computed = URem(first * second, third)
-                #     computed = Extract(255, 0, computed)
-                # solver.pop()
-
+                first = to_symbolic(first)
+                second = to_symbolic(second)
+                solver.push()
+                solver.add( Not(third == 0) )
+                if check_sat(solver) == unsat:
+                    computed = 0
+                else:
+                    first = ZeroExt(256, first)
+                    second = ZeroExt(256, second)
+                    third = ZeroExt(256, third)
+                    computed = URem(first * second, third)
+                    computed = Extract(255, 0, computed)
+                solver.pop()
             computed = simplify(computed) if is_expr(computed) else computed
+
             row = len(stack)
             stack[str(row)] = computed
 
@@ -341,9 +424,11 @@ def state_simulation(instruction, state):
 
             computed = 0
             if is_all_real(base, exponent):
-                computed = pow(base, exponent)
-                row = len(stack)
-                stack[str(row)] = computed
+                # computed = pow(base, exponent)
+                # row = len(stack)
+                # stack[str(row)] = computed
+
+                computed = pow(base, exponent, 2 ** 256)
 
                 # NOTE: GAS
                 if computed == 0:
@@ -351,23 +436,23 @@ def state_simulation(instruction, state):
                 else:
                     gas = 10 + (10 * (1 + math.log(computed, 256)))
             else:
-                if not isinstance(base, int):
-                    base = to_z3_symbolic(base)
-                if not isinstance(exponent, int):
-                    exponent = to_z3_symbolic(exponent)
-                # FIXME: Z3
-                computed = '%s**%s' % (base, exponent)
-
                 # if isinstance(base, str):
-                #     computed = '(' + base + '**' + str(exponent) + ')'
-                # elif isinstance(exponent, str):
-                #     computed = '(' + str(base) + '**' + exponent + ')'
+                #     base = to_z3_symbolic(base)
+                # if isinstance(exponent, str):
+                #     exponent = to_z3_symbolic(exponent)
+                # # FIXME: Z3
+                # computed = '%s**%s' % (base, exponent)
+                # row = len(stack)
+                # stack[str(row)] = computed
 
-                row = len(stack)
-                stack[str(row)] = computed
+                new_var_name = get_gen().gen_address_var()
+                computed = BitVec(new_var_name, 256)
 
                 # NOTE: GAS
                 gas = '10+(10*(1+log256(%s)))' % computed
+
+            row = len(stack)
+            stack[str(row)] = computed
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'SIGNEXTEND':
@@ -417,7 +502,31 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     first = to_unsigned(first)
+            #     second = to_unsigned(second)
+            #     if first < second:
+            #         computed = 1
+            #     else:
+            #         computed = 0
+            # else:
+            #     if isinstance(first, int) and isinstance(second, int):
+            #         first = to_unsigned(first)
+            #         second = to_unsigned(second)
+            #         if first < second:
+            #             computed = 1
+            #         else:
+            #             computed = 0
+            #     else:
+            #         if isinstance(first, str):
+            #             first = to_z3_symbolic(first)
+            #         if isinstance(second, str):
+            #             second = to_z3_symbolic(second)
+            #
+            #         computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
+            #         # computed = '(' + str(first) + '<' + str(second) + ')'
+
+            if is_all_real(first, second):
                 first = to_unsigned(first)
                 second = to_unsigned(second)
                 if first < second:
@@ -425,21 +534,8 @@ def state_simulation(instruction, state):
                 else:
                     computed = 0
             else:
-                if isinstance(first, int) and isinstance(second, int):
-                    first = to_unsigned(first)
-                    second = to_unsigned(second)
-                    if first < second:
-                        computed = 1
-                    else:
-                        computed = 0
-                else:
-                    if isinstance(first, str):
-                        first = to_z3_symbolic(first)
-                    if isinstance(second, str):
-                        second = to_z3_symbolic(second)
-
-                    computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
-                    # computed = '(' + str(first) + '<' + str(second) + ')'
+                computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -454,7 +550,31 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     first = to_unsigned(first)
+            #     second = to_unsigned(second)
+            #     if first > second:
+            #         computed = 1
+            #     else:
+            #         computed = 0
+            # else:
+            #     if isinstance(first, int) and isinstance(second, int):
+            #         first = to_unsigned(first)
+            #         second = to_unsigned(second)
+            #         if first > second:
+            #             computed = 1
+            #         else:
+            #             computed = 0
+            #     else:
+            #         if isinstance(first, str):
+            #             first = to_z3_symbolic(first)
+            #         if isinstance(second, str):
+            #             second = to_z3_symbolic(second)
+            #
+            #         computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
+            #         # computed = '(' + str(first) + '>' + str(second) + ')'
+
+            if is_all_real(first, second):
                 first = to_unsigned(first)
                 second = to_unsigned(second)
                 if first > second:
@@ -462,21 +582,8 @@ def state_simulation(instruction, state):
                 else:
                     computed = 0
             else:
-                if isinstance(first, int) and isinstance(second, int):
-                    first = to_unsigned(first)
-                    second = to_unsigned(second)
-                    if first > second:
-                        computed = 1
-                    else:
-                        computed = 0
-                else:
-                    if isinstance(first, str):
-                        first = to_z3_symbolic(first)
-                    if isinstance(second, str):
-                        second = to_z3_symbolic(second)
-
-                    computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
-                    # computed = '(' + str(first) + '>' + str(second) + ')'
+                computed = If(UGT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -492,7 +599,23 @@ def state_simulation(instruction, state):
             first = stack.pop(row)
             second = stack.pop(row - 1)
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     first = to_signed(first)
+            #     second = to_signed(second)
+            #     if first < second:
+            #         computed = 1
+            #     else:
+            #         computed = 0
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #
+            #     computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
+            #     # computed = '(' + str(first) + '<' + str(second) + ')'
+
+            if is_all_real(first, second):
                 first = to_signed(first)
                 second = to_signed(second)
                 if first < second:
@@ -500,13 +623,8 @@ def state_simulation(instruction, state):
                 else:
                     computed = 0
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-
                 computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
-                # computed = '(' + str(first) + '<' + str(second) + ')'
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -522,7 +640,23 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     first = to_signed(first)
+            #     second = to_signed(second)
+            #     if first > second:
+            #         computed = 1
+            #     else:
+            #         computed = 0
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #
+            #     computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
+            #     # computed = '(' + str(first) + '>' + str(second) + ')'
+
+            if is_all_real(first, second):
                 first = to_signed(first)
                 second = to_signed(second)
                 if first > second:
@@ -530,13 +664,8 @@ def state_simulation(instruction, state):
                 else:
                     computed = 0
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-
                 computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
-                # computed = '(' + str(first) + '>' + str(second) + ')'
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -551,28 +680,27 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
+            # if isinstance(first, int) and isinstance(second, int):
+            #     if first == second:
+            #         computed = 1
+            #     else:
+            #         computed = 0
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #
+            #     computed = If(first == second, BitVecVal(1, 256), BitVecVal(0, 256))
+
+            if is_all_real(first, second):
                 if first == second:
                     computed = 1
                 else:
                     computed = 0
             else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
-
                 computed = If(first == second, BitVecVal(1, 256), BitVecVal(0, 256))
-
-                # if isinstance(first, str):
-                #     computed = '(' + str(first) + '==' + str(second) + ')'
-                # elif isinstance(second, str):
-                #     computed = '(' + str(first) + '==' + str(second) + ')'
-                # else:
-                #     if first == second:
-                #         computed = 1
-                #     else:
-                #         computed = 0
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -586,25 +714,34 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             first = stack.pop(str(row))
 
-            if isinstance(first, int):
+            # if isinstance(first, int):
+            #     if first == 0:
+            #         computed = 1
+            #     else:
+            #         computed = 0
+            # else:
+            #     if isinstance(first, int):
+            #         if first == 0:
+            #             computed = 1
+            #         else:
+            #             computed = 0
+            #     else:
+            #         if isinstance(first, str):
+            #             first = to_z3_symbolic(first)
+            #
+            #         # if isinstance(first, z3.z3.BoolRef):
+            #         #     computed = Not(first)
+            #         # else:
+            #         computed = If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
+
+            if is_real(first):
                 if first == 0:
                     computed = 1
                 else:
                     computed = 0
             else:
-                if isinstance(first, int):
-                    if first == 0:
-                        computed = 1
-                    else:
-                        computed = 0
-                else:
-                    if isinstance(first, str):
-                        first = to_z3_symbolic(first)
-
-                    # if isinstance(first, z3.z3.BoolRef):
-                    #     computed = Not(first)
-                    # else:
-                    computed = If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
+                computed = If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -619,15 +756,14 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, str):
-                first = to_z3_symbolic(first)
-            if isinstance(second, str):
-                second = to_z3_symbolic(second)
+            # if isinstance(first, str):
+            #     first = to_z3_symbolic(first)
+            # if isinstance(second, str):
+            #     second = to_z3_symbolic(second)
+            # computed = first & second
+
             computed = first & second
-            # if isinstance(first, int) and isinstance(second, int):
-            #     computed = first & second
-            # else:
-            #     computed = '(' + str(first) + '&' + str(second) + ')'
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -642,15 +778,18 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
-                computed = first | second
-            else:
-                if isinstance(first, str):
-                    first = to_z3_symbolic(first)
-                if isinstance(second, str):
-                    second = to_z3_symbolic(second)
+            # if isinstance(first, int) and isinstance(second, int):
+            #     computed = first | second
+            # else:
+            #     if isinstance(first, str):
+            #         first = to_z3_symbolic(first)
+            #     if isinstance(second, str):
+            #         second = to_z3_symbolic(second)
+            #
+            #     computed = first | second
 
-                computed = first | second
+            computed = first | second
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -665,10 +804,13 @@ def state_simulation(instruction, state):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if isinstance(first, int) and isinstance(second, int):
-                computed = first ^ second
-            else:
-                computed = str(first) + '^' + str(second)
+            # if isinstance(first, int) and isinstance(second, int):
+            #     computed = first ^ second
+            # else:
+            #     computed = str(first) + '^' + str(second)
+
+            computed = first ^ second
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -682,10 +824,13 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             first = stack.pop(str(row))
 
-            if isinstance(first, int):
-                computed = (~first) & UNSIGNED_BOUND_NUMBER
-            else:
-                computed = '(' + '~' + str(first) + ')'
+            # if isinstance(first, int):
+            #     computed = (~first) & UNSIGNED_BOUND_NUMBER
+            # else:
+            #     computed = '(' + '~' + str(first) + ')'
+
+            computed = (~first) & UNSIGNED_BOUND_NUMBER
+            computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -728,18 +873,22 @@ def state_simulation(instruction, state):
         else:
             raise ValueError('STACK underflow')
     elif opcode in ['SHA3', 'KECCAK256']:
+        # FIXME: NEED To FIX
         if len(stack) > 1:
             row = len(stack) - 1
             position = stack.pop(str(row))
             to = stack.pop(str(row - 1))
 
-            # FIXME: NEED TO CHECK INT OR NOT
+            # NEED TO CHECK INT OR NOT
             try:
                 data = str(memory[str(position)])
-                computed = sha3.sha3_224(data.encode('utf-8')).hexdigest()
+                computed = int(sha3.sha3_224(data.encode('utf-8')).hexdigest(), 16)
             except KeyError:
-                data = 'MEMORY[%s:%s]' % (str(position), str(to))
-                computed = 'SHA3(%s)' % data
+                # data = 'MEMORY[%s:%s]' % (str(position), str(to))
+                data = 'MEMORY[%s]' % str(position)
+                # computed = 'SHA3(%s)' % data
+                new_var_name = get_gen().gen_arbitrary_var()
+                computed = BitVec(new_var_name, 256)
 
             row = len(stack)
             stack[str(row)] = computed
@@ -748,14 +897,15 @@ def state_simulation(instruction, state):
             if isinstance(data, int):
                 gas = 30 + 6 * data
             else:
-                gas = '30+6*%s' % str(data)
+                # gas = '30+6*%s' % str(data)
+                gas = '30+6*WORDSIZE'
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'ADDRESS':
         # NOTE: get address of currently executing account
         # TODO: handle it
         row = len(stack)
-        stack[str(row)] = to_z3_symbolic('ADDRESS')
+        stack[str(row)] = BitVec('Ia', 256)
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -765,8 +915,11 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             address = stack.pop(str(row))
 
+            new_var_name = get_gen().gen_balance_var()
+            new_var = BitVec(new_var_name, 256)
+
             row = len(stack)
-            stack[str(row)] = to_z3_symbolic('BALANCE[%s]' % str(address))
+            stack[str(row)] = new_var
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -774,41 +927,63 @@ def state_simulation(instruction, state):
             raise ValueError('STACK underflow')
     elif opcode == 'CALLER':
         # NOTE: get caller address
-        # TODO: handle it
+        new_var_name = get_gen().gen_caller_var()
+        new_var = BitVec(new_var_name, 256)
+
         row = len(stack)
-        stack[str(row)] = to_z3_symbolic('MSGCALLER')
+        stack[str(row)] = new_var
+
+        # NOTE: GAS
+        gas = gas_table[opcode]
+    elif opcode == "ORIGIN":
+        # NOTE: get execution origination address
+        new_var_name = get_gen().gen_origin_var()
+        new_var = BitVec(new_var_name, 256)
+
+        row = len(stack)
+        stack[str(row)] = new_var
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'CALLVALUE':
         # NOTE: get value of this transaction
         # TODO: handle it
+        new_var_name = get_gen().gen_value_var()
+        new_var = BitVec(new_var_name, 256)
+
         row = len(stack)
-        stack[str(row)] = to_z3_symbolic('MSGVALUE')
+        stack[str(row)] = new_var
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'CALLDATALOAD':
         # NOTE: from input data from environment
-        # TODO: handle it
         if len(stack) > 0:
             row = len(stack) - 1
             position = stack.pop(str(row))
 
+            # row = len(stack)
+            # if is_real(position):
+            #     stack[str(row)] = to_z3_symbolic('MSGDATA[%s:%s]' % (position, position + 32))
+            # else:
+            #     stack[str(row)] = to_z3_symbolic('MSGDATA[%s:%s]' % (str(position), '%s+32' % position))
+
+            new_var_name = get_gen().gen_data_var()
+            new_var = BitVec(new_var_name, 256)
+
             row = len(stack)
-            if is_real(position):
-                stack[str(row)] = to_z3_symbolic('MSGDATA[%s:%s]' % (position, position + 32))
-            else:
-                stack[str(row)] = to_z3_symbolic('MSGDATA[%s:%s]' % (str(position), '%s+32' % position))
+            stack[str(row)] = new_var
 
             # NOTE: GAS
             gas = gas_table[opcode]
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CALLDATASIZE':
-        # TODO: handle it
+        new_var_name = get_gen().gen_data_size()
+        new_var = BitVec(new_var_name, 256)
+
         row = len(stack)
-        stack[str(row)] = to_z3_symbolic('MSGDATASIZE')
+        stack[str(row)] = new_var
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -822,7 +997,10 @@ def state_simulation(instruction, state):
 
             # TODO: handle gas and memory
             # NOTE: GAS
-            gas = '2+3*InputWordsNumber'
+            if is_real(num_bytes):
+                gas = 2 + 3 * num_bytes
+            else:
+                gas = '2+3*%s' % num_bytes
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CODESIZE':
@@ -841,13 +1019,18 @@ def state_simulation(instruction, state):
 
             # TODO: handle gas and memory
             # NOTE: GAS
-            gas = '2+3*CodeWordsNumber'
+            if is_real(num_bytes):
+                gas = 2 + 3 * num_bytes
+            else:
+                gas = '2+3*%s' % num_bytes
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'GASPRICE':
-        # TODO: handle it
+        new_var_name = get_gen().gen_gas_price_var()
+        new_var = BitVec(new_var_name, 256)
+
         row = len(stack)
-        stack[str(row)] = to_z3_symbolic('GASPRICE')
+        stack[str(row)] = new_var
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -860,7 +1043,10 @@ def state_simulation(instruction, state):
 
             # TODO: handle gas and memory
             # NOTE: GAS
-            gas = '2+3*InputWordsNumber'
+            if is_real(x):
+                gas = 2 + 3 * x
+            else:
+                gas = '2+3*%s' % x
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'RETURNDATASIZE':
@@ -892,19 +1078,25 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             address = stack.pop(str(row))
 
-            value = ''
+            value = None
             for key, val in memory.items():
                 if str(address) == str(key):
                     value = val
 
-            if value == '':
+            if value is None:
                 if is_real(address):
                     try:
                         value = memory[address]
                     except:
-                        value = to_z3_symbolic('MEMORY[%s:%s]' % (address, address + 32))
+                        # value = to_z3_symbolic('MEMORY[%s:%s]' % (address, address + 32))
+                        # value = to_z3_symbolic('MEMORY[%s]' % address)
+                        new_var_name = get_gen().gen_mem_var(address)
+                        value = BitVec(new_var_name, 256)
                 else:
-                    value = to_z3_symbolic('MEMORY[%s:%s]' % (address, str(address) + '+32'))
+                    # value = to_z3_symbolic('MEMORY[%s:%s]' % (address, str(address) + '+32'))
+                    # value = to_z3_symbolic('MEMORY[%s]' % address)
+                    new_var_name = get_gen().gen_mem_var(address)
+                    value = BitVec(new_var_name, 256)
 
             row = len(stack)
             stack[str(row)] = value
@@ -918,6 +1110,7 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             address = stack.pop(str(row))
             value = stack.pop(str(row - 1))
+            # address = str(address).replace('+\n', '+')
             memory[str(address)] = value
 
             # NOTE: GAS
@@ -929,16 +1122,16 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             address = stack.pop(str(row))
 
-            value = ''
+            value = None
             for key, val in storage.items():
                 if str(key) == str(address):
                     value = val
 
             row = len(stack)
-            if value == '':
-                stack[str(row)] = to_z3_symbolic('STORAGE[%s]' % address)
-            else:
-                stack[str(row)] = value
+            if value is None:
+                new_var_name = get_gen().gen_owner_store_var(address)
+                value = BitVec(new_var_name, 256)
+            stack[str(row)] = value
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -957,7 +1150,12 @@ def state_simulation(instruction, state):
                 else:
                     gas = 5000
             else:
-                gas = '((%s != 0) && (%s == 0)) ? 20000 : 5000' % (str(value), str(address))
+                if is_real(address) and address != 0:
+                    gas = 5000
+                elif is_real(value) and value == 0:
+                    gas = 5000
+                else:
+                    gas = '((%s != 0) && (%s == 0)) ? 20000 : 5000' % (str(value), str(address))
 
         else:
             raise ValueError('STACK underflow')
@@ -987,8 +1185,11 @@ def state_simulation(instruction, state):
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'GAS':
+        new_var_name = get_gen().gen_gas_var()
+        new_var = BitVec(new_var_name, 256)
+
         row = len(stack)
-        stack[str(row)] = 'GasAvailable'
+        stack[str(row)] = new_var
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -1075,7 +1276,7 @@ def state_simulation(instruction, state):
             out_size = stack.pop(str(row - 6))
 
             row = len(stack)
-            stack[str(row)] = 'CallReturn'
+            stack[str(row)] = BitVec('CallReturn', 256)
 
             # NOTE: GAS
             # TODO: handle gas
@@ -1093,8 +1294,11 @@ def state_simulation(instruction, state):
             out_value = stack.pop(str(row - 5))
             out_size = stack.pop(str(row - 6))
 
+            new_var_name = get_gen().gen_caller_var()
+            new_var = BitVec(new_var_name, 256)
+
             row = len(stack)
-            stack[str(row)] = 'CallCodeReturn'
+            stack[str(row)] = new_var
 
             # NOTE: GAS
             # TODO: handle gas
@@ -1111,8 +1315,11 @@ def state_simulation(instruction, state):
             out_value = stack.pop(str(row - 4))
             out_size = stack.pop(str(row - 5))
 
+            new_var_name = get_gen().gen_arbitrary_var()
+            new_var = BitVec(new_var_name, 256)
+
             row = len(stack)
-            stack[str(row)] = 'DelegateCallStaticCallReturn'
+            stack[str(row)] = new_var
 
             # NOTE: GAS
             # TODO: handle gas
@@ -1137,8 +1344,11 @@ def state_simulation(instruction, state):
             position = stack.pop(str(row - 1))
             length = stack.pop(str(row - 2))
 
+            new_var_name = get_gen().gen_arbitrary_var()
+            new_var = BitVec(new_var_name, 256)
+
             row = len(stack)
-            stack[str(row)] = 'NewAddress'
+            stack[str(row)] = new_var
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -1149,8 +1359,11 @@ def state_simulation(instruction, state):
             row = len(stack) - 1
             address = stack.pop(str(row))
 
+            new_var_name = get_gen().gen_code_size_var(address)
+            new_var = BitVec(new_var_name, 256)
+
             row = len(stack)
-            stack[str(row)] = 'CodeAt%s' % str(address)
+            stack[str(row)] = new_var
 
             # NOTE: GAS
             gas = gas_table[opcode]
@@ -1161,6 +1374,7 @@ def state_simulation(instruction, state):
 
     if isinstance(gas, float):
         gas = int(round(gas))
+
     return state, gas, path_constraint
 
 

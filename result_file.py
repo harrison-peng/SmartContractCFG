@@ -18,7 +18,7 @@ def output_result(file, contract):
             f.write(str(info['path_constraints']).replace('\n', '').replace(',', ',\n').replace('    ', ' '))
 
             f.write('\n\n')
-            f.write('[Solution]:\n%s\n\n' % info['ans'])
+            f.write('[Model]:\n%s\n\n' % info['ans'])
 
             if info['gas'][1] == '':
                 f.write('[Gas]: %s\n\n' % info['gas'][0])

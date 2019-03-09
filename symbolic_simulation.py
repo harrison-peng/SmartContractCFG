@@ -1,5 +1,6 @@
 from gas_price import *
 from z3 import *
+from var_generator import *
 import os
 import re
 import se_ins as se
@@ -53,8 +54,10 @@ def symbolic_simulation(nodes_in, edges_in):
     prime_list = pg.generator_prime(2000)
     prime_check_list = pg.generator_prime(2000)
     path_cons = Solver()
-    symbolic_implement(state, gas, path_cons, '0', '', ['0'], False, 0, 1)
-    print('[INFO] Find', count_path, 'path')
+    path_cons.set(unsat_core=True)
+    pc_track = SolverUnsatCore()
+    symbolic_implement(state, gas, path_cons, '0', '', ['0'], False, 0, 1, pc_track)
+    print('\n[INFO] Find', count_path, 'path')
     # print('[PRIME]:', prime_list)
 
     # for key in tag_run_time:
@@ -66,7 +69,7 @@ def symbolic_simulation(nodes_in, edges_in):
 
 def symbolic_implement(state, gas, path_cons,
                        tag, prev_tag, tag_stack,
-                       has_jump_in, jump_in_num, path_label):
+                       has_jump_in, jump_in_num, path_label, pc_track):
     # print('[TAG]:', tag)
     """
     param:
@@ -148,7 +151,13 @@ def symbolic_implement(state, gas, path_cons,
                     node = node_add_gas(node, node_gas)
 
                     # NOTE: Add the state to the node on CFG
-                    node, convergence = node_add_state(node, state, path_label, tag)
+                    new_state = dict()
+                    for key, val in state.items():
+                        in_new_state = dict()
+                        for key1, val1 in val.items():
+                            in_new_state[key1] = val1
+                        new_state[key] = in_new_state
+                    node, convergence = node_add_state(node, new_state, path_label, tag)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
                     if convergence:
@@ -175,7 +184,7 @@ def symbolic_implement(state, gas, path_cons,
                                 if int(next_tag) != int(prev_tag):
                                     return symbolic_implement(state, gas, path_cons,
                                                               next_tag, tag, tag_stack,
-                                                              has_jump_in, jump_in_num, path_label)
+                                                              has_jump_in, jump_in_num, path_label, pc_track)
                                 else:
                                     return
                     else:
@@ -187,7 +196,7 @@ def symbolic_implement(state, gas, path_cons,
                                 if int(next_tag) != int(prev_tag):
                                     return symbolic_implement(state, gas, path_cons,
                                                               next_tag, tag, tag_stack,
-                                                              has_jump_in, jump_in_num, path_label)
+                                                              has_jump_in, jump_in_num, path_label, pc_track)
                                 else:
                                     return
                 elif opcode == 'JUMP [out]':
@@ -214,7 +223,13 @@ def symbolic_implement(state, gas, path_cons,
                     node = node_add_gas(node, node_gas)
 
                     # NOTE: Add the state to the node on CFG
-                    node, convergence = node_add_state(node, state, path_label, tag)
+                    new_state = dict()
+                    for key, val in state.items():
+                        in_new_state = dict()
+                        for key1, val1 in val.items():
+                            in_new_state[key1] = val1
+                        new_state[key] = in_new_state
+                    node, convergence = node_add_state(node, new_state, path_label, tag)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
                     if convergence:
@@ -241,7 +256,7 @@ def symbolic_implement(state, gas, path_cons,
                                 edges[index] = edge_change_color(edge)
                                 return symbolic_implement(state, gas, path_cons,
                                                           next_tag, tag, tag_stack,
-                                                          has_jump_in, jump_in_num, path_label)
+                                                          has_jump_in, jump_in_num, path_label, pc_track)
                 elif opcode == 'JUMPI':
                     '''
                     JUMPI:
@@ -253,10 +268,13 @@ def symbolic_implement(state, gas, path_cons,
                     go_false = True
                     path_cons_1 = path_cons.translate(main_ctx())
                     path_cons_2 = path_cons.translate(main_ctx())
+                    pc_track_1 = SolverUnsatCore()
+                    pc_track_1.set_count(pc_track.get_count())
+                    pc_track_2 = SolverUnsatCore()
+                    pc_track_2.set_count(pc_track.get_count())
 
                     # NOTE: stack simulation
                     state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
-                    # print('[PC]:', type(path_constraint), path_constraint)
                     if isinstance(ins_gas, int):
                         gas[0] += ins_gas
                         node_gas[0] += ins_gas
@@ -274,7 +292,13 @@ def symbolic_implement(state, gas, path_cons,
                     node = node_add_gas(node, node_gas)
 
                     # NOTE: Add the state to the node on CFG
-                    node, convergence = node_add_state(node, state, path_label, tag)
+                    new_state = dict()
+                    for key, val in state.items():
+                        in_new_state = dict()
+                        for key1, val1 in val.items():
+                            in_new_state[key1] = val1
+                        new_state[key] = in_new_state
+                    node, convergence = node_add_state(node, new_state, path_label, tag)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
                     if convergence:
@@ -319,35 +343,49 @@ def symbolic_implement(state, gas, path_cons,
                                     if path_constraint != 1:
                                         print('[PATH CONS]: %s not go true way' % tag)
                                         go_true = False
-
-                                constraint = path_constraint == 1
-                                # if isinstance(path_constraint, z3.z3.BoolRef):
-                                #     constraint = path_constraint
-                                # else:
-                                #     constraint = BitVec(path_constraint, 256) == 1
-                                # print('[CONS==1]:', type(constraint), constraint)
-                                path_cons_1.add(constraint)
-                                constraint = str(path_constraint).replace('&', '\n&').replace(',', ',\n')
-                                edges[index] = edge_add_path_constraint(edge, constraint)
+                                else:
+                                    constraint = simplify(path_constraint == 1)
+                                    # if isinstance(path_constraint, z3.z3.BoolRef):
+                                    #     constraint = path_constraint
+                                    # else:
+                                    #     constraint = BitVec(path_constraint, 256) == 1
+                                    # print('[CONS==1]:', type(constraint), constraint)
+                                    # path_cons_1.add(constraint)
+                                    path_cons_1.assert_and_track(constraint, pc_track_1.get_pc_var())
+                                    # constraint = str(path_constraint).replace('&', '\n&').replace(',', ',\n')
+                                    edges[index] = edge_add_path_constraint(edge, constraint)
                             else:
                                 if state_simulation.is_real(path_constraint):
                                     if path_constraint != 0:
                                         print('[PATH CONS]: %s not go False way' % tag)
                                         go_false = False
-
-                                constraint = path_constraint == 0
-                                # if isinstance(path_constraint, z3.z3.BoolRef):
-                                #     constraint = Not(path_constraint)
-                                # else:
-                                #     constraint = BitVec(path_constraint, 256) == 0
-                                # print('[CONS==0]:', type(constraint), constraint)
-                                path_cons_2.add(constraint)
-                                constraint = str(constraint).replace('&', '\n&').replace(',', ',\n')
-                                edges[index] = edge_add_path_constraint(edge, constraint)
+                                else:
+                                    constraint = simplify(path_constraint == 0)
+                                    # if isinstance(path_constraint, z3.z3.BoolRef):
+                                    #     constraint = Not(path_constraint)
+                                    # else:
+                                    #     constraint = BitVec(path_constraint, 256) == 0
+                                    # print('[CONS==0]:', type(constraint), constraint)
+                                    # path_cons_2.add(constraint)
+                                    path_cons_2.assert_and_track(constraint, pc_track_2.get_pc_var())
+                                    # constraint = str(constraint).replace('&', '\n&').replace(',', ',\n')
+                                    edges[index] = edge_add_path_constraint(edge, constraint)
 
                     # NOTE: run two path
-                    state_1 = copy.deepcopy(state)
-                    state_2 = copy.deepcopy(state)
+                    state_1 = dict()
+                    for key, val in state.items():
+                        in_new_state = dict()
+                        for key1, val1 in val.items():
+                            in_new_state[key1] = val1
+                        state_1[key] = in_new_state
+
+                    state_2 = dict()
+                    for key, val in state.items():
+                        in_new_state = dict()
+                        for key1, val1 in val.items():
+                            in_new_state[key1] = val1
+                        state_2[key] = in_new_state
+
                     gas_1 = copy.deepcopy(gas)
                     gas_2 = copy.deepcopy(gas)
                     tag_1 = copy.deepcopy(tag)
@@ -363,21 +401,21 @@ def symbolic_implement(state, gas, path_cons,
                         if go_true:
                             symbolic_implement(state_1, gas_1, path_cons_1,
                                                first_tag, tag_1, tag_stack_first,
-                                               has_jump_in_1, jump_in_num_1, path_label_1)
+                                               has_jump_in_1, jump_in_num_1, path_label_1, pc_track_1)
                         if go_false:
                             symbolic_implement(state_2, gas_2, path_cons_2,
                                                second_tag, tag_2, tag_stack_second,
-                                               has_jump_in_2, jump_in_num_2, path_label_2)
+                                               has_jump_in_2, jump_in_num_2, path_label_2, pc_track_2)
                         return
                     else:
                         if go_true:
                             symbolic_implement(state_2, gas_2, path_cons_2,
                                                second_tag, tag_2, tag_stack_second,
-                                               has_jump_in_2, jump_in_num_2, path_label_2)
+                                               has_jump_in_2, jump_in_num_2, path_label_2, pc_track_2)
                         if go_false:
                             symbolic_implement(state_1, gas_1, path_cons_1,
                                                first_tag, tag_1, tag_stack_first,
-                                               has_jump_in_1, jump_in_num_1, path_label_1)
+                                               has_jump_in_1, jump_in_num_1, path_label_1, pc_track_1)
                         return
                 elif opcode in ['STOP', 'RETURN', 'REVERT', 'INVALID']:
                     '''
@@ -399,14 +437,17 @@ def symbolic_implement(state, gas, path_cons,
                     count_path += 1
 
                     # print('[GAS]:', tag, path_cons)
-                    print('[INFO] Checking Satisfiability of Path Constraints...')
+                    print('[INFO] Checking Satisfiability of Path Constraints with %s pc...' % len(path_cons.assertions()))
                     if path_cons.check() == sat:
                         print('[INFO] Path Constraints: sat')
                         ans = path_cons.model()
+                        print('[INFO] model:', len(ans), 'variables\n', ans)
                         new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas}
                         global_vars.add_pc_gas(new_pc_gas)
                     else:
                         print('[INFO] Path Constraints: unsat')
+                        unsat_core = path_cons.unsat_core()
+                        print('[INFO] Conflict: %s' % unsat_core)
 
                     return
                 elif line == 'Stack Sum':
@@ -419,7 +460,13 @@ def symbolic_implement(state, gas, path_cons,
                     node = node_add_gas(node, node_gas)
 
                     # NOTE: Add the state to the node on CFG
-                    node, convergence = node_add_state(node, state, path_label, tag)
+                    new_state = dict()
+                    for key, val in state.items():
+                        in_new_state = dict()
+                        for key1, val1 in val.items():
+                            in_new_state[key1] = val1
+                        new_state[key] = in_new_state
+                    node, convergence = node_add_state(node, new_state, path_label, tag)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
                     if convergence:
@@ -432,7 +479,7 @@ def symbolic_implement(state, gas, path_cons,
                             tag_stack.append(next_tag)
                             return symbolic_implement(state, gas, path_cons,
                                                       next_tag, tag, tag_stack,
-                                                      has_jump_in, jump_in_num, path_label)
+                                                      has_jump_in, jump_in_num, path_label, pc_track)
                     return
                 else:
 
@@ -645,12 +692,12 @@ def node_add_state(node, state, path_label, tag):
 
         node[1]['label'] = node[1]['label'][:state_position-7]
         state_str = json.dumps(state_json)
-        state_str = state_str.replace(',', ',\n')
+        state_str = state_str.replace(',', ',\n', 2)
         node[1]['label'] += state_str
     else:
         state_json = [[{'Path Label': path_label, 'Stack': in_stack, 'Memory': in_memory, 'Storage': in_storage}]]
         state_str = json.dumps(state_json)
-        state_str = state_str.replace(',', ',\n')
+        state_str = state_str.replace(',', ',\n', 2)
         node[1]['label'] += '\n\nState:\n%s' % state_str
     return node, same_state
 

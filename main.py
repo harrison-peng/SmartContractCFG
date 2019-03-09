@@ -137,7 +137,10 @@ def asm_analysis(file_name, contract_name):
     create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
     result_file.output_result(file_name, contract_name)
 
-    print('')
+    result_context = ''
+    with open('./result/%s/%s.txt' % (file_name, contract_name), 'r') as f:
+        result_context += f.read()
+    print('\n%s' % result_context)
     # print('[count sim]:', count_sim)
     # cycle_detection(nodes, edges)
 
@@ -157,6 +160,7 @@ def graph_detail(nodes):
                 count += 1
 
     print('[INFO] Total instructions: ', count)
+    print('')
 
 
 def create_graph(n, e, dir_name, row_id):
