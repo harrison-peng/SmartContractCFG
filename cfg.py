@@ -28,6 +28,7 @@ def cfg_construction(opcode_data, contract_name):
 
     return nodes, edges
 
+
 def cfg_implement(opcode_list, line, stacks, tag_num, stack_sum, tag_line_dict):
     global nodes
     global edges

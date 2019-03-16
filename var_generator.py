@@ -1,66 +1,65 @@
 class Generator:
     def __init__(self):
-        self.countstack = 0
-        self.countdata = 0
-        self.count = 0
-
-    def gen_stack_var(self):
-        self.countstack += 1
-        return "s" + str(self.countstack)
+        self.count_data = 0
+        self.count_gas = 0
+        self.count_var = 0
+        self.count_addr = 0
+        self.count_storage = 0
+        self.count_mem = 0
+        self.count_balance = 0
+        self.count_exp = 0
 
     def gen_data_var(self):
-        self.countdata += 1
-        return "Id_" + str(self.countdata)
-
-    # def gen_data_var(self, position):
-    #     self.countdata += 1
-    #     return "Id_%s_%s" % (str(self.countdata), position)
+        self.count_data += 1
+        return 'Id_%s' % self.count_data
 
     def gen_data_size(self):
-        return "Id_size"
+        return 'Id_size'
 
-    def gen_mem_var(self, address):
-        return "mem_" + str(address)
+    def gen_mem_var(self):
+        self.count_mem += 1
+        return 'mem_%s' % self.count_mem
 
     def gen_arbitrary_var(self):
-        self.count += 1
-        return "some_var_" + str(self.count)
+        self.count_var += 1
+        return 'var_%s' % self.count_var
 
     def gen_arbitrary_address_var(self):
-        self.count += 1
-        return "some_address_" + str(self.count)
+        self.count_addr += 1
+        return 'address_%s' % self.count_addr
 
-    def gen_owner_store_var(self, position, var_name="0"):
-        return "Ia_store-%s-%s" % (str(position), var_name)
+    def gen_owner_store_var(self):
+        self.count_storage += 1
+        return 'storage_%s' % self.count_storage
 
     def gen_gas_var(self):
-        self.count += 1
-        return "gas_" + str(self.count)
+        self.count_gas += 1
+        return 'gas_%s' % self.count_gas
 
     def gen_gas_price_var(self):
-        return "Ip"
+        return 'Ip'
 
-    def gen_address_var(self):
-        return "Ia"
+    def gen_exp_var(self):
+        return 'Iexp_%s' % self.count_exp
 
     def gen_caller_var(self):
-        return "Is"
+        return 'Is'
 
     def gen_value_var(self):
-        return "Iv"
+        return 'Iv'
 
     def gen_origin_var(self):
-        return "Io"
+        return 'Io'
 
     def gen_balance_var(self):
-        self.count += 1
-        return "balance_" + str(self.count)
+        self.count_balance += 1
+        return 'balance_%s' % self.count_balance
 
     def gen_code_var(self, address, position, bytecount):
-        return "code_" + str(address) + "_" + str(position) + "_" + str(bytecount)
+        return 'code_%s_%s_%s' % (address, position, bytecount)
 
     def gen_code_size_var(self, address):
-        return "code_size_" + str(address)
+        return 'code_size_%s' % address
 
 
 class SolverUnsatCore:

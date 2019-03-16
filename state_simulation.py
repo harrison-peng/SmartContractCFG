@@ -445,11 +445,12 @@ def state_simulation(instruction, state):
                 # row = len(stack)
                 # stack[str(row)] = computed
 
-                new_var_name = get_gen().gen_address_var()
+                new_var_name = get_gen().gen_exp_var()
                 computed = BitVec(new_var_name, 256)
 
                 # NOTE: GAS
-                gas = '10+(10*(1+log256(%s)))' % computed
+                gas = simplify(10 + (10 * (1 + math.log(computed, 256))))
+                # gas = '10+(10*(1+log256(%s)))' % computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -898,7 +899,8 @@ def state_simulation(instruction, state):
                 gas = 30 + 6 * data
             else:
                 # gas = '30+6*%s' % str(data)
-                gas = '30+6*WORDSIZE'
+                # gas = '30+6*WORDSIZE'
+                gas = simplify(30 + 6*BitVec('WORDSIZE', 256))
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'ADDRESS':
@@ -1000,7 +1002,8 @@ def state_simulation(instruction, state):
             if is_real(num_bytes):
                 gas = 2 + 3 * num_bytes
             else:
-                gas = '2+3*%s' % num_bytes
+                gas = simplify(2 + 3 * num_bytes)
+                # gas = '2+3*%s' % num_bytes
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CODESIZE':
@@ -1022,7 +1025,8 @@ def state_simulation(instruction, state):
             if is_real(num_bytes):
                 gas = 2 + 3 * num_bytes
             else:
-                gas = '2+3*%s' % num_bytes
+                gas = simplify(2 + 3 * num_bytes)
+                # gas = '2+3*%s' % num_bytes
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'GASPRICE':
@@ -1046,7 +1050,8 @@ def state_simulation(instruction, state):
             if is_real(x):
                 gas = 2 + 3 * x
             else:
-                gas = '2+3*%s' % x
+                gas = simplify(2 + 3 * x)
+                # gas = '2+3*%s' % x
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'RETURNDATASIZE':
@@ -1090,12 +1095,12 @@ def state_simulation(instruction, state):
                     except:
                         # value = to_z3_symbolic('MEMORY[%s:%s]' % (address, address + 32))
                         # value = to_z3_symbolic('MEMORY[%s]' % address)
-                        new_var_name = get_gen().gen_mem_var(address)
+                        new_var_name = get_gen().gen_mem_var()
                         value = BitVec(new_var_name, 256)
                 else:
                     # value = to_z3_symbolic('MEMORY[%s:%s]' % (address, str(address) + '+32'))
                     # value = to_z3_symbolic('MEMORY[%s]' % address)
-                    new_var_name = get_gen().gen_mem_var(address)
+                    new_var_name = get_gen().gen_mem_var()
                     value = BitVec(new_var_name, 256)
 
             row = len(stack)
@@ -1129,7 +1134,7 @@ def state_simulation(instruction, state):
 
             row = len(stack)
             if value is None:
-                new_var_name = get_gen().gen_owner_store_var(address)
+                new_var_name = get_gen().gen_owner_store_var()
                 value = BitVec(new_var_name, 256)
             stack[str(row)] = value
 
@@ -1155,7 +1160,8 @@ def state_simulation(instruction, state):
                 elif is_real(value) and value == 0:
                     gas = 5000
                 else:
-                    gas = '((%s != 0) && (%s == 0)) ? 20000 : 5000' % (str(value), str(address))
+                    # gas = '((%s != 0) && (%s == 0)) ? 20000 : 5000' % (str(value), str(address))
+                    gas = simplify(If(And(Not(value == 0), (address == 0), True), BitVecVal(20000, 256), BitVecVal(5000, 256)))
 
         else:
             raise ValueError('STACK underflow')
@@ -1257,10 +1263,11 @@ def state_simulation(instruction, state):
 
                 # NOTE: GAS
                 if count == 1:
-                    if isinstance(pop_value, str):
-                        gas = '%s+(8*%s)' % (str((int(opcode[3:]) + 1) * 375), pop_value)
-                    else:
-                        gas = (int(opcode[3:]) + 1) * 375 + (8 * pop_value)
+                    gas = (int(opcode[3:]) + 1) * 375 + (8 * pop_value)
+                    # if isinstance(pop_value, int):
+                    #     gas = '%s+(8*%s)' % (str((int(opcode[3:]) + 1) * 375), pop_value)
+                    # else:
+                    #     gas = (int(opcode[3:]) + 1) * 375 + (8 * pop_value)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CALL':

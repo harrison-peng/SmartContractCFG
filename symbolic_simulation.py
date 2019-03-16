@@ -50,7 +50,8 @@ def symbolic_simulation(nodes_in, edges_in):
     count_path = 0
     tag_run_time = dict()
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
-    gas = [0, '']
+    # gas = [0, '']
+    gas = 0
     prime_list = pg.generator_prime(2000)
     prime_check_list = pg.generator_prime(2000)
     path_cons = Solver()
@@ -105,7 +106,8 @@ def symbolic_implement(state, gas, path_cons,
 
     for node in nodes:
         if node[0] == tag:
-            node_gas = [0, '']
+            # node_gas = [0, '']
+            node_gas = 0
 
             # NOTE: remove the curr tag in tag stack
             if tag_stack[-1] == tag:
@@ -134,21 +136,19 @@ def symbolic_implement(state, gas, path_cons,
 
                     # NOTE: stack simulation
                     state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
-                    if isinstance(ins_gas, int):
-                        gas[0] += ins_gas
-                        node_gas[0] += ins_gas
+
+                    if is_expr(gas):
+                        gas = simplify(gas + ins_gas)
                     else:
-                        if gas[1] == '':
-                            gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            gas[1] += ' + (%s)' % str(ins_gas)
-                        if node_gas[1] == '':
-                            node_gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            node_gas[1] += ' + (%s)' % str(ins_gas)
+                        gas = gas + ins_gas
+                    if is_expr(node_gas):
+                        node_gas = simplify(node_gas + ins_gas)
+                    else:
+                        node_gas = node_gas + ins_gas
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
+                    node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -206,21 +206,19 @@ def symbolic_implement(state, gas, path_cons,
                     '''
                     # NOTE: stack simulation
                     state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
-                    if isinstance(ins_gas, int):
-                        gas[0] += ins_gas
-                        node_gas[0] += ins_gas
+
+                    if is_expr(gas):
+                        gas = simplify(gas + ins_gas)
                     else:
-                        if gas[1] == '':
-                            gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            gas[1] += ' + (%s)' % str(ins_gas)
-                        if node_gas[1] == '':
-                            node_gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            node_gas[1] += ' + (%s)' % str(ins_gas)
+                        gas = gas + ins_gas
+                    if is_expr(node_gas):
+                        node_gas = simplify(node_gas + ins_gas)
+                    else:
+                        node_gas = node_gas + ins_gas
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
+                    node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -275,21 +273,19 @@ def symbolic_implement(state, gas, path_cons,
 
                     # NOTE: stack simulation
                     state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
-                    if isinstance(ins_gas, int):
-                        gas[0] += ins_gas
-                        node_gas[0] += ins_gas
+
+                    if is_expr(gas):
+                        gas = simplify(gas + ins_gas)
                     else:
-                        if gas[1] == '':
-                            gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            gas[1] += ' + (%s)' % str(ins_gas)
-                        if node_gas[1] == '':
-                            node_gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            node_gas[1] += ' + (%s)' % str(ins_gas)
+                        gas = gas + ins_gas
+                    if is_expr(node_gas):
+                        node_gas = simplify(node_gas + ins_gas)
+                    else:
+                        node_gas = node_gas + ins_gas
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
+                    node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -386,8 +382,12 @@ def symbolic_implement(state, gas, path_cons,
                             in_new_state[key1] = val1
                         state_2[key] = in_new_state
 
-                    gas_1 = copy.deepcopy(gas)
-                    gas_2 = copy.deepcopy(gas)
+                    if is_expr(gas):
+                        gas_1 = gas
+                        gas_2 = gas
+                    else:
+                        gas_1 = copy.deepcopy(gas)
+                        gas_2 = copy.deepcopy(gas)
                     tag_1 = copy.deepcopy(tag)
                     tag_2 = copy.deepcopy(tag)
                     has_jump_in_1 = copy.deepcopy(has_jump_in)
@@ -485,18 +485,14 @@ def symbolic_implement(state, gas, path_cons,
 
                     # NOTE: stack simulation
                     state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
-                    if isinstance(ins_gas, int):
-                        gas[0] += ins_gas
-                        node_gas[0] += ins_gas
+                    if is_expr(gas):
+                        gas = simplify(gas + ins_gas)
                     else:
-                        if gas[1] == '':
-                            gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            gas[1] += ' + (%s)' % str(ins_gas)
-                        if node_gas[1] == '':
-                            node_gas[1] += '(%s)' % str(ins_gas)
-                        else:
-                            node_gas[1] += ' + (%s)' % str(ins_gas)
+                        gas = gas + ins_gas
+                    if is_expr(node_gas):
+                        node_gas = simplify(node_gas + ins_gas)
+                    else:
+                        node_gas = node_gas + ins_gas
 
                     # NOTE: if there is PUSH tag, put the tag to tag_stack
                     opcode_set = opcode.split(' ')
@@ -527,28 +523,11 @@ def edge_change_color(edge):
 
 def node_add_gas(node, gas):
     if 'Gas: ' not in node[1]['label']:
-        gas_num = gas[0]
-        gas_sym = gas[1]
-        if gas_sym == '':
-            node[1]['label'] += '\nGas: %s' % gas_num
-        else:
-            node[1]['label'] += '\nGas: %s' % gas_num
-            gas_sym_list = gas_sym.split(' + ')
-            start = True
-            for item in gas_sym_list:
-                if start:
-                    start = False
-                    node[1]['label'] += '\n+[%s' % item
-                else:
-                    node[1]['label'] += '\n+%s' % item
-
-            node[1]['label'] += ']'
+        node[1]['label'] += '\nGas: %s' % str(gas)
     return node
 
 
 def node_add_path_gas_sum(node, gas):
-    gas_num = gas[0]
-    gas_sym = gas[1]
     node[1]['label'] += '\n'
     if 'State:' in node[1]['label']:
         state_position = node[1]['label'].find('State')
@@ -557,69 +536,16 @@ def node_add_path_gas_sum(node, gas):
 
         if 'Path Gas Sum:' in first_part:
             first_part = first_part[:-2]
-
-            if gas_sym == '':
-                first_part += ',\n(%s)]' % gas_num
-            else:
-                gas_sym_list = gas_sym.split(' + ')
-                first_part += ',\n(%s' % gas_num
-                start = True
-                for item in gas_sym_list:
-                    if start:
-                        start = False
-                        first_part += '+(%s' % item
-                    else:
-                        first_part += '\n+%s' % item
-                        first_part += '))]'
+            first_part += ', %s]' % str(gas)
         else:
-            first_part += '\nPath Gas Sum:\n['
-            if gas_sym == '':
-                first_part += '(%s)]' % gas_num
-            else:
-                gas_sym_list = gas_sym.split(' + ')
-                first_part += '(%s' % gas_num
-                start = True
-                for item in gas_sym_list:
-                    if start:
-                        start = False
-                        first_part += '+(%s' % item
-                    else:
-                        first_part += '\n+%s' % item
-                        first_part += '))]'
+            first_part += '\nPath Gas Sum:\n[%s]' % str(gas)
         node[1]['label'] = '%s\n\n%s' % (first_part, second_part)
     else:
         if 'Path Gas Sum:' in node[1]['label']:
             node[1]['label'] = node[1]['label'][:-2]
-
-            if gas_sym == '':
-                node[1]['label'] += ',\n(%s)]' % gas_num
-            else:
-                gas_sym_list = gas_sym.split(' + ')
-                node[1]['label'] += ',\n(%s' % gas_num
-                start = True
-                for item in gas_sym_list:
-                    if start:
-                        start = False
-                        node[1]['label'] += '+(%s' % item
-                    else:
-                        node[1]['label'] += '\n+%s' % item
-                node[1]['label'] += '))]'
+            node[1]['label'] += ',\n%s]' % str(gas)
         else:
-            node[1]['label'] += '\nPath Gas Sum:\n['
-            if gas_sym == '':
-                node[1]['label'] += '(%s)]' % gas_num
-            else:
-                gas_sym_list = gas_sym.split(' + ')
-                node[1]['label'] += '(%s' % gas_num
-                start = True
-                for item in gas_sym_list:
-                    if start:
-                        start = False
-                        node[1]['label'] += '+(%s' % item
-                    else:
-                        node[1]['label'] += '\n+%s' % item
-                        node[1]['label'] += '))'
-                node[1]['label'] += ']'
+            node[1]['label'] += '\nPath Gas Sum:\n[%s]' % str(gas)
     return node
 
 

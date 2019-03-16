@@ -1,5 +1,6 @@
 import var_generator
 
+
 def init():
     global FINAL_PC_GAS
     FINAL_PC_GAS = []
