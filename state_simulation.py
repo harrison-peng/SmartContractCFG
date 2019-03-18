@@ -880,16 +880,25 @@ def state_simulation(instruction, state):
             position = stack.pop(str(row))
             to = stack.pop(str(row - 1))
 
-            # NEED TO CHECK INT OR NOT
-            try:
-                data = str(memory[str(position)])
+            if isinstance(position, int) and isinstance(to, int):
+                mem_num = (to - position)//32
+                data = 0
+                for i in range(mem_num):
+                    if str(position + 32*i) in memory.keys():
+                        data += memory[str(position + 32*i)]
+                    else:
+                        new_var_name = get_gen().gen_arbitrary_var()
+                        data = simplify(data+BitVec(new_var_name, 256))
+            else:
+                new_var_name = get_gen().gen_arbitrary_var()
+                data = BitVec(new_var_name, 256)
+
+            if isinstance(data, int):
                 computed = int(sha3.sha3_224(data.encode('utf-8')).hexdigest(), 16)
-            except KeyError:
-                # data = 'MEMORY[%s:%s]' % (str(position), str(to))
-                data = 'MEMORY[%s]' % str(position)
-                # computed = 'SHA3(%s)' % data
+            else:
                 new_var_name = get_gen().gen_arbitrary_var()
                 computed = BitVec(new_var_name, 256)
+            data = simplify(data) if is_expr(data) else data
 
             row = len(stack)
             stack[str(row)] = computed
@@ -898,9 +907,10 @@ def state_simulation(instruction, state):
             if isinstance(data, int):
                 gas = 30 + 6 * data
             else:
-                # gas = '30+6*%s' % str(data)
-                # gas = '30+6*WORDSIZE'
-                gas = simplify(30 + 6*BitVec('WORDSIZE', 256))
+                if is_expr(data):
+                    gas = simplify(30 + 6 * data)
+                else:
+                    gas = simplify(30 + 6*BitVec('WORDSIZE', 256))
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'ADDRESS':
@@ -1229,7 +1239,7 @@ def state_simulation(instruction, state):
         # NOTE: GAS
         gas = gas_table['PUSH']
     elif opcode.startswith('DUP', 0):
-        position = int(opcode[3:], 10) - 1
+        position = len(stack) - int(opcode[3:], 10)
         if len(stack) > position:
             duplicate_value = stack[str(position)]
             row = len(stack)
@@ -1240,7 +1250,7 @@ def state_simulation(instruction, state):
         else:
             raise ValueError('STACK underflow')
     elif opcode.startswith('SWAP', 0):
-        position = int(opcode[4:], 10)
+        position = len(stack) - 1 - int(opcode[4:], 10)
         if len(stack) > position:
             temp_value = stack[str(position)]
             row = len(stack) - 1

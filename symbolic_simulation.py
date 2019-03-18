@@ -1,6 +1,7 @@
 from gas_price import *
 from z3 import *
 from var_generator import *
+from z3_func import *
 import os
 import re
 import se_ins as se
@@ -121,6 +122,11 @@ def symbolic_implement(state, gas, path_cons,
                 ins_set = ins.split(': ')
                 line = ins_set[0]
                 opcode = ins_set[1]
+
+                if tag == '11':
+                    print('[SS]:', ins, state['Stack'])
+                    print('[SS1]:', ins, state['Memory'])
+                    print('[SS2]:', ins, gas)
 
                 if opcode.split(' ')[0] == 'tag':
                     '''
@@ -436,18 +442,22 @@ def symbolic_implement(state, gas, path_cons,
 
                     count_path += 1
 
-                    # print('[GAS]:', tag, path_cons)
-                    print('[INFO] Checking Satisfiability of Path Constraints with %s pc...' % len(path_cons.assertions()))
-                    if path_cons.check() == sat:
-                        print('[INFO] Path Constraints: sat')
-                        ans = path_cons.model()
-                        print('[INFO] model:', len(ans), 'variables\n', ans)
-                        new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas}
-                        global_vars.add_pc_gas(new_pc_gas)
-                    else:
-                        print('[INFO] Path Constraints: unsat')
-                        unsat_core = path_cons.unsat_core()
-                        print('[INFO] Conflict: %s' % unsat_core)
+                    if is_expr(gas):
+                        gas_cons = gas <= 21000
+                        path_cons.assert_and_track(gas_cons, 'gas_cons')
+                        # pc_var = get_solver_var(path_cons)
+
+                        print('[INFO] Checking Satisfiability of Path Constraints with %s pc...' % len(path_cons.assertions()))
+                        if path_cons.check() == sat:
+                            print('[INFO] Path Constraints: sat')
+                            ans = path_cons.model()
+                            print('[INFO] model:', len(ans), 'variables\n', ans)
+                            new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas}
+                            global_vars.add_pc_gas(new_pc_gas)
+                        else:
+                            print('[INFO] Path Constraints: unsat')
+                            unsat_core = path_cons.unsat_core()
+                            print('[INFO] Conflict: %s' % unsat_core)
 
                     return
                 elif line == 'Stack Sum':
