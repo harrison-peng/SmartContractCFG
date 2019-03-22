@@ -127,25 +127,26 @@ def asm_analysis(file_name, contract_name):
 
     nodes, edges = cfg.cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
 
-    print('[INFO] CFG node count = ', len(nodes))
-    print('[INFO] CFG edge count = ', len(edges))
+    nodes_size, edges_size, ins_size = graph_detail(nodes, edges)
+    print('[INFO] CFG node count = ', nodes_size)
+    print('[INFO] CFG edge count = ', edges_size)
+    print('[INFO] Total instructions: ', ins_size)
+    print('')
 
-    graph_detail(nodes)
     create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
 
     nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
+    nodes_out = node_add_gas_sum(nodes_out)
     create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
     result_file.output_result(file_name, contract_name)
 
-    result_context = ''
-    with open('./result/%s/%s.txt' % (file_name, contract_name), 'r') as f:
-        result_context += f.read()
-    print('\n%s' % result_context)
-    # print('[count sim]:', count_sim)
-    # cycle_detection(nodes, edges)
+    # result_context = ''
+    # with open('./result/%s/%s.txt' % (file_name, contract_name), 'r') as f:
+    #     result_context += f.read()
+    # print('\n%s' % result_context)
 
 
-def graph_detail(nodes):
+def graph_detail(nodes, edges):
     count = 0
 
     for n in nodes:
@@ -158,19 +159,14 @@ def graph_detail(nodes):
                 continue
             else:
                 count += 1
-
-    print('[INFO] Total instructions: ', count)
-    print('')
+    return len(nodes), len(edges), count
 
 
 def create_graph(n, e, dir_name, row_id):
-    # print('[INFO] Constructing visualizing graph')
     digraph = functools.partial(gv.Digraph, format='svg')
     g = add_edges(add_nodes(digraph(), n), e)
     filename = 'img/{}/{}'.format(dir_name, row_id)
     g.render(filename=filename)
-    # print('[COMPLETE - CFG construction]')
-
     return g
 
 
@@ -190,6 +186,14 @@ def add_edges(graph, edges):
         else:
             graph.edge(*e)
     return graph
+
+
+def node_add_gas_sum(nodes):
+    for key, val in global_vars.get_final_gas().items():
+        for n in nodes:
+            if n[0] == str(key):
+                n[1]['label'] += '\n\nGas Sum: %s' % val
+    return nodes
 
 
 if __name__ == '__main__':

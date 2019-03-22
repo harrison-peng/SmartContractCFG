@@ -10,7 +10,7 @@ import json
 import state_simulation
 import copy
 import cfg
-import prime_generator as pg
+# import prime_generator as pg
 import global_vars
 
 count_sim = 0
@@ -21,6 +21,8 @@ nodes = []
 edges = []
 count_path = 0
 tag_run_time = dict()
+tag_gas_sum = dict()
+final_gas_sum = dict()
 prime_list = []
 prime_check_list = []
 
@@ -32,6 +34,7 @@ def symbolic_simulation(nodes_in, edges_in):
     global tag_run_time
     global prime_list
     global prime_check_list
+    global final_gas_sum
 
     nodes = nodes_in
     edges = edges_in
@@ -53,12 +56,15 @@ def symbolic_simulation(nodes_in, edges_in):
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
     # gas = [0, '']
     gas = 0
-    prime_list = pg.generator_prime(2000)
-    prime_check_list = pg.generator_prime(2000)
+    # prime_list = pg.generator_prime(20000)
+    # prime_check_list = pg.generator_prime(20000)
     path_cons = Solver()
+    gas_cons = Solver()
     path_cons.set(unsat_core=True)
     pc_track = SolverUnsatCore()
-    symbolic_implement(state, gas, path_cons, '0', '', ['0'], False, 0, 1, pc_track)
+    symbolic_implement(state, gas, path_cons, gas_cons,
+                       '0', '', ['0'], [],
+                       False, 0, pc_track)
     print('\n[INFO] Find', count_path, 'path')
     # print('[PRIME]:', prime_list)
 
@@ -69,9 +75,9 @@ def symbolic_simulation(nodes_in, edges_in):
     return nodes, edges
 
 
-def symbolic_implement(state, gas, path_cons,
-                       tag, prev_tag, tag_stack,
-                       has_jump_in, jump_in_num, path_label, pc_track):
+def symbolic_implement(state, gas, path_cons, gas_cons,
+                       tag, prev_tag, tag_stack, path_tag,
+                       has_jump_in, jump_in_num, pc_track):
     # print('[TAG]:', tag)
     """
     param:
@@ -92,18 +98,20 @@ def symbolic_implement(state, gas, path_cons,
     count_push = 0
 
     # NOTE: if the node run more than 10 times, stop -> cycle
-    try:
-        run_time = tag_run_time[tag]
-        # if run_time > 10:
-        #     tag_run_time.update({tag: 0})
-        #     return
-        # else:
-        #     run_time += 1
-        #     tag_run_time.update({tag: run_time})
-        run_time += 1
-        tag_run_time.update({tag: run_time})
-    except:
-        tag_run_time.update({tag: 1})
+    # try:
+    #     run_time = tag_run_time[tag]
+    #     # print('[RUN]:', run_time)
+    #     if run_time > 10:
+    #         # tag_run_time.update({tag: 0})
+    #         return
+    #     else:
+    #         run_time += 1
+    #         tag_run_time.update({tag: run_time})
+    #     # run_time += 1
+    #     # tag_run_time.update({tag: run_time})
+    #     # print('[RUN]:', run_time)
+    # except:
+    #     tag_run_time.update({tag: 1})
 
     for node in nodes:
         if node[0] == tag:
@@ -123,25 +131,27 @@ def symbolic_implement(state, gas, path_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                if tag == '11':
-                    print('[SS]:', ins, state['Stack'])
-                    print('[SS1]:', ins, state['Memory'])
-                    print('[SS2]:', ins, gas)
-
                 if opcode.split(' ')[0] == 'tag':
                     '''
                     tag:
                     need not to handle 'tag'
                     '''
                     pass
+                    # path_tag.append(opcode.split(' ')[1])
                 elif opcode in ['JUMP', 'JUMP [in]']:
                     '''
                     JUMP and JUMP [in]: 
                     find the next node in prev ins, and go to next node
                     '''
 
+                    # NOTE: add tag to path tag
+                    path_tag.append(tag)
+
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
+                    state, ins_gas, path_constraint, gas_constraint = state_simulation.state_simulation(opcode, state, line)
+
+                    if gas_constraint is not True:
+                        gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
                         gas = simplify(gas + ins_gas)
@@ -154,7 +164,7 @@ def symbolic_implement(state, gas, path_cons,
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
-                    node = node_add_path_gas_sum(node, gas)
+                    # node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -163,11 +173,11 @@ def symbolic_implement(state, gas, path_cons,
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
                         new_state[key] = in_new_state
-                    node, convergence = node_add_state(node, new_state, path_label, tag)
+                    node, convergence, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
-                    if convergence:
-                        return
+                    # if convergence:
+                    #     return
 
                     if opcode == 'JUMP [in]':
                         jump_in_num -= 1
@@ -188,9 +198,9 @@ def symbolic_implement(state, gas, path_cons,
                                 tag_stack.append(next_tag)
                                 # NOTE: if next_tag == prev_tag -> there is a cycle, so don't run it
                                 if int(next_tag) != int(prev_tag):
-                                    return symbolic_implement(state, gas, path_cons,
-                                                              next_tag, tag, tag_stack,
-                                                              has_jump_in, jump_in_num, path_label, pc_track)
+                                    return symbolic_implement(state, gas, path_cons, gas_cons,
+                                                              next_tag, tag, tag_stack, path_tag,
+                                                              has_jump_in, jump_in_num, pc_track)
                                 else:
                                     return
                     else:
@@ -200,9 +210,9 @@ def symbolic_implement(state, gas, path_cons,
                                 edges[index] = edge_change_color(edge)
                                 # NOTE: if next_tag == prev_tag -> there is a cycle, so don't run it
                                 if int(next_tag) != int(prev_tag):
-                                    return symbolic_implement(state, gas, path_cons,
-                                                              next_tag, tag, tag_stack,
-                                                              has_jump_in, jump_in_num, path_label, pc_track)
+                                    return symbolic_implement(state, gas, path_cons, gas_cons,
+                                                              next_tag, tag, tag_stack, path_tag,
+                                                              has_jump_in, jump_in_num, pc_track)
                                 else:
                                     return
                 elif opcode == 'JUMP [out]':
@@ -210,8 +220,14 @@ def symbolic_implement(state, gas, path_cons,
                     JUMP [out]:
                     get the next node form the tag_stack, and go to the next node
                     '''
+                    # NOTE: add tag to path tag
+                    path_tag.append(tag)
+
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
+                    state, ins_gas, path_constraint, gas_constraint = state_simulation.state_simulation(opcode, state, line)
+
+                    if gas_constraint is not True:
+                        gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
                         gas = simplify(gas + ins_gas)
@@ -224,7 +240,7 @@ def symbolic_implement(state, gas, path_cons,
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
-                    node = node_add_path_gas_sum(node, gas)
+                    # node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -233,11 +249,11 @@ def symbolic_implement(state, gas, path_cons,
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
                         new_state[key] = in_new_state
-                    node, convergence = node_add_state(node, new_state, path_label, tag)
+                    node, convergence, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
-                    if convergence:
-                        return
+                    # if convergence:
+                    #     return
 
                     # NOTE: if jump_in_num > 0 -> jump_in_number - 1 else turn has_jump_in to False
                     if jump_in_num == 0:
@@ -258,9 +274,9 @@ def symbolic_implement(state, gas, path_cons,
                         for index, edge in enumerate(edges):
                             if edge[0][0] == tag and edge[0][1] == next_tag:
                                 edges[index] = edge_change_color(edge)
-                                return symbolic_implement(state, gas, path_cons,
-                                                          next_tag, tag, tag_stack,
-                                                          has_jump_in, jump_in_num, path_label, pc_track)
+                                return symbolic_implement(state, gas, path_cons, gas_cons,
+                                                          next_tag, tag, tag_stack, path_tag,
+                                                          has_jump_in, jump_in_num, pc_track)
                 elif opcode == 'JUMPI':
                     '''
                     JUMPI:
@@ -272,13 +288,21 @@ def symbolic_implement(state, gas, path_cons,
                     go_false = True
                     path_cons_1 = path_cons.translate(main_ctx())
                     path_cons_2 = path_cons.translate(main_ctx())
+                    gas_cons_1 = gas_cons.translate(main_ctx())
+                    gas_cons_2 = gas_cons.translate(main_ctx())
                     pc_track_1 = SolverUnsatCore()
                     pc_track_1.set_count(pc_track.get_count())
                     pc_track_2 = SolverUnsatCore()
                     pc_track_2.set_count(pc_track.get_count())
 
+                    # NOTE: add tag to path tag
+                    path_tag.append(tag)
+
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
+                    state, ins_gas, path_constraint, gas_constraint = state_simulation.state_simulation(opcode, state, line)
+
+                    if gas_constraint is not True:
+                        gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
                         gas = simplify(gas + ins_gas)
@@ -291,7 +315,7 @@ def symbolic_implement(state, gas, path_cons,
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
-                    node = node_add_path_gas_sum(node, gas)
+                    # node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -300,11 +324,18 @@ def symbolic_implement(state, gas, path_cons,
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
                         new_state[key] = in_new_state
-                    node, convergence = node_add_state(node, new_state, path_label, tag)
+                    node, convergence, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
+
+                    # NOTE: create symbolic variable to loop gas
+                    if is_expr(loop_gas) or (isinstance(loop_gas, int) and loop_gas != 0):
+                        new_var = BitVec(global_vars.get_gen().gen_loop_var(), 256)
+                        loop_gas_var = simplify(loop_gas * new_var)
+                        # gas_cons.add(simplify(new_var < (2**256)-1))
+                        gas += loop_gas_var
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
-                    if convergence:
-                        return
+                    # if convergence:
+                    #     return
 
                     # NOTE: remove the tag in previous ins (will add later)
                     tag_stack.pop()
@@ -347,14 +378,9 @@ def symbolic_implement(state, gas, path_cons,
                                         go_true = False
                                 else:
                                     constraint = simplify(path_constraint == 1)
-                                    # if isinstance(path_constraint, z3.z3.BoolRef):
-                                    #     constraint = path_constraint
-                                    # else:
-                                    #     constraint = BitVec(path_constraint, 256) == 1
-                                    # print('[CONS==1]:', type(constraint), constraint)
-                                    # path_cons_1.add(constraint)
-                                    path_cons_1.assert_and_track(constraint, pc_track_1.get_pc_var())
-                                    # constraint = str(path_constraint).replace('&', '\n&').replace(',', ',\n')
+                                    if constraint not in path_cons_1.assertions():
+                                        path_cons_1.add(constraint)
+                                    # path_cons_1.assert_and_track(constraint, pc_track_1.get_pc_var())
                                     edges[index] = edge_add_path_constraint(edge, constraint)
                             else:
                                 if state_simulation.is_real(path_constraint):
@@ -363,14 +389,9 @@ def symbolic_implement(state, gas, path_cons,
                                         go_false = False
                                 else:
                                     constraint = simplify(path_constraint == 0)
-                                    # if isinstance(path_constraint, z3.z3.BoolRef):
-                                    #     constraint = Not(path_constraint)
-                                    # else:
-                                    #     constraint = BitVec(path_constraint, 256) == 0
-                                    # print('[CONS==0]:', type(constraint), constraint)
-                                    # path_cons_2.add(constraint)
-                                    path_cons_2.assert_and_track(constraint, pc_track_2.get_pc_var())
-                                    # constraint = str(constraint).replace('&', '\n&').replace(',', ',\n')
+                                    if constraint not in path_cons_2.assertions():
+                                        path_cons_2.add(constraint)
+                                    # path_cons_2.assert_and_track(constraint, pc_track_2.get_pc_var())
                                     edges[index] = edge_add_path_constraint(edge, constraint)
 
                     # NOTE: run two path
@@ -400,64 +421,82 @@ def symbolic_implement(state, gas, path_cons,
                     has_jump_in_2 = copy.deepcopy(has_jump_in)
                     jump_in_num_1 = copy.deepcopy(jump_in_num)
                     jump_in_num_2 = copy.deepcopy(jump_in_num)
-                    path_label_1 = path_label * prime_list.pop(0)
-                    path_label_2 = path_label * prime_list.pop(0)
+                    path_tag_1 = copy.deepcopy(path_tag)
+                    path_tag_2 = copy.deepcopy(path_tag)
 
-                    if prev_ins.split(' ')[2] == first_tag:
-                        if go_true:
-                            symbolic_implement(state_1, gas_1, path_cons_1,
-                                               first_tag, tag_1, tag_stack_first,
-                                               has_jump_in_1, jump_in_num_1, path_label_1, pc_track_1)
-                        if go_false:
-                            symbolic_implement(state_2, gas_2, path_cons_2,
-                                               second_tag, tag_2, tag_stack_second,
-                                               has_jump_in_2, jump_in_num_2, path_label_2, pc_track_2)
-                        return
+                    if convergence:
+                        if first_tag == tag:
+                            symbolic_implement(state_2, gas_2, path_cons_2, gas_cons_2,
+                                               second_tag, tag_2, tag_stack_second, path_tag_2,
+                                               has_jump_in_2, jump_in_num_2, pc_track_2)
+                            return
+                        else:
+                            symbolic_implement(state_1, gas_1, path_cons_1, gas_cons_1,
+                                           first_tag, tag_1, tag_stack_first, path_tag_1,
+                                           has_jump_in_1, jump_in_num_1, pc_track_1)
+                            return
                     else:
-                        if go_true:
-                            symbolic_implement(state_2, gas_2, path_cons_2,
-                                               second_tag, tag_2, tag_stack_second,
-                                               has_jump_in_2, jump_in_num_2, path_label_2, pc_track_2)
-                        if go_false:
-                            symbolic_implement(state_1, gas_1, path_cons_1,
-                                               first_tag, tag_1, tag_stack_first,
-                                               has_jump_in_1, jump_in_num_1, path_label_1, pc_track_1)
+                        if prev_ins.split(' ')[2] == first_tag:
+                            if go_true:
+                                symbolic_implement(state_1, gas_1, path_cons_1, gas_cons_1,
+                                                   first_tag, tag_1, tag_stack_first, path_tag_1,
+                                                   has_jump_in_1, jump_in_num_1, pc_track_1)
+                            if go_false:
+                                symbolic_implement(state_2, gas_2, path_cons_2, gas_cons_2,
+                                                   second_tag, tag_2, tag_stack_second, path_tag_2,
+                                                   has_jump_in_2, jump_in_num_2, pc_track_2)
+                            return
+                        else:
+                            if go_true:
+                                symbolic_implement(state_2, gas_2, path_cons_2, gas_cons_2,
+                                                   second_tag, tag_2, tag_stack_second, path_tag_2,
+                                                   has_jump_in_2, jump_in_num_2, pc_track_2)
+                            if go_false:
+                                symbolic_implement(state_1, gas_1, path_cons_1, gas_cons_1,
+                                                   first_tag, tag_1, tag_stack_first, path_tag_1,
+                                                   has_jump_in_1, jump_in_num_1, pc_track_1)
                         return
                 elif opcode in ['STOP', 'RETURN', 'REVERT', 'INVALID']:
                     '''
                     STOP, RETURN, REVERT, INVALID:
                     the final node of the path
                     '''
+                    # NOTE: add gas sum to final_gas_sum
+                    global_vars.add_final_gas(tag, gas)
+
+                    # NOTE: add tag to path tag
+                    path_tag.append(tag)
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
-                    node = node_add_path_gas_sum(node, gas)
+                    # node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
-                    node, convergence = node_add_state(node, state, path_label, tag)
-
-                    # NOTE: if the state is same with previous one, then it's convergence --> stop
-                    # if convergence:
-                    #     return
+                    node_add_state(node, state, path_tag, tag, gas)
 
                     count_path += 1
 
+                    for gc in gas_cons.assertions():
+                        path_cons.add(gc)
+
                     if is_expr(gas):
-                        gas_cons = gas <= 21000
-                        path_cons.assert_and_track(gas_cons, 'gas_cons')
+                        # gas_cons = gas > 4712357
+                        gas_cons = gas > 21000
+                        # path_cons.assert_and_track(gas_cons, 'gas_cons')
+                        path_cons.add(gas_cons)
                         # pc_var = get_solver_var(path_cons)
 
-                        print('[INFO] Checking Satisfiability of Path Constraints with %s pc...' % len(path_cons.assertions()))
+                        print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...' % (tag, len(path_cons.assertions())))
                         if path_cons.check() == sat:
                             print('[INFO] Path Constraints: sat')
                             ans = path_cons.model()
-                            print('[INFO] model:', len(ans), 'variables\n', ans)
-                            new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas}
+                            print('[INFO] model:', len(ans), 'variables')
+                            new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
                             global_vars.add_pc_gas(new_pc_gas)
                         else:
                             print('[INFO] Path Constraints: unsat')
-                            unsat_core = path_cons.unsat_core()
-                            print('[INFO] Conflict: %s' % unsat_core)
+                            # unsat_core = path_cons.unsat_core()
+                            # print('[INFO] Conflict: %s' % unsat_core)
 
                     return
                 elif line == 'Stack Sum':
@@ -465,9 +504,12 @@ def symbolic_implement(state, gas, path_cons,
                     if there isn't any JUMP or JUMPI, there is one way to go,
                     so find the next node in edges and go to there 
                     '''
+                    # NOTE: add tag to path tag
+                    path_tag.append(tag)
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
+                    # node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -476,25 +518,29 @@ def symbolic_implement(state, gas, path_cons,
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
                         new_state[key] = in_new_state
-                    node, convergence = node_add_state(node, new_state, path_label, tag)
+                    node, convergence, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
 
                     # NOTE: if the state is same with previous one, then it's convergence --> stop
-                    if convergence:
-                        return
+                    # if convergence:
+                    #     return
 
                     for index, edge in enumerate(edges):
                         if edge[0][0] == tag:
                             edges[index] = edge_change_color(edge)
                             next_tag = edge[0][1]
                             tag_stack.append(next_tag)
-                            return symbolic_implement(state, gas, path_cons,
-                                                      next_tag, tag, tag_stack,
-                                                      has_jump_in, jump_in_num, path_label, pc_track)
+                            return symbolic_implement(state, gas, path_cons, gas_cons,
+                                                      next_tag, tag, tag_stack, path_tag,
+                                                      has_jump_in, jump_in_num, pc_track)
                     return
                 else:
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint = state_simulation.state_simulation(opcode, state)
+                    state, ins_gas, path_constraint, gas_constraint = state_simulation.state_simulation(opcode, state, line)
+
+                    if gas_constraint is not True:
+                        gas_cons.add(gas_constraint)
+
                     if is_expr(gas):
                         gas = simplify(gas + ins_gas)
                     else:
@@ -540,16 +586,17 @@ def node_add_gas(node, gas):
 def node_add_path_gas_sum(node, gas):
     node[1]['label'] += '\n'
     if 'State:' in node[1]['label']:
-        state_position = node[1]['label'].find('State')
-        first_part = node[1]['label'][:state_position-1]
-        second_part = node[1]['label'][state_position:]
+        state_position = node[1]['label'].find('Path Gas Sum:')
 
-        if 'Path Gas Sum:' in first_part:
+        if state_position != -1:
+            first_part = node[1]['label'][:state_position-1]
+            second_part = node[1]['label'][state_position:]
+
             first_part = first_part[:-2]
             first_part += ', %s]' % str(gas)
+            node[1]['label'] = '%s\n\n%s' % (first_part, second_part)
         else:
-            first_part += '\nPath Gas Sum:\n[%s]' % str(gas)
-        node[1]['label'] = '%s\n\n%s' % (first_part, second_part)
+            node[1]['label'] += '\nPath Gas Sum:\n[%s]' % str(gas)
     else:
         if 'Path Gas Sum:' in node[1]['label']:
             node[1]['label'] = node[1]['label'][:-2]
@@ -572,13 +619,16 @@ def edge_add_path_constraint(edge, constraint):
     return edge
 
 
-def node_add_state(node, state, path_label, tag):
+def node_add_state(node, state, path_label, tag, gas):
     global prime_check_list
+    global tag_run_time
+    global tag_gas_sum
 
     in_stack = state['Stack']
     in_memory = state['Memory']
     in_storage = state['Storage']
     same_state = False
+    loop_gas = 0
 
     for key in in_stack:
         if not isinstance(in_stack[key], str):
@@ -595,45 +645,67 @@ def node_add_state(node, state, path_label, tag):
         state_str = node[1]['label'][state_position:].replace(',\n', ',')
         state_json = json.loads(state_str)
 
-        curr_path_prime_list = []
-        for item in prime_check_list:
-            if path_label % item == 0:
-                curr_path_prime_list.append(item)
-
         new_path = True
-        for index, val in enumerate(state_json):
-            state_path_label = val[-1]['Path Label']
-            position_prime_list = []
-            for item in prime_check_list:
-                if state_path_label % item == 0:
-                    position_prime_list.append(item)
-            for item in curr_path_prime_list:
-                if item in position_prime_list:
-                    new_path = False
-                    if val[-1]['Stack'] == in_stack and val[-1]['Memory'] == in_memory and val[-1]['Storage'] == in_storage:
-                        same_state = True
-                        # print('[TAG SAME]:', tag)
-                    else:
-                        # print('[TAG NOT SAME]:', tag)
-                        # if val[-1]['Stack'] != in_stack:
-                        #     print('\n[STACK]:', False, tag, val[-1]['Stack'], in_stack)
-                        # if val[-1]['Memory'] != in_memory:
-                        #     print('\n[MEM]:', False, tag, val[-1]['Memory'], in_memory)
-                        # if val[-1]['Storage'] != in_storage:
-                        #     print('\n[STO]:', False, tag, val[-1]['Storage'], in_storage)
+        if path_label.count(path_label[-1]) > 1:
+            first_idx = path_label.index(path_label[-1])
+            curr_tag = path_label[:first_idx]
 
-                        state_json[index].append({'Path Label': path_label, 'Stack': in_stack, 'Memory': in_memory, 'Storage': in_storage})
+            for index, val in enumerate(state_json):
+                state_path_label = val[-1]['Path Label']
+                state_tag = state_path_label[:first_idx]
+
+                if curr_tag == state_tag:
+                    new_path = False
+
+                    gas_sum = tag_gas_sum[tag]
+                    loop_gas = gas - gas_sum
+                    # print('[GAS]:', tag, loop_gas, gas, gas_sum)
+                    same_state = True
+                    # tag_gas_sum.pop(tag, None)
+                    # if val[-1]['Stack'] == in_stack and val[-1]['Memory'] == in_memory and val[-1]['Storage'] == in_storage:
+                    #     same_state = True
+                    #     tag_run_time.update({tag: 0})
+                    # else:
+                    #     state_json[index].append(
+                    #         {'Path Label': path_label, 'Stack': in_stack, 'Memory': in_memory, 'Storage': in_storage})
+                    #     # print('[TAG NOT SAME]:', tag)
+                    #     # if val[-1]['Stack'] != in_stack:
+                    #     #     print('\n[STACK-1]:', tag, val)
+                    #     #     print('\n[STACK-2]:', tag, in_stack)
+                    #     # if val[-1]['Memory'] != in_memory:
+                    #     #     print('\n[MEM]:', tag, val[-1]['Memory'], in_memory)
+                    #     # if val[-1]['Storage'] != in_storage:
+                    #     #     print('\n[STO]:', tag, val[-1]['Storage'], in_storage)
+                    #
+                    #     # NOTE: if the node run more than 10 times, stop -> cycle
+                    #     if tag in tag_run_time.keys():
+                    #         run_time = tag_run_time[tag]
+                    #         gas_sum = tag_gas_sum[tag]
+                    #         if run_time > 10:
+                    #             # tag_run_time.update({tag: 0})
+                    #             loop_gas = gas - gas_sum
+                    #             same_state = True
+                    #         else:
+                    #             run_time += 1
+                    #             tag_run_time.update({tag: run_time})
+                    #     else:
+                    #         tag_run_time.update({tag: 1})
+                    #         tag_gas_sum.update({tag: gas})
+                    break
+
         if new_path:
             state_json.append([{'Path Label': path_label, 'Stack': in_stack, 'Memory': in_memory, 'Storage': in_storage}])
 
-        node[1]['label'] = node[1]['label'][:state_position-7]
-        state_str = json.dumps(state_json)
-        state_str = state_str.replace(',', ',\n', 2)
+        node[1]['label'] = node[1]['label'][:state_position]
+        state_str = json.dumps(state_json).replace('\n', '').replace(',', ',\n', 2)\
+            .replace(', "Stack":', ',\n\n"Stack":').replace(', "Memory"', ',\n"Memory"')\
+            .replace(', "Storage"', ',\n"Storage"').replace('", "', '",\n"')
         node[1]['label'] += state_str
     else:
+        tag_gas_sum.update({tag: gas})
         state_json = [[{'Path Label': path_label, 'Stack': in_stack, 'Memory': in_memory, 'Storage': in_storage}]]
         state_str = json.dumps(state_json)
         state_str = state_str.replace(',', ',\n', 2)
         node[1]['label'] += '\n\nState:\n%s' % state_str
-    return node, same_state
+    return node, same_state, loop_gas
 

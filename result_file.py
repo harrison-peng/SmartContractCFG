@@ -14,6 +14,7 @@ def output_result(file, contract):
         infos = global_vars.get_pc_gas()
         for info in infos:
             f.write('Path No.%s:\n\n' % count)
+            f.write('[Path Tag]: %s\n\n' % info['tags'])
             f.write('[Path Constraints]:\n')
             f.write(str(info['path_constraints']).replace('\n', '').replace(',', ',\n').replace('    ', ' '))
 

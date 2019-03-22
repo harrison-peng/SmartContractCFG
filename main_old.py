@@ -815,8 +815,6 @@ def constraint_jump(nodes, edges, stack, storage, memory, check, tag, input_data
                             f_con.append(count)
                             f_con.append(tag_num_0)
                             f_con.append(s)
-                    # print('\n1<<<<<<<<<<1')
-                    # print('stack in = {}, tag num = {}'.format(stack_now, tag_num_0))
                     value, init_tag, stack_new_1 = stack_status_constraint(stack_now, storage, memory, nodes, edges,
                                                                            tag_num_0,
                                                                            input_data,
