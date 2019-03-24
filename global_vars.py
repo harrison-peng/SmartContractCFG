@@ -11,6 +11,12 @@ def init():
     global FINAL_GAS_SUM
     FINAL_GAS_SUM = dict()
 
+    global TOTAL_PATH_COUNT
+    TOTAL_PATH_COUNT = 0
+
+    global SAT_PATH_COUNT
+    SAT_PATH_COUNT = 0
+
 
 def add_pc_gas(value):
     FINAL_PC_GAS.append(value)
@@ -33,3 +39,21 @@ def add_final_gas(tag, gas):
 
 def get_final_gas():
     return FINAL_GAS_SUM
+
+
+def add_total_path_count():
+    global TOTAL_PATH_COUNT
+    TOTAL_PATH_COUNT += 1
+
+
+def get_total_path_count():
+    return TOTAL_PATH_COUNT
+
+
+def add_sat_path_count():
+    global SAT_PATH_COUNT
+    SAT_PATH_COUNT += 1
+
+
+def get_sat_path_count():
+    return SAT_PATH_COUNT

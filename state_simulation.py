@@ -1416,6 +1416,16 @@ def state_simulation(instruction, state, line):
             gas = gas_table[opcode]
         else:
             raise ValueError('STACK underflow')
+    elif opcode == 'SELFDESTRUCT':
+        if len(stack) > 0:
+            row = len(stack) - 1
+            stack.pop(str(row))
+
+            # NOTE: GAS
+            new_var = Bool('Inewaccount_%s' % line)
+            gas = 5000 + If(new_var, 25000, 0)
+        else:
+            raise ValueError('STACK underflow')
     else:
         raise Exception('UNKNOWN INSTRUCTION:', opcode)
 

@@ -475,6 +475,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     node_add_state(node, state, path_tag, tag, gas)
 
                     count_path += 1
+                    global_vars.add_total_path_count()
 
                     for gc in gas_cons.assertions():
                         path_cons.add(gc)
@@ -489,6 +490,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...' % (tag, len(path_cons.assertions())))
                         if path_cons.check() == sat:
                             print('[INFO] Path Constraints: sat')
+                            global_vars.add_sat_path_count()
                             ans = path_cons.model()
                             print('[INFO] model:', len(ans), 'variables')
                             new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}

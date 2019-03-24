@@ -2,13 +2,19 @@ import global_vars
 from z3_func import *
 
 
-def output_result(file, contract):
+def output_result(file, contract, nodes_size, edges_size, ins_size):
     os.makedirs('./result/%s' % file, exist_ok=True)
 
     with open('./result/%s/%s.txt' % (file, contract), 'w') as f:
         line = '=' * ((90 - len(contract) - 2)//2)
-        f.write('%s %s %s' % (line, contract, line))
-        f.write('\n\n')
+        f.write('%s %s %s\n' % (line, contract, line))
+        f.write('Total Instruction: %s\n' % ins_size)
+        f.write('Total nodes: %s\n' % nodes_size)
+        f.write('Total edges: %s\n' % edges_size)
+        f.write('Total path: %s\n' % global_vars.get_total_path_count())
+        f.write('Reachable path: %s\n' % global_vars.get_sat_path_count())
+        sep_line = '-|-' * 30
+        f.write('%s\n' % sep_line)
 
         count = 1
         infos = global_vars.get_pc_gas()

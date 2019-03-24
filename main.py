@@ -137,8 +137,11 @@ def asm_analysis(file_name, contract_name):
 
     nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
     nodes_out = node_add_gas_sum(nodes_out)
-    create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
-    result_file.output_result(file_name, contract_name)
+    try:
+        create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
+    except Exception as e:
+        print('[ERROR] graph drawing error:', e)
+    result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
 
     # result_context = ''
     # with open('./result/%s/%s.txt' % (file_name, contract_name), 'r') as f:
