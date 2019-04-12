@@ -45,7 +45,7 @@ class Generator:
         return 'Iexp_%s' % line
 
     def gen_caller_var(self, line):
-        return 'Is_%s' % line
+        return 'Ia_caller'
 
     def gen_value_var(self, line):
         return 'Iv_%s' % line
@@ -80,6 +80,10 @@ class Generator:
     def gen_loop_var(self):
         self.count_loop += 1
         return 'loop_%s' % self.count_loop
+
+    def gen_sha_var(self, line, val):
+        # return 'sha3(%s)_%s' % (val, line)
+        return 'sha3(%s)' % (val)
 
 
 class SolverUnsatCore:

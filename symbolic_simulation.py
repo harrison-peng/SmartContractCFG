@@ -66,6 +66,7 @@ def symbolic_simulation(nodes_in, edges_in):
                        '0', '', ['0'], [],
                        False, 0, pc_track)
     print('\n[INFO] Find', count_path, 'path')
+    print('[INFO] Vulnerability Path:', global_vars.get_sat_path_count())
     # print('[PRIME]:', prime_list)
 
     # for key in tag_run_time:
@@ -130,6 +131,11 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 ins_set = ins.split(': ')
                 line = ins_set[0]
                 opcode = ins_set[1]
+
+                if tag == '1':
+                    print('[STACK]:', ins, state['Stack'])
+                    # print('[MEM]:', state['Memory'])
+                    # print('[GAS]:', gas, '\n')
 
                 if opcode.split(' ')[0] == 'tag':
                     '''
@@ -539,6 +545,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
                     # NOTE: stack simulation
                     state, ins_gas, path_constraint, gas_constraint = state_simulation.state_simulation(opcode, state, line)
+
+                    if state is None:
+                        return
 
                     if gas_constraint is not True:
                         gas_cons.add(gas_constraint)

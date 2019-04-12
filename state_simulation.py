@@ -56,14 +56,19 @@ def state_simulation(instruction, state, line):
             #     second = to_z3_symbolic(second)
             # computed = first + second
 
-            if is_real(first) and is_symbolic(second):
+            if isinstance(first, int) and first == 0:
+                computed = second
+            elif isinstance(second, int) and second == 0:
+                computed = first
+            elif is_real(first) and is_symbolic(second):
                 first = BitVecVal(first, 256)
                 computed = first + second
             elif is_symbolic(first) and is_real(second):
                 second = BitVecVal(second, 256)
                 computed = first + second
             else:
-                computed = (first + second) % (2 ** 256)
+                computed = first + second
+
             computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
@@ -874,18 +879,24 @@ def state_simulation(instruction, state, line):
                 mem_num = (to - position)//32
                 data = 0
 
-                if (mem_num // (2**256)) == 0:
-                    new_var_name = get_gen().gen_arbitrary_var(line)
-                    data = BitVec(new_var_name, 256)
-                    gas_constraint = simplify(data < (2 ** 256) - 1)
-                else:
-                    for i in range(mem_num):
-                        if str(position + 32*i) in memory.keys():
-                            data += memory[str(position + 32*i)]
+                # if (mem_num // (2**256)) == 0:
+                #     new_var_name = get_gen().gen_arbitrary_var(line)
+                #     data = BitVec(new_var_name, 256)
+                #     gas_constraint = simplify(data < (2 ** 256) - 1)
+                # else:
+                for i in range(mem_num):
+                    if str(position + 32*i) in memory.keys():
+                        if isinstance(memory[str(position + 32*i)], int):
+                            if memory[str(position + 32*i)] != 0:
+                                data += memory[str(position + 32*i)]
                         else:
-                            new_var_name = get_gen().gen_arbitrary_var(line)
-                            data = simplify(data+BitVec(new_var_name, 256))
-                            gas_constraint = simplify(data < (2 ** 256) - 1)
+                            data += memory[str(position + 32 * i)]
+                        if is_expr(data):
+                            data = simplify(data)
+                    else:
+                        new_var_name = get_gen().gen_arbitrary_var(line)
+                        data = simplify(data+BitVec(new_var_name, 256))
+                        gas_constraint = simplify(data < (2 ** 256) - 1)
             else:
                 new_var_name = get_gen().gen_arbitrary_var(line)
                 data = BitVec(new_var_name, 256)
@@ -894,7 +905,7 @@ def state_simulation(instruction, state, line):
             if isinstance(data, int):
                 computed = int(sha3.sha3_224(str(data).encode('utf-8')).hexdigest(), 16)
             else:
-                new_var_name = get_gen().gen_arbitrary_var(line)
+                new_var_name = get_gen().gen_sha_var(line, data)
                 computed = BitVec(new_var_name, 256)
                 gas_constraint = simplify(computed < (2 ** 256) - 1)
             data = simplify(data) if is_expr(data) else data
@@ -941,7 +952,7 @@ def state_simulation(instruction, state, line):
         # NOTE: get caller address
         new_var_name = get_gen().gen_caller_var(line)
         new_var = BitVec(new_var_name, 256)
-        gas_constraint = simplify(new_var < (2 ** 256) - 1)
+        gas_constraint = simplify(new_var < (2 ** 160))
 
         row = len(stack)
         stack[str(row)] = new_var
@@ -1144,16 +1155,19 @@ def state_simulation(instruction, state, line):
             row = len(stack) - 1
             address = stack.pop(str(row))
 
-            value = None
-            for key, val in storage.items():
-                if str(key) == str(address):
-                    value = val
+            if len(storage) == 0:
+                value = 0
+            else:
+                value = None
+                for key, val in storage.items():
+                    if str(key) == str(address):
+                        value = val
 
-            row = len(stack)
-            if value is None:
-                new_var_name = get_gen().gen_owner_store_var(line)
-                value = BitVec(new_var_name, 256)
-                gas_constraint = simplify(value < (2 ** 256) - 1)
+                row = len(stack)
+                if value is None:
+                    new_var_name = get_gen().gen_owner_store_var(line)
+                    value = BitVec(new_var_name, 256)
+                    gas_constraint = simplify(value < (2 ** 256) - 1)
             stack[str(row)] = value
 
             # NOTE: GAS
@@ -1250,8 +1264,8 @@ def state_simulation(instruction, state, line):
         # NOTE: GAS
         gas = gas_table['PUSH']
     elif opcode.startswith('DUP', 0):
-        position = int(opcode[3:], 10) - 1
-        if len(stack) > position:
+        position = len(stack) - int(opcode[3:], 10)
+        if position >= 0:
             duplicate_value = stack[str(position)]
             row = len(stack)
             stack[str(row)] = duplicate_value
@@ -1259,7 +1273,8 @@ def state_simulation(instruction, state, line):
             # NOTE: GAS
             gas = gas_table['DUP']
         else:
-            raise ValueError('STACK underflow')
+            return None, None, None, None
+            # raise ValueError('STACK underflow')
     elif opcode.startswith('SWAP', 0):
         position = len(stack) - 1 - int(opcode[4:], 10)
         if len(stack) > position:
