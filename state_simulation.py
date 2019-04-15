@@ -67,7 +67,7 @@ def state_simulation(instruction, state, line):
                 second = BitVecVal(second, 256)
                 computed = first + second
             else:
-                computed = first + second
+                computed = (first + second) % (2 ** 256)
 
             computed = simplify(computed) if is_expr(computed) else computed
 
@@ -536,7 +536,8 @@ def state_simulation(instruction, state, line):
                 else:
                     computed = 0
             else:
-                computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+                # computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+                computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
             computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
@@ -584,7 +585,7 @@ def state_simulation(instruction, state, line):
                 else:
                     computed = 0
             else:
-                computed = If(UGT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+                computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
             computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
