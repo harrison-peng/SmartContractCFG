@@ -133,8 +133,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if tag == '28':
-                #     print('[STACK]:', ins, state['Stack'])
+                # if tag in ['99', '100', '44']:
+                #     print('[STACK]:', tag, ins, state['Stack'])
                 #     print('[MEM]:', state['Memory'])
                 #     print('[GAS]:', gas, '\n')
 
@@ -558,7 +558,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
                     for gc in gas_cons.assertions():
                         path_cons.add(gc)
-                    # print('[PC]:', tag, path_cons)
+                    print('[PC]:', tag, path_cons)
 
                     if is_expr(gas):
                         # gas_cons = gas > 4712357
