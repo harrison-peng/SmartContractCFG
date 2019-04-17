@@ -16,6 +16,12 @@ def output_result(file, contract, nodes_size, edges_size, ins_size):
         sep_line = '-|-' * 30
         f.write('%s\n' % sep_line)
 
+        f.write('symbolic variables:\n')
+        var_table = global_vars.get_var_table()
+        for key, val in var_table.items():
+            f.write('%s: %s,\n' % (key, val))
+        f.write('%s\n' % sep_line)
+
         count = 1
         infos = global_vars.get_pc_gas()
         for info in infos:

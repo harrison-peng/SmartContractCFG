@@ -18,6 +18,9 @@ class Generator:
     def gen_data_size(self, line):
         return 'Id_size_%s' % line
 
+    def gen_code_var(self, line):
+        return 'Ic_%s' % line
+
     def gen_mem_var(self, line):
         self.count_mem += 1
         return 'mem_%s' % line

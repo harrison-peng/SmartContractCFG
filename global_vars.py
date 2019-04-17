@@ -17,6 +17,9 @@ def init():
     global SAT_PATH_COUNT
     SAT_PATH_COUNT = 0
 
+    global VAR_TABLE
+    VAR_TABLE = dict()
+
 
 def add_pc_gas(value):
     FINAL_PC_GAS.append(value)
@@ -57,3 +60,19 @@ def add_sat_path_count():
 
 def get_sat_path_count():
     return SAT_PATH_COUNT
+
+
+def add_var_table(key, val):
+    VAR_TABLE[key] = val
+
+
+def var_in_var_table(key):
+    if key in VAR_TABLE.keys():
+        return True
+    else:
+        return False
+
+
+def get_var_table():
+    return VAR_TABLE
+
