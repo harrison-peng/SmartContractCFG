@@ -1,0 +1,12 @@
+
+Big Query
+https://console.cloud.google.com/bigquery?sq=333841542120:b9472abf536b43348a7df1fb128bb593
+
+
+BigQuery Public Data: Ethereum Blockchain
+https://console.cloud.google.com/marketplace/details/bigquery-public-data/ethereum-blockchain
+
+Ethereum in BigQuery: a Public Dataset for smart contract analytics
+https://cloud.google.com/blog/products/data-analytics/ethereum-bigquery-public-dataset-smart-contract-analytics?_ga=2.214666387.-544537009.1546099706
+
+
