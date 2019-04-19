@@ -16,7 +16,7 @@ class Generator:
         return 'Id_%s' % line
 
     def gen_data_size(self, line):
-        return 'Id_size_%s' % line
+        return 'Id_size'
 
     def gen_code_var(self, line):
         return 'Ic_%s' % line
@@ -51,7 +51,7 @@ class Generator:
         return 'Ia_caller'
 
     def gen_value_var(self, line):
-        return 'Iv_%s' % line
+        return 'Iv'
 
     def gen_origin_var(self, line):
         return 'Io_%s' % line
@@ -60,8 +60,8 @@ class Generator:
         self.count_balance += 1
         return 'balance_%s' % line
 
-    def gen_code_var(self, address, position, bytecount, line):
-        return 'code_%s_%s_%s_%s' % (address, position, bytecount, line)
+    # def gen_code_var(self, address, position, bytecount, line):
+    #     return 'code_%s_%s_%s_%s' % (address, position, bytecount, line)
 
     def gen_code_size_var(self, address, line):
         return 'code_size_%s' % line
@@ -84,9 +84,9 @@ class Generator:
         self.count_loop += 1
         return 'loop_%s' % self.count_loop
 
-    def gen_sha_var(self, line, val):
+    def gen_sha_var(self, line):
         # return 'sha3(%s)_%s' % (val, line)
-        return 'sha3(%s)' % (val)
+        return 'Isha3_%s' % line
 
 
 class SolverUnsatCore:

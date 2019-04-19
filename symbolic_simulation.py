@@ -135,8 +135,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if tag in ['99', '100', '44']:
-                #     print('[STACK]:', tag, ins, state['Stack'])
+                # if tag in ['16']:
+                #     print('[STACK]:', ins, state['Stack'])
                 #     print('[MEM]:', state['Memory'])
                 #     print('[GAS]:', gas, '\n')
 
@@ -520,8 +520,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     # print('[PC]:', tag, path_cons)
 
                     if is_expr(gas):
-                        # gas_cons = gas > 4712357
-                        gas_cons = gas > 21000
+                        gas_cons = gas > 4712357
+                        # gas_cons = gas > 21000
                         # path_cons.assert_and_track(gas_cons, 'gas_cons')
                         path_cons.add(gas_cons)
                         # pc_var = get_solver_var(path_cons)
@@ -532,7 +532,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                             print('[INFO] Path Constraints: sat')
                             global_vars.add_sat_path_count()
                             ans = path_cons.model()
-                            print('[INFO] model:', len(ans), 'variables')
+                            # print('[INFO] model:', len(ans), 'variables')
                             new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
                             global_vars.add_pc_gas(new_pc_gas)
                         # else:
@@ -574,11 +574,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 else:
                     # NOTE: stack simulation
                     lt_loop_format = None
-                    try:
-                        state, ins_gas, path_constraint, gas_constraint, lt_loop_format = state_simulation.state_simulation(opcode, state, line)
-                    except Exception:
-                        state, ins_gas, path_constraint, gas_constraint = state_simulation.state_simulation(
-                            opcode, state, line)
+                    state, ins_gas, path_constraint, gas_constraint, lt_loop_format = state_simulation.state_simulation(
+                        opcode, state, line)
 
                     if state is None:
                         return
@@ -745,40 +742,44 @@ def node_add_state(node, state, path_label, tag, gas):
 
 def loop_detection(loop_cond_1, loop_cond_2):
     if loop_cond_1 is not None:
-        cond_str_1 = str(loop_cond_1)
-        cond_str_2 = str(loop_cond_2)
-        if cond_str_1.startswith('If') and cond_str_2.startswith('If'):
-            cond_1 = cond_str_1[3:-7]
-            cond_2 = cond_str_2[3:-7]
-            if '<=' in cond_1 and '<=' in cond_2:
-                op = '<='
-                num_1 = cond_1.split('<=')[1].strip()
-                num_2 = cond_2.split('<=')[1].strip()
-                var = cond_1.split('<=')[0].strip()
-                diff = int(num_2) - int(num_1)
-            elif '<' in cond_1 and '<' in cond_2:
-                op = '<'
-                num_1 = cond_1.split('<')[1].strip()
-                num_2 = cond_2.split('<')[1].strip()
-                var = cond_1.split('<')[0].strip()
-                diff = int(num_2) - int(num_1)
-            elif '>=' in cond_1 and '>=' in cond_2:
-                op = '>='
-                num_1 = cond_1.split('>=')[1].strip()
-                num_2 = cond_2.split('>=')[1].strip()
-                var = cond_1.split('>=')[0].strip()
-                diff = int(num_2) - int(num_1)
-            elif '>' in cond_1 and '>' in cond_2:
-                op = '>'
-                num_1 = cond_1.split('>')[1].strip()
-                num_2 = cond_2.split('>')[1].strip()
-                var = cond_1.split('>')[0].strip()
-                diff = int(num_2) - int(num_1)
-            else:
-                raise ValueError('LOOP DETECTION ERROR-2')
-            return 2, diff, var, op
+        if isinstance(loop_cond_2, int) and loop_cond_2 == 0:
+            return 1, loop_cond_2, None, None
         else:
-            raise ValueError('LOOP DETECTION ERROR-1')
+            cond_str_1 = str(loop_cond_1)
+            cond_str_2 = str(loop_cond_2)
+            if cond_str_1.startswith('If') and cond_str_2.startswith('If'):
+                cond_1 = cond_str_1[3:-7]
+                cond_2 = cond_str_2[3:-7]
+                if '<=' in cond_1 and '<=' in cond_2:
+                    op = '<='
+                    num_1 = cond_1.split('<=')[1].strip()
+                    num_2 = cond_2.split('<=')[1].strip()
+                    var = cond_1.split('<=')[0].strip()
+                    diff = int(num_2) - int(num_1)
+                elif '<' in cond_1 and '<' in cond_2:
+                    op = '<'
+                    print('[LPP]:', cond_1, cond_2)
+                    num_1 = cond_1.split('<')[1].strip()
+                    num_2 = cond_2.split('<')[1].strip()
+                    var = cond_1.split('<')[0].strip()
+                    diff = int(num_2) - int(num_1)
+                elif '>=' in cond_1 and '>=' in cond_2:
+                    op = '>='
+                    num_1 = cond_1.split('>=')[1].strip()
+                    num_2 = cond_2.split('>=')[1].strip()
+                    var = cond_1.split('>=')[0].strip()
+                    diff = int(num_2) - int(num_1)
+                elif '>' in cond_1 and '>' in cond_2:
+                    op = '>'
+                    num_1 = cond_1.split('>')[1].strip()
+                    num_2 = cond_2.split('>')[1].strip()
+                    var = cond_1.split('>')[0].strip()
+                    diff = int(num_2) - int(num_1)
+                else:
+                    raise ValueError('LOOP DETECTION ERROR-2')
+                return 2, diff, var, op
+            else:
+                raise ValueError('LOOP DETECTION ERROR-1')
     else:
         return 1, loop_cond_2, None, None
 

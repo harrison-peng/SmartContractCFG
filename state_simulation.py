@@ -498,17 +498,21 @@ def state_simulation(instruction, state, line):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            if is_all_real(first, second):
-                first = to_unsigned(first)
-                second = to_unsigned(second)
-                if first < second:
-                    computed = 1
-                else:
-                    computed = 0
+            if first == second:
+                computed = 0
+                lt_loop_format = 0
             else:
-                computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
-                lt_loop_format = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
-            computed = simplify(computed) if is_expr(computed) else computed
+                if is_all_real(first, second):
+                    first = to_unsigned(first)
+                    second = to_unsigned(second)
+                    if first < second:
+                        computed = 1
+                    else:
+                        computed = 0
+                else:
+                    computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+                    lt_loop_format = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
+                computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -640,8 +644,17 @@ def state_simulation(instruction, state, line):
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
 
-            computed = first & second
-            computed = simplify(computed) if is_expr(computed) else computed
+            if isinstance(first, int) and first == 1461501637330902918203684832716283019655932542975:
+                computed = second
+                if is_expr(second):
+                    gas_constraint = simplify(second < (2 ** 160))
+            elif isinstance(second, int) and second == 1461501637330902918203684832716283019655932542975:
+                computed = first
+                if is_expr(first):
+                    gas_constraint = simplify(first < (2 ** 160))
+            else:
+                computed = first & second
+                computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -768,12 +781,25 @@ def state_simulation(instruction, state, line):
             if isinstance(data, int):
                 computed = int(sha3.sha3_224(str(data).encode('utf-8')).hexdigest(), 16)
             else:
-                new_var_name = get_gen().gen_sha_var(line, data)
-                computed = BitVec(new_var_name, 256)
-                gas_constraint = simplify(computed < (2 ** 256) - 1)
+                # NOTE: Check if sym var is already created or not
+                sha3_var_exist = False
+                var_name = None
+                for key, val in get_var_table().items():
+                    if val == 'SHA3(%s)' % data:
+                        var_name = key
+                        sha3_var_exist = True
+                        break
 
-                if not var_in_var_table(new_var_name):
-                    add_var_table(new_var_name, 'SHA3(%s)' % data)
+                if sha3_var_exist:
+                    computed = BitVec(var_name, 256)
+                    gas_constraint = simplify(computed < (2 ** 256) - 1)
+                else:
+                    new_var_name = get_gen().gen_sha_var(line)
+                    computed = BitVec(new_var_name, 256)
+                    gas_constraint = simplify(computed < (2 ** 256) - 1)
+
+                    if not var_in_var_table(new_var_name):
+                        add_var_table(new_var_name, 'SHA3(%s)' % data)
             data = simplify(data) if is_expr(data) else data
 
             row = len(stack)
@@ -792,6 +818,13 @@ def state_simulation(instruction, state, line):
     elif opcode == 'ADDRESS':
         # NOTE: get address of currently executing account
         # TODO: handle it
+        new_var_name = 'Ia'
+        new_var = BitVec(new_var_name, 256)
+        gas_constraint = simplify(new_var < (2 ** 256) - 1)
+
+        if not var_in_var_table(new_var_name):
+            add_var_table(new_var_name, 'address(this) (address of the executing contract)')
+
         row = len(stack)
         stack[str(row)] = BitVec('Ia', 256)
 
@@ -866,12 +899,34 @@ def state_simulation(instruction, state, line):
             row = len(stack) - 1
             position = stack.pop(str(row))
 
-            new_var_name = get_gen().gen_data_var(line)
-            new_var = BitVec(new_var_name, 256)
-            gas_constraint = simplify(new_var < (2 ** 256) - 1)
+            # NOTE: Check if the sym var of msg.data is already created or not
+            data_var_exist = False
+            var_name = None
+            for key, val in get_var_table().items():
+                if isinstance(position, int):
+                    if val == 'msg.data[%s:%s]' % (position, position + 32):
+                        var_name = key
+                        data_var_exist = True
+                        break
+                else:
+                    if val == 'msg.data[%s:%s+32]' % (position, position):
+                        var_name = key
+                        data_var_exist = True
+                        break
 
-            if not var_in_var_table(new_var_name):
-                add_var_table(new_var_name, 'msg.data[%s:%s+32]' % (position, position))
+            if data_var_exist:
+                new_var = BitVec(var_name, 256)
+                gas_constraint = simplify(new_var < (2 ** 256) - 1)
+            else:
+                new_var_name = get_gen().gen_data_var(line)
+                new_var = BitVec(new_var_name, 256)
+                gas_constraint = simplify(new_var < (2 ** 256) - 1)
+
+                if not var_in_var_table(new_var_name):
+                    if isinstance(position, int):
+                        add_var_table(new_var_name, 'msg.data[%s:%s]' % (position, position + 32))
+                    else:
+                        add_var_table(new_var_name, 'msg.data[%s:%s+32]' % (position, position))
 
             row = len(stack)
             stack[str(row)] = new_var
@@ -1032,19 +1087,45 @@ def state_simulation(instruction, state, line):
                     if address in memory.keys():
                         value = memory[address]
                     else:
+                        # NOTE: Check if sym var is already created or not
+                        mem_var_exist = False
+                        var_name = None
+                        for key, val in get_var_table().items():
+                            if val == 'memory[%s:%s], %s' % (address, address + 32, memory):
+                                var_name = key
+                                mem_var_exist = True
+                                break
+
+                        if mem_var_exist:
+                            value = BitVec(var_name, 256)
+                            gas_constraint = simplify(value < (2 ** 256) - 1)
+                        else:
+                            new_var_name = get_gen().gen_mem_var(line)
+                            value = BitVec(new_var_name, 256)
+                            gas_constraint = simplify(value < (2 ** 256) - 1)
+
+                            if not var_in_var_table(new_var_name):
+                                add_var_table(new_var_name, 'memory[%s:%s], %s' % (address, address + 32, memory))
+                else:
+                    # NOTE: Check if sym var is already created or not
+                    mem_var_exist = False
+                    var_name = None
+                    for key, val in get_var_table().items():
+                        if val == 'memory[%s:%s+32], %s' % (address, address, memory):
+                            var_name = key
+                            mem_var_exist = True
+                            break
+
+                    if mem_var_exist:
+                        value = BitVec(var_name, 256)
+                        gas_constraint = simplify(value < (2 ** 256) - 1)
+                    else:
                         new_var_name = get_gen().gen_mem_var(line)
                         value = BitVec(new_var_name, 256)
                         gas_constraint = simplify(value < (2 ** 256) - 1)
 
                         if not var_in_var_table(new_var_name):
-                            add_var_table(new_var_name, 'memory[%s:%s], %s' % (address, address + 32, memory))
-                else:
-                    new_var_name = get_gen().gen_mem_var(line)
-                    value = BitVec(new_var_name, 256)
-                    gas_constraint = simplify(value < (2 ** 256) - 1)
-
-                    if not var_in_var_table(new_var_name):
-                        add_var_table(new_var_name, 'memory[%s:%s+32], %s' % (address, address, memory))
+                            add_var_table(new_var_name, 'memory[%s:%s+32], %s' % (address, address, memory))
 
             row = len(stack)
             stack[str(row)] = value
@@ -1079,12 +1160,25 @@ def state_simulation(instruction, state, line):
 
                 row = len(stack)
                 if value is None:
-                    new_var_name = get_gen().gen_owner_store_var(line)
-                    value = BitVec(new_var_name, 256)
-                    gas_constraint = simplify(value < (2 ** 256) - 1)
+                    # NOTE: Check if sym var is already created or not
+                    sto_var_exist = False
+                    var_name = None
+                    for key, val in get_var_table().items():
+                        if val == 'storage[%s], %s' % (address, storage):
+                            var_name = key
+                            sto_var_exist = True
+                            break
 
-                    if not var_in_var_table(new_var_name):
-                        add_var_table(new_var_name, 'storage[%s], %s' % (address, storage))
+                    if sto_var_exist:
+                        value = BitVec(var_name, 256)
+                        gas_constraint = simplify(value < (2 ** 256) - 1)
+                    else:
+                        new_var_name = get_gen().gen_owner_store_var(line)
+                        value = BitVec(new_var_name, 256)
+                        gas_constraint = simplify(value < (2 ** 256) - 1)
+
+                        if not var_in_var_table(new_var_name):
+                            add_var_table(new_var_name, 'storage[%s], %s' % (address, storage))
             stack[str(row)] = value
 
             # NOTE: GAS
@@ -1182,8 +1276,8 @@ def state_simulation(instruction, state, line):
             # NOTE: GAS
             gas = gas_table['DUP']
         else:
-            # return None, None, None, None
-            raise ValueError('STACK underflow')
+            return None, None, None, None, None
+            # raise ValueError('STACK underflow')
     elif opcode.startswith('SWAP', 0):
         position = len(stack) - 1 - int(opcode[4:], 10)
         if len(stack) > position:
