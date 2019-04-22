@@ -76,3 +76,7 @@ def var_in_var_table(key):
 def get_var_table():
     return VAR_TABLE
 
+
+def get_var_in_table(key):
+    return VAR_TABLE[key]
+

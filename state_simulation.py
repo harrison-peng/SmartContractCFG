@@ -442,7 +442,7 @@ def state_simulation(instruction, state, line):
                 else:
                     gas_var = BitVec(get_gen().gen_log_var(line), 256)
                     gas = simplify(10 + (10 * (1 + gas_var)))
-                    gas_constraint = simplify(gas_var < (2 ** 256) - 1)
+                    gas_constraint = simplify(gas_var < 32)
 
                     if not var_in_var_table(new_var_name):
                         add_var_table(new_var_name, 'log256(%s)' % computed)
@@ -807,12 +807,18 @@ def state_simulation(instruction, state, line):
 
             # NOTE: GAS
             if isinstance(data, int):
-                gas = 30 + 6 * data
+                gas = 30 + 6 * (len(hex(data)) - 2)
             else:
-                if is_expr(data):
-                    gas = simplify(30 + 6 * data)
+                if str(data) == 'Ia_caller':
+                    gas = 150
                 else:
-                    gas = simplify(30 + 6*BitVec('WORDSIZE', 256))
+                    new_var_name = get_gen().gen_sha_word_size(line)
+                    new_var = BitVec(new_var_name, 256)
+                    gas = simplify(30 + 6 * new_var)
+                    gas_constraint = simplify(ULE(new_var, 32))
+
+                    if not var_in_var_table(new_var_name):
+                        add_var_table(new_var_name, 'The word size of %s' % data)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'ADDRESS':
@@ -938,7 +944,7 @@ def state_simulation(instruction, state, line):
     elif opcode == 'CALLDATASIZE':
         new_var_name = get_gen().gen_data_size(line)
         new_var = BitVec(new_var_name, 256)
-        gas_constraint = simplify(new_var < (2 ** 256) - 1)
+        gas_constraint = simplify(ULT(new_var, 32))
 
         if not var_in_var_table(new_var_name):
             add_var_table(new_var_name, 'msg.data.size')
@@ -966,9 +972,15 @@ def state_simulation(instruction, state, line):
 
             # NOTE: GAS
             if is_real(num_bytes):
-                gas = 2 + 3 * num_bytes
+                gas = 2 + 3 * (len(hex(num_bytes))-2)
             else:
-                gas = simplify(2 + 3 * num_bytes)
+                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var = BitVec(new_var_name, 256)
+                gas = simplify(30 + 6 * new_var)
+                gas_constraint = simplify(ULE(new_var, 32))
+
+                if not var_in_var_table(new_var_name):
+                    add_var_table(new_var_name, 'The word size of %s' % num_bytes)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CODESIZE':
@@ -1001,9 +1013,15 @@ def state_simulation(instruction, state, line):
 
             # NOTE: GAS
             if is_real(num_bytes):
-                gas = 2 + 3 * num_bytes
+                gas = 2 + 3 * (len(hex(num_bytes)) - 2)
             else:
-                gas = simplify(2 + 3 * num_bytes)
+                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var = BitVec(new_var_name, 256)
+                gas = simplify(30 + 6 * new_var)
+                gas_constraint = simplify(ULE(new_var, 32))
+
+                if not var_in_var_table(new_var_name):
+                    add_var_table(new_var_name, 'The word size of %s' % num_bytes)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'GASPRICE':
@@ -1036,10 +1054,15 @@ def state_simulation(instruction, state, line):
 
             # NOTE: GAS
             if is_real(x):
-                gas = 2 + 3 * x
+                gas = 2 + 3 * (len(hex(x)) - 2)
             else:
-                gas = simplify(2 + 3 * x)
-                # gas = '2+3*%s' % x
+                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var = BitVec(new_var_name, 256)
+                gas = simplify(30 + 6 * new_var)
+                gas_constraint = simplify(ULE(new_var, 32))
+
+                if not var_in_var_table(new_var_name):
+                    add_var_table(new_var_name, 'The word size of %s' % x)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'RETURNDATASIZE':
@@ -1293,16 +1316,16 @@ def state_simulation(instruction, state, line):
     elif opcode in ('LOG0', 'LOG1', 'LOG2', 'LOG3', 'LOG4'):
         num_of_pops = 2 + int(opcode[3:])
         if len(stack) >= num_of_pops:
-            count = 0
-            gas = 0
-            while num_of_pops > 0:
+            row = len(stack) - 1
+            offset = stack.pop(str(row))
+            word_length = stack.pop(str(row-1))
+            for _ in range(int(opcode[3:])):
                 num_of_pops -= 1
                 row = len(stack) - 1
                 pop_value = stack.pop(str(row))
 
-                # NOTE: GAS
-                if count == 1:
-                    gas = (int(opcode[3:]) + 1) * 375 + (8 * pop_value)
+            # NOTE: GAS
+            gas = (int(opcode[3:]) + 1) * 375 + (8 * word_length)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CALL':

@@ -88,6 +88,9 @@ class Generator:
         # return 'sha3(%s)_%s' % (val, line)
         return 'Isha3_%s' % line
 
+    def gen_sha_word_size(self, line):
+        return 'Isize_%s' % line
+
 
 class SolverUnsatCore:
     def __init__(self):
