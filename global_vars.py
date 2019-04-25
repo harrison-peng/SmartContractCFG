@@ -20,6 +20,9 @@ def init():
     global VAR_TABLE
     VAR_TABLE = dict()
 
+    global UNSIGNED_BOUND_NUMBER
+    UNSIGNED_BOUND_NUMBER = 2**256 - 1
+
 
 def add_pc_gas(value):
     FINAL_PC_GAS.append(value)

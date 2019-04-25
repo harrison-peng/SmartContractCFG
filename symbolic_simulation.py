@@ -2,10 +2,7 @@ from gas_price import *
 from z3 import *
 from var_generator import *
 from z3_func import *
-import os
-import re
-import se_ins as se
-import symbolic_simulation_old as ss
+from global_constants import *
 import json
 import state_simulation
 import copy
@@ -99,6 +96,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
     global LT_condition
 
     prev_ins = ''
+    prev_jumpi_ins = dict()
     count_push = 0
 
     # NOTE: if the node run more than 10 times, stop -> cycle
@@ -135,8 +133,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if tag in ['16']:
-                #     print('[STACK]:', ins, state['Stack'])
+                # if tag in ['30']:
+                #     print('[STACK]:', tag, ins, state['Stack'])
                 #     print('[MEM]:', state['Memory'])
                 #     print('[GAS]:', gas, '\n')
 
@@ -156,9 +154,10 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag.append(tag)
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, _ = state_simulation.state_simulation(opcode, state, line)
+                    state, ins_gas, path_constraint, gas_constraint, _, prev_jumpi_ins, _ = state_simulation.\
+                        state_simulation(opcode, state, line, prev_jumpi_ins, prev_ins)
 
-                    if gas_constraint is not True:
+                    if is_expr(gas_constraint):
                         gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
@@ -222,9 +221,10 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag.append(tag)
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, _ = state_simulation.state_simulation(opcode, state, line)
+                    state, ins_gas, path_constraint, gas_constraint, _, prev_jumpi_ins, next_jump_tag = \
+                        state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins, prev_ins)
 
-                    if gas_constraint is not True:
+                    if is_expr(gas_constraint):
                         gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
@@ -271,6 +271,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                 return symbolic_implement(state, gas, path_cons, gas_cons,
                                                           next_tag, tag, tag_stack, path_tag,
                                                           has_jump_in, jump_in_num, pc_track, loop_condition)
+                    return symbolic_implement(state, gas, path_cons, gas_cons,
+                                                      next_jump_tag, tag, tag_stack, path_tag,
+                                                      has_jump_in, jump_in_num, pc_track, loop_condition)
                 elif opcode == 'JUMPI':
                     '''
                     JUMPI:
@@ -299,15 +302,11 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag.append(tag)
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, _ = state_simulation.state_simulation(opcode, state, line)
-                    if tag not in loop_condition.keys():
-                        loop_condition[tag] = None
-                    loop_det_num, loop_cond, loop_cond_var, cond_op = loop_detection(loop_condition[tag], LT_condition)
-                    LT_condition = None
-                    if loop_det_num == 1:
-                        loop_condition[tag] = loop_cond
+                    state, ins_gas, path_constraint, gas_constraint, _, prev_jumpi_ins, next_jump_tag = \
+                        state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins, prev_ins)
+                    # print('[JUMPI]:', prev_ins, prev_jumpi_ins)
 
-                    if gas_constraint is not True:
+                    if is_expr(gas_constraint):
                         gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
@@ -330,22 +329,104 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
                         new_state[key] = in_new_state
-                    node, convergence, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
+                    node, _, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
+
+                    # NOTE: Loop Detection
+                    # if tag not in loop_condition.keys():
+                    #     loop_condition[tag] = None
+                    # loop_det_num = None
+                    # loop_cond_var = None
+                    # cond_op = None
+                    # if is_expr(path_constraint):
+                    #     loop_det_num, loop_cond, loop_cond_var, cond_op = \
+                    #         loop_detection(loop_condition[tag], LT_condition)
+                    #     LT_condition = None
+                    #     if loop_det_num == 1:
+                    #         loop_condition[tag] = loop_cond
+
+                    if tag not in loop_condition.keys():
+                        loop_condition[tag] = None
+                    # print('[TAG]:', tag)
+                    has_loop, cons_val = loop_det(prev_jumpi_ins, loop_condition[tag])
+                    if has_loop:
+                        new_var = BitVec(global_vars.get_gen().gen_loop_var(), 256)
+                        gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
+                        if prev_jumpi_ins['ins'] == 'ISZERO':
+                            sym_var = BitVec(cons_val['var'], 256)
+                            gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
+                            if cons_val['op'] == 'ULT':
+                                if cons_val['var_position'] == 1:
+                                    loop_pc = simplify(Not(ULT(sym_var, cons_val['diff'] * new_var)))
+                                else:
+                                    loop_pc = simplify(Not(ULT(cons_val['diff'] * new_var, sym_var)))
+                            elif cons_val['op'] == 'UGT':
+                                if cons_val['var_position'] == 1:
+                                    loop_pc = simplify(Not(UGT(sym_var, cons_val['diff'] * new_var)))
+                                else:
+                                    loop_pc = simplify(Not(UGT(cons_val['diff'] * new_var, sym_var)))
+                            else:
+                                raise ValueError('LOOP INS ERROR - 329')
+                        elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
+                            if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[tag]['s1']:
+                                sym_var = prev_jumpi_ins['s1']
+                                var_position = 1
+                            elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[tag]['s2']:
+                                sym_var = prev_jumpi_ins['s2']
+                                var_position = 2
+                            else:
+                                raise ValueError('LOOP SYM VAR ERROR - 328')
+
+                            if prev_jumpi_ins['ins'] == 'LT':
+                                if var_position == 1:
+                                    loop_pc = simplify(ULT(sym_var, cons_val['diff'] * new_var))
+                                else:
+                                    loop_pc = simplify(ULT(cons_val['diff'] * new_var, sym_var))
+                            elif prev_jumpi_ins['ins'] == 'GT':
+                                if var_position == 1:
+                                    loop_pc = simplify(UGT(sym_var, cons_val['diff'] * new_var))
+                                else:
+                                    loop_pc = simplify(UGT(cons_val['diff'] * new_var, sym_var))
+                            elif prev_jumpi_ins['ins'] == 'EQ':
+                                loop_pc = simplify(cons_val['diff'] * new_var == sym_var)
+                            else:
+                                raise ValueError('LOOP INS ERROR - 339')
+                        else:
+                            sym_var = BitVec(cons_val['var'], 256)
+                            gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
+                            if cons_val['op'] == 'ULT':
+                                if cons_val['var_position'] == 1:
+                                    loop_pc = simplify(ULT(sym_var, cons_val['diff'] * new_var))
+                                else:
+                                    loop_pc = simplify(ULT(cons_val['diff'] * new_var, sym_var))
+                            else:
+                                raise ValueError('LOOP INS ERROR - 329')
+                        loop_gas_var = simplify(loop_gas * new_var)
+                        gas += loop_gas_var
+                    else:
+                        loop_condition[tag] = prev_jumpi_ins
+                    prev_jumpi_ins = dict()
+
+
+
+
                     # print('[LOOP COND]:', path_constraint)
 
                     # NOTE: create symbolic variable to loop gas
-                    if is_expr(loop_gas) or (isinstance(loop_gas, int) and loop_gas != 0):
-                        new_var = BitVec(global_vars.get_gen().gen_loop_var(), 256)
-                        loop_gas_var = simplify(loop_gas * new_var)
-                        gas_cons.add(simplify(new_var < (2**256)-1))
-                        gas += loop_gas_var
-                        if loop_det_num == 2:
-                            new_loop_var = BitVec(loop_cond_var, 256)
-                            if cond_op in ['<=', '<']:
-                                loop_pc = simplify(ULT(new_loop_var, (new_var*loop_cond)))
-                            else:
-                                loop_pc = simplify(UGT(new_loop_var, (new_var * loop_cond)))
-                            gas_cons.add(simplify(new_loop_var < (2 ** 256) - 1))
+                    # print('[LOOP]:', loop_gas)
+                    # if is_expr(loop_gas) or (isinstance(loop_gas, int) and loop_gas != 0):
+                    # if loop_det_num == 2:
+                    #     new_var = BitVec(global_vars.get_gen().gen_loop_var(), 256)
+                    #     loop_gas_var = simplify(loop_gas * new_var)
+                    #     gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
+                    #     gas += loop_gas_var
+                    #     # if loop_det_num == 2:
+                    #     new_loop_var = BitVec(loop_cond_var, 256)
+                    #     # print('[LDD]:', new_loop_var, new_var, loop_cond)
+                    #     if cond_op in ['<=', '<']:
+                    #         loop_pc = simplify(new_loop_var < (new_var*loop_cond))
+                    #     else:
+                    #         loop_pc = simplify(new_loop_var > (new_var * loop_cond))
+                    #     gas_cons.add(state_simulation.add_gas_constraint(new_loop_var, UNSIGNED_BOUND_NUMBER))
 
                     # NOTE: remove the tag in previous ins (will add later)
                     tag_stack.pop()
@@ -462,7 +543,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         loop_condition_1[idx] = val
                         loop_condition_2[idx] = val
 
-                    if convergence:
+                    if has_loop:
                         if first_tag == tag:
                             symbolic_implement(state_2, gas_2, path_cons_2, gas_cons_2,
                                                second_tag, tag_2, tag_stack_second, path_tag_2,
@@ -520,7 +601,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     # print('[PC]:', tag, path_cons)
 
                     if is_expr(gas):
-                        gas_cons = gas > 4712357
+                        # gas_cons = 4712357 < gas
+                        gas_cons = ULT(4712357, gas)
                         # gas_cons = gas > 21000
                         # path_cons.assert_and_track(gas_cons, 'gas_cons')
                         path_cons.add(gas_cons)
@@ -574,8 +656,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 else:
                     # NOTE: stack simulation
                     lt_loop_format = None
-                    state, ins_gas, path_constraint, gas_constraint, lt_loop_format = state_simulation.state_simulation(
-                        opcode, state, line)
+                    state, ins_gas, path_constraint, gas_constraint, lt_loop_format, prev_jumpi_ins, _ = \
+                        state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins, prev_ins)
 
                     if state is None:
                         return
@@ -583,7 +665,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     if lt_loop_format is not None:
                         LT_condition = lt_loop_format
 
-                    if gas_constraint is not True:
+                    if is_expr(gas_constraint):
                         gas_cons.add(gas_constraint)
 
                     if is_expr(gas):
@@ -600,8 +682,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     if opcode_set[0] == 'PUSH' and opcode_set[1] == '[tag]':
                         tag_stack.append(opcode_set[2])
                         count_push += 1
+                if 's1' not in prev_jumpi_ins.keys():
+                    prev_jumpi_ins['ins'] = prev_ins
                 prev_ins = opcode
-
             break
 
 
@@ -681,6 +764,7 @@ def edge_change_loop_constraint(edge, constraint):
 
 
 def node_add_state(node, state, path_label, tag, gas):
+    # print('[PATH LABEL]:', tag, path_label)
     global prime_check_list
     global tag_run_time
     global tag_gas_sum
@@ -747,6 +831,7 @@ def loop_detection(loop_cond_1, loop_cond_2):
         else:
             cond_str_1 = str(loop_cond_1)
             cond_str_2 = str(loop_cond_2)
+            # print('[LOOP]:', cond_str_1, cond_str_2)
             if cond_str_1.startswith('If') and cond_str_2.startswith('If'):
                 cond_1 = cond_str_1[3:-7]
                 cond_2 = cond_str_2[3:-7]
@@ -783,3 +868,92 @@ def loop_detection(loop_cond_1, loop_cond_2):
     else:
         return 1, loop_cond_2, None, None
 
+
+def loop_det(ins_dict, prev_ins_dict):
+    # print('[INT DICT]:', ins_dict, prev_ins_dict)
+    ins = ins_dict['ins']
+    first = ins_dict['s1']
+    second = ins_dict['s2']
+    val = None
+
+    if prev_ins_dict is not None and (is_expr(first) or is_expr(second)):
+        val = dict()
+        prev_first = prev_ins_dict['s1']
+        prev_second = prev_ins_dict['s2']
+        if ins not in ['LT', 'EQ', 'GT']:
+            if 'If' in str(first):
+                val['ins'] = ins
+                if 'ULT' in str(first):
+                    idx_1_1 = str(first).index('ULT')
+                    idx_1_2 = str(first).index(',', idx_1_1)
+                    idx_1_3 = str(first).index(')', idx_1_2)
+                    f_1 = str(first)[idx_1_1 + 4:idx_1_2]
+                    s_1 = str(first)[idx_1_2 + 2:idx_1_3]
+                    idx_2_1 = str(prev_first).index('ULT')
+                    idx_2_2 = str(prev_first).index(',', idx_2_1)
+                    idx_2_3 = str(prev_first).index(')', idx_2_2)
+                    f_2 = str(prev_first)[idx_2_1 + 4:idx_2_2]
+                    s_2 = str(prev_first)[idx_2_2 + 2:idx_2_3]
+                    if f_1 == f_2:
+                        val['diff'] = int(s_1) - int(s_2)
+                        val['op'] = 'ULT'
+                        val['var'] = f_1
+                        val['var_position'] = 1
+                    elif s_1 == s_2:
+                        val['diff'] = int(f_1) - int(f_2)
+                        val['op'] = 'ULT'
+                        val['var'] = s_1
+                        val['var_position'] = 2
+                    else:
+                        raise ValueError('LOOP DETECTION ERROR - 4')
+                elif 'UGT' in str(first):
+                    idx_1_1 = str(first).index('UGT')
+                    idx_1_2 = str(first).index(',', idx_1_1)
+                    idx_1_3 = str(first).index(')', idx_1_2)
+                    f_1 = str(first)[idx_1_1 + 4:idx_1_2]
+                    s_1 = str(first)[idx_1_2 + 2:idx_1_3]
+                    idx_2_1 = str(prev_first).index('UGT')
+                    idx_2_2 = str(prev_first).index(',', idx_2_1)
+                    idx_2_3 = str(prev_first).index(')', idx_2_2)
+                    f_2 = str(prev_first)[idx_2_1 + 4:idx_2_2]
+                    s_2 = str(prev_first)[idx_2_2 + 2:idx_2_3]
+                    if f_1 == f_2:
+                        try:
+                            val['diff'] = int(s_1) - int(s_2)
+                        except ValueError:
+                            s_1_sp = s_1.split(' + ')
+                            s_2_sp = s_2.split(' + ')
+                            if len(s_1_sp) - len(s_2_sp) == 1:
+                                for e in s_2_sp:
+                                    s_1_sp.remove(e)
+                                if len(s_1_sp) == 1:
+                                    val['diff'] = s_1_sp[0]
+                                else:
+                                    raise ValueError('LOOP DETECTION ERROR - 6')
+                            else:
+                                raise ValueError('LOOP DETECTION ERROR - 5')
+                        val['op'] = 'UGT'
+                        val['var'] = f_1
+                        val['var_position'] = 1
+                    elif s_1 == s_2:
+                        val['diff'] = int(f_1) - int(f_2)
+                        val['op'] = 'UGT'
+                        val['var'] = s_1
+                        val['var_position'] = 2
+                else:
+                    raise ValueError('LOOP DETECTION ERROR - 3')
+            else:
+                raise ValueError('LOOP DETECTION ERROR - 2')
+            # print('[VAR]:%s' % val['var'])
+            return True, val
+        else:
+            val['ins'] = ins
+            if is_expr(first) and is_expr(prev_first) and first == prev_first:
+                val['diff'] = second - prev_second
+            elif is_expr(second) and is_expr(prev_second) and second == prev_second:
+                val['diff'] = first - prev_first
+            else:
+                raise ValueError('LOOP DETECTION ERROR - 1')
+        return True, val
+    else:
+        return False, val
