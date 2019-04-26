@@ -10,7 +10,6 @@ class Generator:
         self.count_exp = 0
         self.count_log = 0
         self.count_time = 0
-        self.count_loop = 0
 
     def gen_data_var(self, line):
         return 'Id_%s' % line
@@ -80,9 +79,8 @@ class Generator:
         else:
             return 'Ih_%s' % line
 
-    def gen_loop_var(self):
-        self.count_loop += 1
-        return 'loop_%s' % self.count_loop
+    def gen_loop_var(self, tag):
+        return 'loop_%s' % tag
 
     def gen_sha_var(self, line):
         # return 'sha3(%s)_%s' % (val, line)

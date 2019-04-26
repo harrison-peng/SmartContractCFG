@@ -8,7 +8,7 @@ from global_constants import *
 solver = Solver()
 
 
-def state_simulation(instruction, state, line, prev_jumpi_ins, prev_ins):
+def state_simulation(instruction, state, line, prev_jumpi_ins):
     global solver
 
     stack = state['Stack']
@@ -19,7 +19,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins, prev_ins):
     gas = 0
     path_constraint = ''
     gas_constraint = True
-    lt_loop_format = None
     next_tag = None
     for key, val in stack.items():
         if isinstance(val, str):
@@ -526,7 +525,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins, prev_ins):
                 else:
                     computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
                     # computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
-                    lt_loop_format = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
@@ -1266,17 +1264,14 @@ def state_simulation(instruction, state, line, prev_jumpi_ins, prev_ins):
     elif opcode == 'JUMPI':
         if len(stack) > 1:
             row = len(stack) - 1
-            address = stack.pop(str(row))
+            next_tag = stack.pop(str(row))
             constraint = stack.pop(str(row - 1))
-            # print('[JUMPI]:', constraint)
 
             # NOTE: Path Constraint
             path_constraint = constraint
 
             # NOTE: GAS
             gas = gas_table[opcode]
-
-            # TODO: handle path constraint
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'GAS':
@@ -1502,7 +1497,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins, prev_ins):
     if isinstance(gas, float):
         gas = int(round(gas))
 
-    return state, gas, path_constraint, gas_constraint, lt_loop_format, prev_jumpi_ins, next_tag
+    return state, gas, path_constraint, gas_constraint, prev_jumpi_ins, str(next_tag)
 
 
 def to_z3_symbolic(var):
