@@ -1234,20 +1234,30 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             row = len(stack) - 1
             address = stack.pop(str(row))
             value = stack.pop(str(row - 1))
-            storage[str(address)] = value
 
-            if is_all_real(address, value):
-                if address == 0 and value != 0:
-                    gas = 20000
+            if len(storage) == 0:
+                if isinstance(value, int):
+                    if value == 0:
+                        gas = 5000
+                    else:
+                        gas = 20000
                 else:
-                    gas = 5000
+                    gas = simplify(If(Not(value == 0), BitVecVal(20000, 256), BitVecVal(5000, 256)))
             else:
-                if is_real(address) and address != 0:
-                    gas = 5000
-                elif is_real(value) and value == 0:
-                    gas = 5000
+                if isinstance(address, int) and all([isinstance(e, int) for e in storage.keys()]):
+                    if address in storage.keys():
+                        gas = 5000
+                    else:
+                        if value == 0:
+                            gas = 5000
+                        else:
+                            gas = 20000
                 else:
-                    gas = simplify(If(And(Not(value == 0), (address == 0), True), BitVecVal(20000, 256), BitVecVal(5000, 256)))
+                    cond = False
+                    for k in [e for e in storage.keys() if is_expr(e)]:
+                        cond = Or(cond, k == address)
+                    gas = simplify(Or(Not(value == 0), cond), BitVecVal(5000, 256), BitVecVal(20000, 256))
+            storage[str(address)] = value
 
         else:
             raise ValueError('STACK underflow')

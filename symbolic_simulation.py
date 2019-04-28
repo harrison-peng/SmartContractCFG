@@ -6,8 +6,6 @@ from global_constants import *
 import json
 import state_simulation
 import copy
-import cfg
-# import prime_generator as pg
 import global_vars
 
 count_sim = 0
@@ -52,10 +50,7 @@ def symbolic_simulation(nodes_in, edges_in):
     count_path = 0
     tag_run_time = dict()
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
-    # gas = [0, '']
     gas = 0
-    # prime_list = pg.generator_prime(20000)
-    # prime_check_list = pg.generator_prime(20000)
     path_cons = Solver()
     gas_cons = Solver()
     path_cons.set(unsat_core=True)
@@ -66,12 +61,6 @@ def symbolic_simulation(nodes_in, edges_in):
                        pc_track, loop_condition)
     print('\n[INFO] Find', count_path, 'path')
     print('[INFO] Vulnerability Path:', global_vars.get_sat_path_count())
-    # print('[PRIME]:', prime_list)
-
-    # for key in tag_run_time:
-    #     if tag_run_time[key] > 9:
-    #         print('[OVER]:', key, tag_run_time[key])
-
     return nodes, edges
 
 
@@ -81,7 +70,14 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
     # print('[TAG]:', tag)
     """
     param:
+    [state]: the state of 'Stack', 'Memory', and 'Storage'
+    [gas]: the sum of the gas consumption to current node
+    [path_cons]: path constraints
+    [gas_cons]: gas constraints
     [tag]: the tag of the node to run the symbolic simulation
+    [path_tag]: a list of tag of executed path
+    [pc_track]: track the path constraint for z3
+    [loop_condition]: last JUMPI condition in order to calculate the loop condit\textbf{nodes}T\textbf{nodion
     """
     global stack
     global nodes
@@ -108,10 +104,11 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if tag in ['2']:
-                #     print('[STACK]:', tag, ins, state['Stack'])
-                #     print('[MEM]:', state['Memory'])
-                #     print('[GAS]:', gas, '\n')
+                if tag in ['16']:
+                    print('[STACK]:', tag, ins, state['Stack'])
+                    print('[MEM]:', state['Memory'])
+                    print('[STO]:', state['Storage'])
+                    print('[GAS]:', gas, '\n')
 
                 if opcode.split(' ')[0] == 'tag':
                     '''
@@ -281,7 +278,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     if tag not in loop_condition.keys():
                         loop_condition[tag] = None
                     # print('[TAG]:', tag)
-                    has_loop, cons_val = loop_det(prev_jumpi_ins, loop_condition[tag])
+                    has_loop, cons_val = loop_detection(prev_jumpi_ins, loop_condition[tag])
                     if has_loop:
                         new_var = BitVec(global_vars.get_gen().gen_loop_var(tag), 256)
                         gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
@@ -460,7 +457,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
                     if is_expr(gas):
                         # gas_cons = 4712357 < gas
-                        gas_cons = ULT(4712357, gas)
+                        gas_cons = ULT(global_vars.get_gas_limit(), gas)
                         # gas_cons = gas > 21000
                         # path_cons.assert_and_track(gas_cons, 'gas_cons')
                         path_cons.add(gas_cons)
@@ -479,6 +476,13 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         #     print('[INFO] Path Constraints: unsat')
                         #     unsat_core = path_cons.unsat_core()
                         #     print('[INFO] Conflict: %s' % unsat_core)
+                    else:
+                        if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
+                            global_vars.add_sat_path_count()
+                            ans = path_cons.model()
+                            # print('[INFO] model:', len(ans), 'variables')
+                            new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
+                            global_vars.add_pc_gas(new_pc_gas)
 
                     return
                 elif line == 'Stack Sum':
@@ -667,58 +671,14 @@ def node_add_state(node, state, path_label, tag, gas):
         node[1]['label'] += '\n\nState:\n%s' % state_str
     return node, loop_gas
 
-
-def loop_detection(loop_cond_1, loop_cond_2):
-    if loop_cond_1 is not None:
-        if isinstance(loop_cond_2, int) and loop_cond_2 == 0:
-            return 1, loop_cond_2, None, None
-        else:
-            cond_str_1 = str(loop_cond_1)
-            cond_str_2 = str(loop_cond_2)
-            if cond_str_1.startswith('If') and cond_str_2.startswith('If'):
-                cond_1 = cond_str_1[3:-7]
-                cond_2 = cond_str_2[3:-7]
-                if '<=' in cond_1 and '<=' in cond_2:
-                    op = '<='
-                    num_1 = cond_1.split('<=')[1].strip()
-                    num_2 = cond_2.split('<=')[1].strip()
-                    var = cond_1.split('<=')[0].strip()
-                    diff = int(num_2) - int(num_1)
-                elif '<' in cond_1 and '<' in cond_2:
-                    op = '<'
-                    print('[LPP]:', cond_1, cond_2)
-                    num_1 = cond_1.split('<')[1].strip()
-                    num_2 = cond_2.split('<')[1].strip()
-                    var = cond_1.split('<')[0].strip()
-                    diff = int(num_2) - int(num_1)
-                elif '>=' in cond_1 and '>=' in cond_2:
-                    op = '>='
-                    num_1 = cond_1.split('>=')[1].strip()
-                    num_2 = cond_2.split('>=')[1].strip()
-                    var = cond_1.split('>=')[0].strip()
-                    diff = int(num_2) - int(num_1)
-                elif '>' in cond_1 and '>' in cond_2:
-                    op = '>'
-                    num_1 = cond_1.split('>')[1].strip()
-                    num_2 = cond_2.split('>')[1].strip()
-                    var = cond_1.split('>')[0].strip()
-                    diff = int(num_2) - int(num_1)
-                else:
-                    raise ValueError('LOOP DETECTION ERROR-2')
-                return 2, diff, var, op
-            else:
-                raise ValueError('LOOP DETECTION ERROR-1')
-    else:
-        return 1, loop_cond_2, None, None
-
-
-def loop_det(ins_dict, prev_ins_dict):
+def loop_detection(ins_dict, prev_ins_dict):
     ins = ins_dict['ins']
     first = ins_dict['s1']
     second = ins_dict['s2']
     val = None
 
     if prev_ins_dict is not None and (is_expr(first) or is_expr(second)):
+        # print('[LC]:', ins_dict, prev_ins_dict)
         val = dict()
         prev_first = prev_ins_dict['s1']
         prev_second = prev_ins_dict['s2']

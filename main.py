@@ -15,7 +15,7 @@ f_SE = os.path.join(os.path.dirname(__file__), 'SE')
 wSE = open(f_SE, 'w')
 loop_graph_count = 0
 
-# Global Variables
+# NOTE: Global Variables
 count_sim = 0
 stack = []
 storage = []
@@ -26,6 +26,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--l", help="input file without store to db", action='store_true')
     parser.add_argument("-code", "--code", help="source code")
+    parser.add_argument('-gas', '--gas', help='gas limit')
 
     args = parser.parse_args()
 
@@ -36,6 +37,8 @@ def main():
         else:
             f_src = os.path.join(os.path.dirname(__file__), args.code)  # 從使用者輸入讀取檔案
             contract_name = os.path.basename(f_src).split('.')[0]
+
+            global_vars.set_gas_limit(int(args.gas))
 
             print('[INFO] Start Transforming contract {} source code to Assembly.'.format(contract_name))
             preproc(f_src)  # 將SOURCE CODE編譯成OPCODE

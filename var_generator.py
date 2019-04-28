@@ -59,9 +59,6 @@ class Generator:
         self.count_balance += 1
         return 'balance_%s' % line
 
-    # def gen_code_var(self, address, position, bytecount, line):
-    #     return 'code_%s_%s_%s_%s' % (address, position, bytecount, line)
-
     def gen_code_size_var(self, address, line):
         return 'code_size_%s' % line
 

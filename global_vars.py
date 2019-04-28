@@ -24,6 +24,15 @@ def init():
     UNSIGNED_BOUND_NUMBER = 2**256 - 1
 
 
+def set_gas_limit(gas):
+    global gas_limit
+    gas_limit = gas
+
+
+def get_gas_limit():
+    return gas_limit
+
+
 def add_pc_gas(value):
     FINAL_PC_GAS.append(value)
 
