@@ -36,15 +36,15 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
     if 'ins' in prev_jumpi_ins.keys() and opcode in ['LT', 'GT', 'EQ', 'ISZERO']:
         prev_jumpi_ins['ins'] = opcode
         row = len(stack) - 1
-        prev_jumpi_ins['s1'] = stack[str(row)]
+        prev_jumpi_ins['s1'] = simplify(stack[str(row)]) if is_expr(stack[str(row)]) else stack[str(row)]
         if opcode == 'ISZERO':
             prev_jumpi_ins['s2'] = None
         else:
-            prev_jumpi_ins['s2'] = stack[str(row - 1)]
+            prev_jumpi_ins['s2'] = simplify(stack[str(row - 1)]) if is_expr(stack[str(row - 1)]) else stack[str(row - 1)]
     elif 'ins' in prev_jumpi_ins.keys() and len(state['Stack']) > 0 and opcode not in ['JUMPI', 'PUSH']:
         prev_jumpi_ins['ins'] = opcode
         row = len(stack) - 1
-        prev_jumpi_ins['s1'] = stack[str(row)]
+        prev_jumpi_ins['s1'] = simplify(stack[str(row)]) if is_expr(stack[str(row)]) else stack[str(row)]
         prev_jumpi_ins['s2'] = None
 
     if opcode in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
@@ -126,15 +126,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             row = len(stack) - 1
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
-
-            # if isinstance(first, int) and isinstance(second, int):
-            #     computed = first - second
-            # else:
-            #     if isinstance(first, str):
-            #         first = to_z3_symbolic(first)
-            #     if isinstance(second, str):
-            #         second = to_z3_symbolic(second)
-            #     computed = first - second
 
             if is_real(first) and is_symbolic(second):
                 first = BitVecVal(first, 256)
@@ -457,8 +448,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     gas = simplify(10 + (10 * (1 + gas_var)))
                     gas_constraint = add_gas_constraint(gas_var, BYTE_BOUND_NUMBER)
 
-                    if not var_in_var_table(new_var_name):
-                        add_var_table(new_var_name, 'log256(%s)' % computed)
+                    if not var_in_var_table(gas_var):
+                        add_var_table(gas_var, 'log256(%s)' % computed)
 
             row = len(stack)
             stack[str(row)] = computed
@@ -758,14 +749,14 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         else:
             raise ValueError('STACK underflow')
     elif opcode in ['SHA3', 'KECCAK256']:
-        # FIXME: NEED To FIX
         if len(stack) > 1:
             row = len(stack) - 1
             position = stack.pop(str(row))
-            to = stack.pop(str(row - 1))
+            length = stack.pop(str(row - 1))
+            # print('[KEC]:', line, position, length)
 
-            if isinstance(position, int) and isinstance(to, int):
-                mem_num = (to - position)//32
+            if isinstance(position, int) and isinstance(length, int):
+                mem_num = length//32
                 data = 0
 
                 for i in range(mem_num):
@@ -789,7 +780,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 gas_constraint = add_gas_constraint(data, UNSIGNED_BOUND_NUMBER)
 
                 if not var_in_var_table(new_var_name):
-                    add_var_table(new_var_name, 'SHA3(memory[%s:%s])' % (position, to))
+                    add_var_table(new_var_name, 'SHA3(memory[%s:%s])' % (position, position + length))
 
             if isinstance(data, int):
                 computed = int(sha3.sha3_224(str(data).encode('utf-8')).hexdigest(), 16)
@@ -819,8 +810,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             stack[str(row)] = computed
 
             # NOTE: GAS
-            if isinstance(data, int):
-                gas = 30 + 6 * (len(hex(data)) - 2)
+            if isinstance(length, int):
+                gas = 30 + 6 * ((len(hex(length)) - 2)/4)
             else:
                 if str(data) == 'Ia_caller':
                     gas = 150
@@ -928,7 +919,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                         data_var_exist = True
                         break
                 else:
-                    if val == 'msg.data[%s:%s+32]' % (position, position):
+                    if val == 'msg.data[%s:%s]' % (position, simplify(position+32)):
                         var_name = key
                         data_var_exist = True
                         break
@@ -945,7 +936,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     if isinstance(position, int):
                         add_var_table(new_var_name, 'msg.data[%s:%s]' % (position, position + 32))
                     else:
-                        add_var_table(new_var_name, 'msg.data[%s:%s+32]' % (position, position))
+                        add_var_table(new_var_name, 'msg.data[%s:%s]' % (position, simplify(position+32)))
 
             row = len(stack)
             stack[str(row)] = new_var
@@ -1303,6 +1294,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         if len(instruction_set) > 1:
             if instruction_set[1] == '[tag]':
                 pushed_value = int(instruction_set[2])
+            elif instruction_set[1] == 'data':
+                pushed_value = int(str(instruction_set[2]), 16)
             else:
                 pushed_value = int(str(instruction_set[1]), 16)
         else:

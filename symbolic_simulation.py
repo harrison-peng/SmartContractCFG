@@ -104,11 +104,11 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                if tag in ['16']:
-                    print('[STACK]:', tag, ins, state['Stack'])
-                    print('[MEM]:', state['Memory'])
-                    print('[STO]:', state['Storage'])
-                    print('[GAS]:', gas, '\n')
+                # if tag in ['10014']:
+                #     print('[STACK]:', tag, ins, state['Stack'])
+                #     print('[MEM]:', state['Memory'])
+                #     print('[STO]:', state['Storage'])
+                #     print('[GAS]:', gas, '\n')
 
                 if opcode.split(' ')[0] == 'tag':
                     '''
@@ -283,18 +283,23 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         new_var = BitVec(global_vars.get_gen().gen_loop_var(tag), 256)
                         gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
                         if prev_jumpi_ins['ins'] == 'ISZERO':
-                            sym_var = BitVec(cons_val['var'], 256)
+                            sym_var = cons_val['var']
                             gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
-                            if cons_val['op'] == 'ULT':
+                            if str(cons_val['op']) == 'ULT':
                                 if cons_val['var_position'] == 1:
                                     loop_pc = simplify(If(Not(ULT(sym_var, cons_val['diff'] * new_var)), 1, 0))
                                 else:
                                     loop_pc = simplify(If(Not(ULT(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                            elif cons_val['op'] == 'UGT':
+                            elif str(cons_val['op']) == 'UGT':
                                 if cons_val['var_position'] == 1:
                                     loop_pc = simplify(If(Not(UGT(sym_var, cons_val['diff'] * new_var)), 1, 0))
                                 else:
                                     loop_pc = simplify(If(Not(UGT(cons_val['diff'] * new_var, sym_var)), 1, 0))
+                            elif str(cons_val['op']) == 'ULE':
+                                if cons_val['var_position'] == 1:
+                                    loop_pc = simplify(If(Not(ULE(sym_var, cons_val['diff'] * new_var)), 1, 0))
+                                else:
+                                    loop_pc = simplify(If(Not(ULE(cons_val['diff'] * new_var, sym_var)), 1, 0))
                             else:
                                 raise ValueError('LOOP INS ERROR - 329')
                         elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
@@ -671,6 +676,7 @@ def node_add_state(node, state, path_label, tag, gas):
         node[1]['label'] += '\n\nState:\n%s' % state_str
     return node, loop_gas
 
+
 def loop_detection(ins_dict, prev_ins_dict):
     ins = ins_dict['ins']
     first = ins_dict['s1']
@@ -678,71 +684,46 @@ def loop_detection(ins_dict, prev_ins_dict):
     val = None
 
     if prev_ins_dict is not None and (is_expr(first) or is_expr(second)):
-        # print('[LC]:', ins_dict, prev_ins_dict)
         val = dict()
         prev_first = prev_ins_dict['s1']
         prev_second = prev_ins_dict['s2']
         if ins not in ['LT', 'EQ', 'GT']:
-            if 'If' in str(first):
+            if str(first.decl()) == 'If':
+                first_1 = first.arg(0)
+                prev_first_1 = prev_first.arg(0)
                 val['ins'] = ins
-                if 'ULT' in str(first):
-                    idx_1_1 = str(first).index('ULT')
-                    idx_1_2 = str(first).index(',', idx_1_1)
-                    idx_1_3 = str(first).index(')', idx_1_2)
-                    f_1 = str(first)[idx_1_1 + 4:idx_1_2]
-                    s_1 = str(first)[idx_1_2 + 2:idx_1_3]
-                    idx_2_1 = str(prev_first).index('ULT')
-                    idx_2_2 = str(prev_first).index(',', idx_2_1)
-                    idx_2_3 = str(prev_first).index(')', idx_2_2)
-                    f_2 = str(prev_first)[idx_2_1 + 4:idx_2_2]
-                    s_2 = str(prev_first)[idx_2_2 + 2:idx_2_3]
+                val['op'] = first_1.decl()
+                f_1 = first_1.arg(0)
+                s_1 = first_1.arg(1)
+                f_2 = prev_first_1.arg(0)
+                s_2 = prev_first_1.arg(1)
+
+                if f_1.num_args() == 0 and s_1.num_args() == 0 and f_2.num_args() == 0 and s_2.num_args() == 0:
                     if f_1 == f_2:
                         val['diff'] = int(s_1) - int(s_2)
-                        val['op'] = 'ULT'
                         val['var'] = f_1
                         val['var_position'] = 1
                     elif s_1 == s_2:
                         val['diff'] = int(f_1) - int(f_2)
-                        val['op'] = 'ULT'
                         val['var'] = s_1
                         val['var_position'] = 2
                     else:
                         raise ValueError('LOOP DETECTION ERROR - 4')
-                elif 'UGT' in str(first):
-                    idx_1_1 = str(first).index('UGT')
-                    idx_1_2 = str(first).index(',', idx_1_1)
-                    idx_1_3 = str(first).index(')', idx_1_2)
-                    f_1 = str(first)[idx_1_1 + 4:idx_1_2]
-                    s_1 = str(first)[idx_1_2 + 2:idx_1_3]
-                    idx_2_1 = str(prev_first).index('UGT')
-                    idx_2_2 = str(prev_first).index(',', idx_2_1)
-                    idx_2_3 = str(prev_first).index(')', idx_2_2)
-                    f_2 = str(prev_first)[idx_2_1 + 4:idx_2_2]
-                    s_2 = str(prev_first)[idx_2_2 + 2:idx_2_3]
-                    if f_1 == f_2:
-                        try:
-                            val['diff'] = int(s_1) - int(s_2)
-                        except ValueError:
-                            s_1_sp = s_1.split(' + ')
-                            s_2_sp = s_2.split(' + ')
-                            if len(s_1_sp) - len(s_2_sp) == 1:
-                                for e in s_2_sp:
-                                    s_1_sp.remove(e)
-                                if len(s_1_sp) == 1:
-                                    val['diff'] = s_1_sp[0]
-                                else:
-                                    raise ValueError('LOOP DETECTION ERROR - 6')
-                            else:
-                                raise ValueError('LOOP DETECTION ERROR - 5')
-                        val['op'] = 'UGT'
-                        val['var'] = f_1
-                        val['var_position'] = 1
-                    elif s_1 == s_2:
-                        val['diff'] = int(f_1) - int(f_2)
-                        val['op'] = 'UGT'
-                        val['var'] = s_1
+                elif f_1.num_args() == 0 and s_1.num_args() == 2 and f_2.num_args() == 0 and s_2.num_args() == 0:
+                    s_1_1 = s_1.arg(0)
+                    s_1_2 = s_1.arg(1)
+                    if isinstance(s_1_1, z3.z3.BitVecRef) and s_1_1 == s_2:
+                        val['var'] = s_1_1
+                        val['diff'] = simplify(f_1 - s_1_2)
                         val['var_position'] = 2
+                    elif isinstance(s_1_2, z3.z3.BitVecRef) and s_1_2 == s_2:
+                        val['var'] = s_1_2
+                        val['diff'] = simplify(f_1 - s_1_1)
+                        val['var_position'] = 2
+                    else:
+                        raise ValueError('LOOP DETECTION ERROR - 4')
                 else:
+                    print('[ERR - 3]:', f_1.num_args(), s_1.num_args(), f_2.num_args(), s_2.num_args())
                     raise ValueError('LOOP DETECTION ERROR - 3')
             else:
                 raise ValueError('LOOP DETECTION ERROR - 2')
