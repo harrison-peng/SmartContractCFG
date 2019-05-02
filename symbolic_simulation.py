@@ -104,7 +104,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if tag in ['10014']:
+                # if tag in ['11']:
                 #     print('[STACK]:', tag, ins, state['Stack'])
                 #     print('[MEM]:', state['Memory'])
                 #     print('[STO]:', state['Storage'])
@@ -482,6 +482,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         #     unsat_core = path_cons.unsat_core()
                         #     print('[INFO] Conflict: %s' % unsat_core)
                     else:
+                        # print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...'
+                        #       % (tag, len(path_cons.assertions())))
                         if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
                             global_vars.add_sat_path_count()
                             ans = path_cons.model()

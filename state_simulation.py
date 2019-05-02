@@ -816,7 +816,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 if str(data) == 'Ia_caller':
                     gas = 150
                 else:
-                    new_var_name = get_gen().gen_sha_word_size(line)
+                    new_var_name = get_gen().gen_sha_word_size(str(data).split('_')[1])
                     new_var = BitVec(new_var_name, 256)
                     gas = simplify(30 + 6 * new_var)
                     gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
@@ -978,7 +978,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             if is_real(num_bytes):
                 gas = 2 + 3 * (len(hex(num_bytes))-2)
             else:
-                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var_name = get_gen().gen_sha_word_size(str(num_bytes).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
                 gas = simplify(30 + 6 * new_var)
                 gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
@@ -1019,7 +1019,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             if is_real(num_bytes):
                 gas = 2 + 3 * (len(hex(num_bytes)) - 2)
             else:
-                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var_name = get_gen().gen_sha_word_size(str(num_bytes).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
                 gas = simplify(30 + 6 * new_var)
                 gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
@@ -1060,7 +1060,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             if is_real(x):
                 gas = 2 + 3 * (len(hex(x)) - 2)
             else:
-                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var_name = get_gen().gen_sha_word_size(str(x).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
                 gas = simplify(30 + 6 * new_var)
                 gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
@@ -1340,43 +1340,49 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         if len(stack) >= num_of_pops:
             row = len(stack) - 1
             offset = stack.pop(str(row))
-            word_length = stack.pop(str(row-1))
+            word = stack.pop(str(row-1))
             for _ in range(int(opcode[3:])):
                 num_of_pops -= 1
                 row = len(stack) - 1
                 pop_value = stack.pop(str(row))
 
             # NOTE: GAS
-            if isinstance(word_length, int):
-                gas = (int(opcode[3:]) + 1) * 375 + (8 * (len(hex(word_length)) - 2))
+            if isinstance(word, int):
+                gas = (int(opcode[3:]) + 1) * 375 + (8 * (len(hex(word)) - 2))
             else:
-                new_var_name = get_gen().gen_sha_word_size(line)
+                new_var_name = get_gen().gen_sha_word_size(str(word).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
                 gas = (int(opcode[3:]) + 1) * 375 + (8 * new_var)
                 gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
 
                 if not var_in_var_table(new_var_name):
-                    add_var_table(new_var_name, 'The bytes of %s' % word_length)
+                    add_var_table(new_var_name, 'The bytes of %s' % word)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CALL':
-        # TODO: Need to handle miu_i
         if len(stack) > 6:
             row = len(stack) - 1
             out_gas = stack.pop(str(row))
-            recipient = stack.pop(str(row - 1))
-            out_wei = stack.pop(str(row - 2))
-            in_value = stack.pop(str(row - 3))
-            in_size = stack.pop(str(row - 4))
-            out_value = stack.pop(str(row - 5))
-            out_size = stack.pop(str(row - 6))
+            addr = stack.pop(str(row - 1))
+            out_value = stack.pop(str(row - 2))
+            in_position = stack.pop(str(row - 3))
+            in_length = stack.pop(str(row - 4))
+            out_position = stack.pop(str(row - 5))
+            out_length = stack.pop(str(row - 6))
 
             row = len(stack)
-            stack[str(row)] = BitVec('CallReturn', 256)
+            new_var_name = 'CallSuccess'
+            new_var = BitVec(new_var_name, 256)
+            stack[str(row)] = new_var
+            gas_constraint = Or(new_var == 1, new_var == 0)
 
             # NOTE: GAS
             # TODO: handle gas
             gas = gas_table[opcode]
+            if isinstance(out_value, int) and out_value != 0:
+                gas += 9000
+            elif is_expr(out_value):
+                gas += If(out_value == 0, 0, 9000)
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'CALLCODE':
@@ -1390,12 +1396,11 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             out_value = stack.pop(str(row - 5))
             out_size = stack.pop(str(row - 6))
 
-            new_var_name = get_gen().gen_caller_var(line)
-            new_var = BitVec(new_var_name, 256)
-            gas_constraint = add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER)
-
             row = len(stack)
+            new_var_name = 'CallSuccess'
+            new_var = BitVec(new_var_name, 256)
             stack[str(row)] = new_var
+            gas_constraint = Or(new_var == 1, new_var == 0)
 
             # NOTE: GAS
             # TODO: handle gas
