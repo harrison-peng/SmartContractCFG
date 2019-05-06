@@ -34,18 +34,6 @@ def symbolic_simulation(nodes_in, edges_in):
 
     nodes = nodes_in
     edges = edges_in
-    # f_con = []
-    # t_con = []
-    # con = []
-    # q = []
-    # conq = []
-    # sym_mem = []
-    # gasq = []
-    # gas_sum, c_nodes, c_edges, q = ss.stack_status_constraint(sym_mem, nodes, edges, '0',
-    #                                                        '', f_con, t_con, 0,
-    #                                                        0, 0, con, q,
-    #                                                        0, conq, gasq)
-    # print('gas SUM = ', gas_sum)
 
     count_path = 0
     tag_run_time = dict()
@@ -104,11 +92,14 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if tag in ['11']:
+                # if tag in ['121']:
                 #     print('[STACK]:', tag, ins, state['Stack'])
                 #     print('[MEM]:', state['Memory'])
                 #     print('[STO]:', state['Storage'])
                 #     print('[GAS]:', gas, '\n')
+
+                if isinstance(gas, z3.z3.IntNumRef):
+                    gas = gas.as_long()
 
                 if opcode.split(' ')[0] == 'tag':
                     '''
@@ -301,6 +292,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                 else:
                                     loop_pc = simplify(If(Not(ULE(cons_val['diff'] * new_var, sym_var)), 1, 0))
                             else:
+                                print('[LOOp ERROR]:', cons_val)
                                 raise ValueError('LOOP INS ERROR - 329')
                         elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
                             if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[tag]['s1']:
@@ -336,7 +328,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                     loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
                             else:
                                 raise ValueError('LOOP INS ERROR - 329')
-                        loop_gas_var = simplify(loop_gas * new_var)
+                        loop_gas_var = simplify(loop_gas * BV2Int(new_var))
                         gas += loop_gas_var
                     else:
                         loop_condition[tag] = prev_jumpi_ins
@@ -460,10 +452,10 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         path_cons.add(gc)
                     # print('[PC]:', tag, path_cons)
 
-                    if is_expr(gas):
-                        # gas_cons = 4712357 < gas
-                        gas_cons = ULT(global_vars.get_gas_limit(), gas)
-                        # gas_cons = gas > 21000
+                    if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
+                        # print('[GAS]:', type(gas), gas)
+                        gas_cons = global_vars.get_gas_limit() < gas
+                        # gas_cons = ULT(global_vars.get_gas_limit(), gas)
                         # path_cons.assert_and_track(gas_cons, 'gas_cons')
                         path_cons.add(gas_cons)
                         # pc_var = get_solver_var(path_cons)
@@ -484,6 +476,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     else:
                         # print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...'
                         #       % (tag, len(path_cons.assertions())))
+                        if isinstance(gas, z3.z3.IntNumRef):
+                            gas = gas.as_long()
                         if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
                             global_vars.add_sat_path_count()
                             ans = path_cons.model()
@@ -684,15 +678,31 @@ def loop_detection(ins_dict, prev_ins_dict):
     first = ins_dict['s1']
     second = ins_dict['s2']
     val = None
+    prev_first = None
+    prev_second = None
 
-    if prev_ins_dict is not None and (is_expr(first) or is_expr(second)):
+    if prev_ins_dict:
+        prev_first_tem = simplify(prev_ins_dict['s1']) if is_expr(prev_ins_dict['s1']) else prev_ins_dict['s1']
+        prev_second_tem = simplify(prev_ins_dict['s2']) if is_expr(prev_ins_dict['s2']) else prev_ins_dict['s2']
+        prev_first = prev_first_tem if 'Extract' not in str(prev_first_tem) else prev_ins_dict['s1']
+        prev_second = prev_second_tem if 'Extract' not in str(prev_second_tem) else prev_ins_dict['s2']
+        prev_first = prev_first.as_long() if isinstance(prev_first, z3.z3.BitVecNumRef) else prev_first
+        prev_second = prev_second.as_long() if isinstance(prev_second, z3.z3.BitVecNumRef) else prev_second
+
+    if ((prev_first is not None and is_expr(prev_first)) or (prev_second is not None and is_expr(prev_second))) \
+            and (is_expr(first) or is_expr(second)):
         val = dict()
-        prev_first = prev_ins_dict['s1']
-        prev_second = prev_ins_dict['s2']
         if ins not in ['LT', 'EQ', 'GT']:
+            first_tem = simplify(first)
+            prev_first_tem = simplify(prev_first)
+            if 'Extract' not in str(first_tem):
+                first = first_tem
+            if 'Extract' not in str(prev_first_tem):
+                prev_first = prev_first_tem
+
             if str(first.decl()) == 'If':
-                first_1 = first.arg(0)
-                prev_first_1 = prev_first.arg(0)
+                first_1 = unpack_if(first)
+                prev_first_1 = unpack_if(prev_first)
                 val['ins'] = ins
                 val['op'] = first_1.decl()
                 f_1 = first_1.arg(0)
@@ -700,17 +710,30 @@ def loop_detection(ins_dict, prev_ins_dict):
                 f_2 = prev_first_1.arg(0)
                 s_2 = prev_first_1.arg(1)
 
-                if f_1.num_args() == 0 and s_1.num_args() == 0 and f_2.num_args() == 0 and s_2.num_args() == 0:
+                if f_1 == s_2 or f_2 == s_1:
+                    f_2, s_2 = s_2, f_2
+
+                if f_1.num_args() == f_2.num_args() and s_1.num_args() == s_2.num_args():
                     if f_1 == f_2:
-                        val['diff'] = int(s_1) - int(s_2)
+                        if isinstance(s_1, z3.z3.BitVecNumRef):
+                            s_1 = s_1.as_long()
+                        if isinstance(s_2, z3.z3.BitVecNumRef):
+                            s_2 = s_2.as_long()
+                        val['diff'] = s_1 - s_2
                         val['var'] = f_1
                         val['var_position'] = 1
                     elif s_1 == s_2:
-                        val['diff'] = int(f_1) - int(f_2)
+                        if isinstance(f_1, z3.z3.BitVecNumRef):
+                            f_1 = f_1.as_long()
+                        if isinstance(f_2, z3.z3.BitVecNumRef):
+                            f_2 = f_2.as_long()
+                        val['diff'] = f_1 - f_2
                         val['var'] = s_1
                         val['var_position'] = 2
                     else:
-                        raise ValueError('LOOP DETECTION ERROR - 4')
+                        print('[ERR - 4.1]:', f_1, ',', s_1, ',', f_2, ',', s_2)
+                        print('[ERR - 4.1]:', ins_dict, ',', prev_ins_dict)
+                        raise ValueError('LOOP DETECTION ERROR - 4.1')
                 elif f_1.num_args() == 0 and s_1.num_args() == 2 and f_2.num_args() == 0 and s_2.num_args() == 0:
                     s_1_1 = s_1.arg(0)
                     s_1_2 = s_1.arg(1)
@@ -723,9 +746,12 @@ def loop_detection(ins_dict, prev_ins_dict):
                         val['diff'] = simplify(f_1 - s_1_1)
                         val['var_position'] = 2
                     else:
-                        raise ValueError('LOOP DETECTION ERROR - 4')
+                        print('[ERR - 4.2]:', f_2, ',', s_2, ',', f_1, ',', s_1_1, ',', s_1_2)
+                        print('[ERR - 4.2]:', ins_dict, ',', prev_ins_dict)
+                        raise ValueError('LOOP DETECTION ERROR - 4.2')
                 else:
                     print('[ERR - 3]:', f_1.num_args(), s_1.num_args(), f_2.num_args(), s_2.num_args())
+                    print('[ERR - 3]', f_1, ',', s_1, ',', f_2, ',', s_2)
                     raise ValueError('LOOP DETECTION ERROR - 3')
             else:
                 raise ValueError('LOOP DETECTION ERROR - 2')
@@ -741,3 +767,14 @@ def loop_detection(ins_dict, prev_ins_dict):
         return True, val
     else:
         return False, val
+
+
+def unpack_if(expr):
+    # print('[IF]:', expr, expr.decl())
+    expr = state_simulation.numref_to_int(expr)
+    if is_expr(expr) and str(expr.decl()) == 'If':
+        # print('[IF-1]:', expr.arg(0))
+        return unpack_if(expr.arg(0))
+    else:
+        # print('[IF-2]:', expr)
+        return expr
