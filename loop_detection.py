@@ -22,11 +22,11 @@ def loop_detection(ins_dict, prev_ins_dict):
             and (is_expr(first) or is_expr(second)):
         val = dict()
         if ins not in ['LT', 'EQ', 'GT']:
+            prev_first = prev_ins_dict['s1']
             first_tem = simplify(first)
             prev_first_tem = simplify(prev_first)
-            if 'Extract' not in str(first_tem):
+            if 'Extract' not in str(first_tem) and 'Extract' not in str(prev_first_tem):
                 first = first_tem
-            if 'Extract' not in str(prev_first_tem):
                 prev_first = prev_first_tem
 
             if str(first.decl()) == 'If':

@@ -1215,7 +1215,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     sto_var_exist = False
                     var_name = None
                     for key, val in get_var_table().items():
-                        if val == 'storage[%s], %s' % (address, storage):
+                        if val == 'storage[%s]' % address:
                             var_name = key
                             sto_var_exist = True
                             break

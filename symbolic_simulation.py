@@ -415,9 +415,14 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
                     # NOTE: Execute the path
                     if has_loop:
-                        return symbolic_implement(state_T, gas_T, path_cons_T, gas_cons_T,
-                                                  next_true_tag, path_tag_T,
-                                                  pc_track_T, loop_condition_T)
+                        if next_true_tag in path_tag:
+                            return symbolic_implement(state_F, gas_F, path_cons_F, gas_cons_F,
+                                                      next_false_tag, path_tag_F,
+                                                      pc_track_F, loop_condition_F)
+                        else:
+                            return symbolic_implement(state_T, gas_T, path_cons_T, gas_cons_T,
+                                                      next_true_tag, path_tag_T,
+                                                      pc_track_T, loop_condition_T)
                     else:
                         if go_true:
                             symbolic_implement(state_T, gas_T, path_cons_T, gas_cons_T,
