@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-
 from subprocess import call
 import graphviz as gv
 import cfg
@@ -10,16 +9,6 @@ import os
 import json
 import global_vars
 import result_file
-
-f_SE = os.path.join(os.path.dirname(__file__), 'SE')
-wSE = open(f_SE, 'w')
-loop_graph_count = 0
-
-# NOTE: Global Variables
-count_sim = 0
-stack = []
-storage = []
-memory = []
 
 
 def main():
@@ -145,11 +134,6 @@ def asm_analysis(file_name, contract_name):
     except Exception as e:
         print('[ERROR] graph drawing error:', e)
     result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
-
-    # result_context = ''
-    # with open('./result/%s/%s.txt' % (file_name, contract_name), 'r') as f:
-    #     result_context += f.read()
-    # print('\n%s' % result_context)
 
 
 def graph_detail(nodes, edges):
