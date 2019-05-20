@@ -103,16 +103,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     gas = gas.as_long()
 
                 if opcode.split(' ')[0] == 'tag':
-                    '''
-                    tag:
-                    need not to handle 'tag'
-                    '''
                     pass
                 elif opcode in ['JUMP', 'JUMP [in]']:
-                    '''
-                    JUMP and JUMP [in]: 
-                    find the next node in prev ins, and go to next node
-                    '''
 
                     # NOTE: add tag to path tag
                     path_tag.append(tag)
@@ -135,7 +127,6 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
                     # NOTE: update gas of the node on CFG
                     node = node_add_gas(node, node_gas)
-                    # node = node_add_path_gas_sum(node, gas)
 
                     # NOTE: Add the state to the node on CFG
                     new_state = dict()
@@ -160,10 +151,6 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                               next_jump_tag, path_tag,
                                               pc_track, loop_condition)
                 elif opcode == 'JUMP [out]':
-                    '''
-                    JUMP [out]:
-                    get the next node form the tag_stack, and go to the next node
-                    '''
                     # NOTE: add tag to path tag
                     path_tag.append(tag)
 
@@ -210,29 +197,23 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                               next_jump_tag, path_tag,
                                               pc_track, loop_condition)
                 elif opcode == 'JUMPI':
-                    '''
-                    JUMPI:
-                    there are two path to run
-                        first -> the JUMP path (always with JUMP IN)
-                        second -> always stop in the next node
-                    '''
                     next_false_tag = None
-                    next_true_tag = None
+                    # next_true_tag = None
                     go_true = True
                     go_false = True
                     pop_pc = None
                     try:
-                        path_cons_T = path_cons.translate(main_ctx())
-                        path_cons_F = path_cons.translate(main_ctx())
+                        path_cons_true = path_cons.translate(main_ctx())
+                        path_cons_false = path_cons.translate(main_ctx())
                     except z3.z3types.Z3Exception:
                         pop_pc = path_cons.assertions()[len(path_cons.assertions())-1]
                         path_cons.pop()
-                        path_cons_T = path_cons.translate(main_ctx())
-                        path_cons_F = path_cons.translate(main_ctx())
-                    pc_track_T = SolverUnsatCore()
-                    pc_track_T.set_count(pc_track.get_count())
-                    pc_track_F = SolverUnsatCore()
-                    pc_track_F.set_count(pc_track.get_count())
+                        path_cons_true = path_cons.translate(main_ctx())
+                        path_cons_false = path_cons.translate(main_ctx())
+                    pc_track_true = SolverUnsatCore()
+                    pc_track_true.set_count(pc_track.get_count())
+                    pc_track_false = SolverUnsatCore()
+                    pc_track_false.set_count(pc_track.get_count())
                     loop_pc = None
 
                     # NOTE: add tag to path tag
@@ -267,68 +248,81 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         new_state[key] = in_new_state
                     node, loop_gas = node_add_state(node, new_state, path_tag, tag, gas)
 
-                    if tag not in loop_condition.keys():
-                        loop_condition[tag] = None
-                    # print('[TAG]:', tag)
-                    has_loop, cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[tag])
+                    # NOTE: Loop Detection
+                    if LOOP_DETECTION:
+                        if tag not in loop_condition.keys():
+                            loop_condition[tag] = None
+                        has_loop, cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[tag])
+                    else:
+                        if global_vars.get_count_loop(tag) == 10:
+                            global_vars.add_count_loop(tag)
+                            return
+                        else:
+                            global_vars.add_count_loop(tag)
+                            has_loop = False
+                            cons_val = None
+                            if global_vars.get_count_loop(tag) > 1:
+                                print('[LOOP PC - %s]: [TAG %s]' % (global_vars.get_count_loop(tag), tag), path_constraint)
                     if has_loop:
                         new_var = BitVec(global_vars.get_gen().gen_loop_var(tag), 256)
                         gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
-                        if prev_jumpi_ins['ins'] == 'ISZERO':
-                            sym_var = cons_val['var']
-                            gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
-                            if str(cons_val['op']) == 'ULT':
-                                if cons_val['var_position'] == 1:
-                                    loop_pc = simplify(If(Not(ULT(sym_var, cons_val['diff'] * new_var)), 1, 0))
-                                else:
-                                    loop_pc = simplify(If(Not(ULT(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                            elif str(cons_val['op']) == 'UGT':
-                                if cons_val['var_position'] == 1:
-                                    loop_pc = simplify(If(Not(UGT(sym_var, cons_val['diff'] * new_var)), 1, 0))
-                                else:
-                                    loop_pc = simplify(If(Not(UGT(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                            elif str(cons_val['op']) == 'ULE':
-                                if cons_val['var_position'] == 1:
-                                    loop_pc = simplify(If(Not(ULE(sym_var, cons_val['diff'] * new_var)), 1, 0))
-                                else:
-                                    loop_pc = simplify(If(Not(ULE(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                            else:
-                                print('[LOOp ERROR]:', cons_val)
-                                raise ValueError('LOOP INS ERROR - 329')
-                        elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
-                            if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[tag]['s1']:
-                                sym_var = prev_jumpi_ins['s1']
-                                var_position = 1
-                            elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[tag]['s2']:
-                                sym_var = prev_jumpi_ins['s2']
-                                var_position = 2
-                            else:
-                                raise ValueError('LOOP SYM VAR ERROR - 328')
-
-                            if prev_jumpi_ins['ins'] == 'LT':
-                                if var_position == 1:
-                                    loop_pc = simplify(If(ULT(sym_var, cons_val['diff'] * new_var), 1, 0))
-                                else:
-                                    loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
-                            elif prev_jumpi_ins['ins'] == 'GT':
-                                if var_position == 1:
-                                    loop_pc = simplify(If(UGT(sym_var, cons_val['diff'] * new_var), 1, 0))
-                                else:
-                                    loop_pc = simplify(If(UGT(cons_val['diff'] * new_var, sym_var), 1, 0))
-                            elif prev_jumpi_ins['ins'] == 'EQ':
-                                loop_pc = simplify(If(cons_val['diff'] * new_var == sym_var, 1, 0))
-                            else:
-                                raise ValueError('LOOP INS ERROR - 339')
-                        else:
-                            sym_var = BitVec(cons_val['var'], 256)
-                            gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
-                            if cons_val['op'] == 'ULT':
-                                if cons_val['var_position'] == 1:
-                                    loop_pc = simplify(If(ULT(sym_var, cons_val['diff'] * new_var),1 , 0))
-                                else:
-                                    loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
-                            else:
-                                raise ValueError('LOOP INS ERROR - 329')
+                        loop_pc = loop_detection.handle_loop_condition(prev_jumpi_ins, loop_condition, tag,
+                                                                       cons_val, new_var)
+                        # if prev_jumpi_ins['ins'] == 'ISZERO':
+                        #     sym_var = cons_val['var']
+                        #     gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
+                        #     if str(cons_val['op']) == 'ULT':
+                        #         if cons_val['var_position'] == 1:
+                        #             loop_pc = simplify(If(Not(ULT(sym_var, cons_val['diff'] * new_var)), 1, 0))
+                        #         else:
+                        #             loop_pc = simplify(If(Not(ULT(cons_val['diff'] * new_var, sym_var)), 1, 0))
+                        #     elif str(cons_val['op']) == 'UGT':
+                        #         if cons_val['var_position'] == 1:
+                        #             loop_pc = simplify(If(Not(UGT(sym_var, cons_val['diff'] * new_var)), 1, 0))
+                        #         else:
+                        #             loop_pc = simplify(If(Not(UGT(cons_val['diff'] * new_var, sym_var)), 1, 0))
+                        #     elif str(cons_val['op']) == 'ULE':
+                        #         if cons_val['var_position'] == 1:
+                        #             loop_pc = simplify(If(Not(ULE(sym_var, cons_val['diff'] * new_var)), 1, 0))
+                        #         else:
+                        #             loop_pc = simplify(If(Not(ULE(cons_val['diff'] * new_var, sym_var)), 1, 0))
+                        #     else:
+                        #         print('[LOOp ERROR]:', cons_val)
+                        #         raise ValueError('LOOP INS ERROR - 329')
+                        # elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
+                        #     if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[tag]['s1']:
+                        #         sym_var = prev_jumpi_ins['s1']
+                        #         var_position = 1
+                        #     elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[tag]['s2']:
+                        #         sym_var = prev_jumpi_ins['s2']
+                        #         var_position = 2
+                        #     else:
+                        #         raise ValueError('LOOP SYM VAR ERROR - 328')
+                        #
+                        #     if prev_jumpi_ins['ins'] == 'LT':
+                        #         if var_position == 1:
+                        #             loop_pc = simplify(If(ULT(sym_var, cons_val['diff'] * new_var), 1, 0))
+                        #         else:
+                        #             loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
+                        #     elif prev_jumpi_ins['ins'] == 'GT':
+                        #         if var_position == 1:
+                        #             loop_pc = simplify(If(UGT(sym_var, cons_val['diff'] * new_var), 1, 0))
+                        #         else:
+                        #             loop_pc = simplify(If(UGT(cons_val['diff'] * new_var, sym_var), 1, 0))
+                        #     elif prev_jumpi_ins['ins'] == 'EQ':
+                        #         loop_pc = simplify(If(cons_val['diff'] * new_var == sym_var, 1, 0))
+                        #     else:
+                        #         raise ValueError('LOOP INS ERROR - 339')
+                        # else:
+                        #     sym_var = BitVec(cons_val['var'], 256)
+                        #     gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
+                        #     if cons_val['op'] == 'ULT':
+                        #         if cons_val['var_position'] == 1:
+                        #             loop_pc = simplify(If(ULT(sym_var, cons_val['diff'] * new_var),1 , 0))
+                        #         else:
+                        #             loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
+                        #     else:
+                        #         raise ValueError('LOOP INS ERROR - 329')
                         loop_gas_var = simplify(loop_gas * BV2Int(new_var))
                         gas += loop_gas_var
                     else:
@@ -340,35 +334,35 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         if edge[0][0] == tag and edge[0][1] == next_true_tag:
                             if loop_pc is None:
                                 if pop_pc is not None:
-                                    path_cons_T.add(pop_pc)
+                                    path_cons_true.add(pop_pc)
                                 if is_expr(path_constraint):
                                     constraint = simplify(path_constraint == 1)
-                                    if constraint not in path_cons_T.assertions():
-                                        path_cons_T.push()
-                                        path_cons_T.add(constraint)
+                                    if constraint not in path_cons_true.assertions():
+                                        path_cons_true.push()
+                                        path_cons_true.add(constraint)
                                 else:
                                     constraint = path_constraint == 1
                                 edges[index] = edge_add_path_constraint(edge, constraint)
                             else:
                                 constraint = simplify(loop_pc == 1)
-                                path_cons_T.add(constraint)
+                                path_cons_true.add(constraint)
                                 edges[index] = edge_change_loop_constraint(edge, constraint)
                         elif edge[0][0] == tag and edge[0][1] != next_true_tag:
                             next_false_tag = edge[0][1]
                             if loop_pc is None:
                                 if pop_pc is not None:
-                                    path_cons_F.add(pop_pc)
+                                    path_cons_false.add(pop_pc)
                                 if is_expr(path_constraint):
                                     constraint = simplify(path_constraint == 0)
-                                    if constraint not in path_cons_F.assertions():
-                                        path_cons_F.push()
-                                        path_cons_F.add(constraint)
+                                    if constraint not in path_cons_false.assertions():
+                                        path_cons_false.push()
+                                        path_cons_false.add(constraint)
                                 else:
                                     constraint = path_constraint == 0
                                 edges[index] = edge_add_path_constraint(edge, constraint)
                             else:
                                 constraint = simplify(loop_pc == 0)
-                                path_cons_F.add(constraint)
+                                path_cons_false.add(constraint)
                                 edges[index] = edge_change_loop_constraint(edge, constraint)
 
                     # NOTE: Determine run the path or not
@@ -383,61 +377,57 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                             raise ValueError('JUMPI constraint error')
 
                     # NOTE: Create params of two paths
-                    state_T = dict()
+                    state_true = dict()
                     for key, val in state.items():
                         in_new_state = dict()
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
-                        state_T[key] = in_new_state
-                    state_F = dict()
+                        state_true[key] = in_new_state
+                    state_false = dict()
                     for key, val in state.items():
                         in_new_state = dict()
                         for key1, val1 in val.items():
                             in_new_state[key1] = val1
-                        state_F[key] = in_new_state
+                        state_false[key] = in_new_state
 
                     if is_expr(gas):
-                        gas_T = gas
-                        gas_F = gas
+                        gas_true = gas
+                        gas_false = gas
                     else:
-                        gas_T = copy.deepcopy(gas)
-                        gas_F = copy.deepcopy(gas)
-                    path_tag_T = copy.deepcopy(path_tag)
-                    path_tag_F = copy.deepcopy(path_tag)
-                    gas_cons_T = gas_cons.translate(main_ctx())
-                    gas_cons_F = gas_cons.translate(main_ctx())
+                        gas_true = copy.deepcopy(gas)
+                        gas_false = copy.deepcopy(gas)
+                    path_tag_true = copy.deepcopy(path_tag)
+                    path_tag_false = copy.deepcopy(path_tag)
+                    gas_cons_true = gas_cons.translate(main_ctx())
+                    gas_cons_false = gas_cons.translate(main_ctx())
 
-                    loop_condition_T = dict()
-                    loop_condition_F = dict()
+                    loop_condition_true = dict()
+                    loop_condition_false = dict()
                     for idx, val in loop_condition.items():
-                        loop_condition_T[idx] = val
-                        loop_condition_F[idx] = val
+                        loop_condition_true[idx] = val
+                        loop_condition_false[idx] = val
 
                     # NOTE: Execute the path
                     if has_loop:
                         if next_true_tag in path_tag:
-                            return symbolic_implement(state_F, gas_F, path_cons_F, gas_cons_F,
-                                                      next_false_tag, path_tag_F,
-                                                      pc_track_F, loop_condition_F)
+                            return symbolic_implement(state_false, gas_false, path_cons_false, gas_cons_false,
+                                                      next_false_tag, path_tag_false,
+                                                      pc_track_false, loop_condition_false)
                         else:
-                            return symbolic_implement(state_T, gas_T, path_cons_T, gas_cons_T,
-                                                      next_true_tag, path_tag_T,
-                                                      pc_track_T, loop_condition_T)
+                            return symbolic_implement(state_true, gas_true, path_cons_true, gas_cons_true,
+                                                      next_true_tag, path_tag_true,
+                                                      pc_track_true, loop_condition_true)
                     else:
                         if go_true:
-                            symbolic_implement(state_T, gas_T, path_cons_T, gas_cons_T,
-                                               next_true_tag, path_tag_T,
-                                               pc_track_T, loop_condition_T)
+                            symbolic_implement(state_true, gas_true, path_cons_true, gas_cons_true,
+                                               next_true_tag, path_tag_true,
+                                               pc_track_true, loop_condition_true)
                         if go_false:
-                            symbolic_implement(state_F, gas_F, path_cons_F, gas_cons_F,
-                                               next_false_tag, path_tag_F,
-                                               pc_track_F, loop_condition_F)
+                            symbolic_implement(state_false, gas_false, path_cons_false, gas_cons_false,
+                                               next_false_tag, path_tag_false,
+                                               pc_track_false, loop_condition_false)
                         return
                 elif opcode in ['STOP', 'RETURN', 'REVERT', 'INVALID']:
-                    '''
-                    STOP, RETURN, REVERT, INVALID:
-                    the final node of the path
-                    '''
                     # NOTE: add gas sum to final_gas_sum
                     global_vars.add_final_gas(tag, gas)
 
@@ -653,9 +643,9 @@ def node_add_state(node, state, path_label, tag, gas):
 
             for index, val in enumerate(state_json):
                 state_path_label = val[-1]['Path Label']
-                state_tag = state_path_label[:first_idx]
+                state_trueag = state_path_label[:first_idx]
 
-                if curr_tag == state_tag:
+                if curr_tag == state_trueag:
                     new_path = False
 
                     gas_sum = tag_gas_sum[tag]

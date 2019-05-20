@@ -23,6 +23,9 @@ def init():
     global UNSIGNED_BOUND_NUMBER
     UNSIGNED_BOUND_NUMBER = 2**256 - 1
 
+    global COUNT_LOOP
+    COUNT_LOOP = dict()
+
 
 def set_gas_limit(gas):
     global gas_limit
@@ -92,3 +95,16 @@ def get_var_table():
 def get_var_in_table(key):
     return VAR_TABLE[key]
 
+
+def get_count_loop(tag):
+    if tag not in COUNT_LOOP.keys():
+        COUNT_LOOP[tag] = 0
+    return COUNT_LOOP[tag]
+
+
+def add_count_loop(tag):
+    global COUNT_LOOP
+    if COUNT_LOOP[tag] == 10:
+        COUNT_LOOP[tag] = 0
+    else:
+        COUNT_LOOP[tag] += 1
