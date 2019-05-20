@@ -38,6 +38,7 @@ def symbolic_simulation(nodes_in, edges_in):
 
     count_path = 0
     tag_run_time = dict()
+    count_loop = dict()
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
     gas = 0
     path_cons = Solver()
@@ -46,7 +47,7 @@ def symbolic_simulation(nodes_in, edges_in):
     pc_track = SolverUnsatCore()
     loop_condition = dict()
     symbolic_implement(state, gas, path_cons, gas_cons,
-                       '0', [],
+                       '0', [], count_loop,
                        pc_track, loop_condition)
     print('\n[INFO] Find', count_path, 'path')
     print('[INFO] Vulnerability Path:', global_vars.get_sat_path_count())
@@ -54,7 +55,7 @@ def symbolic_simulation(nodes_in, edges_in):
 
 
 def symbolic_implement(state, gas, path_cons, gas_cons,
-                       tag, path_tag,
+                       tag, path_tag, count_loop,
                        pc_track, loop_condition):
     # print('[TAG]:', tag)
     """
@@ -148,7 +149,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         edges.append(((str(tag), next_jump_tag), {'label': '', 'color': 'blue'}))
 
                     return symbolic_implement(state, gas, path_cons, gas_cons,
-                                              next_jump_tag, path_tag,
+                                              next_jump_tag, path_tag, count_loop,
                                               pc_track, loop_condition)
                 elif opcode == 'JUMP [out]':
                     # NOTE: add tag to path tag
@@ -194,7 +195,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         edges.append(((str(tag), next_jump_tag), {'label': '', 'color': 'blue'}))
 
                     return symbolic_implement(state, gas, path_cons, gas_cons,
-                                              next_jump_tag, path_tag,
+                                              next_jump_tag, path_tag, count_loop,
                                               pc_track, loop_condition)
                 elif opcode == 'JUMPI':
                     next_false_tag = None
@@ -254,15 +255,16 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                             loop_condition[tag] = None
                         has_loop, cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[tag])
                     else:
-                        if global_vars.get_count_loop(tag) == 10:
-                            global_vars.add_count_loop(tag)
+                        if tag not in count_loop.keys():
+                            count_loop[tag] = 0
+                        if count_loop[tag] == 3:
                             return
                         else:
-                            global_vars.add_count_loop(tag)
+                            count_loop[tag] += 1
                             has_loop = False
                             cons_val = None
-                            if global_vars.get_count_loop(tag) > 1:
-                                print('[LOOP PC - %s]: [TAG %s]' % (global_vars.get_count_loop(tag), tag), path_constraint)
+                            if count_loop[tag] > 1:
+                                print('[LOOP PC - %s]: [TAG %s]' % (count_loop[tag], tag), path_constraint)
                     if has_loop:
                         new_var = BitVec(global_vars.get_gen().gen_loop_var(tag), 256)
                         gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
@@ -400,6 +402,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag_false = copy.deepcopy(path_tag)
                     gas_cons_true = gas_cons.translate(main_ctx())
                     gas_cons_false = gas_cons.translate(main_ctx())
+                    count_loop_true = copy.deepcopy(count_loop)
+                    count_loop_false = copy.deepcopy(count_loop)
 
                     loop_condition_true = dict()
                     loop_condition_false = dict()
@@ -411,20 +415,20 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     if has_loop:
                         if next_true_tag in path_tag:
                             return symbolic_implement(state_false, gas_false, path_cons_false, gas_cons_false,
-                                                      next_false_tag, path_tag_false,
+                                                      next_false_tag, path_tag_false, count_loop_false,
                                                       pc_track_false, loop_condition_false)
                         else:
                             return symbolic_implement(state_true, gas_true, path_cons_true, gas_cons_true,
-                                                      next_true_tag, path_tag_true,
+                                                      next_true_tag, path_tag_true, count_loop_true,
                                                       pc_track_true, loop_condition_true)
                     else:
                         if go_true:
                             symbolic_implement(state_true, gas_true, path_cons_true, gas_cons_true,
-                                               next_true_tag, path_tag_true,
+                                               next_true_tag, path_tag_true, count_loop_true,
                                                pc_track_true, loop_condition_true)
                         if go_false:
                             symbolic_implement(state_false, gas_false, path_cons_false, gas_cons_false,
-                                               next_false_tag, path_tag_false,
+                                               next_false_tag, path_tag_false, count_loop_false,
                                                pc_track_false, loop_condition_false)
                         return
                 elif opcode in ['STOP', 'RETURN', 'REVERT', 'INVALID']:
@@ -508,7 +512,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                             edges[index] = edge_change_color(edge)
                             next_tag = edge[0][1]
                             return symbolic_implement(state, gas, path_cons, gas_cons,
-                                                      next_tag, path_tag,
+                                                      next_tag, path_tag, count_loop,
                                                       pc_track, loop_condition)
                     return
                 else:
