@@ -86,6 +86,9 @@ class Generator:
     def gen_sha_word_size(self, line):
         return 'Isize_%s' % line
 
+    def gen_call_success(self, line):
+        return 'CallSuccess_%s' % line
+
 
 class SolverUnsatCore:
     def __init__(self):

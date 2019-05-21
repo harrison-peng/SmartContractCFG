@@ -1,14 +1,14 @@
 # -*- coding: UTF-8 -*-
 from subprocess import call
-import graphviz as gv
 import cfg
 import symbolic_simulation
-import functools
 import argparse
 import os
 import json
 import global_vars
 import result_file
+import graph
+import attack_synthesis
 
 
 def main():
@@ -30,11 +30,14 @@ def main():
             global_vars.set_gas_limit(int(args.gas))
 
             print('[INFO] Start Transforming contract {} source code to Assembly.'.format(contract_name))
-            preproc(f_src)  # 將SOURCE CODE編譯成OPCODE
+            # NOTE: 將 SOURCE CODE 編譯成 OPCODE
+            preproc(f_src)
 
             for file in os.listdir("./opcode"):
                 file_name, contract_name = file.split('_')
-                asm_analysis(file_name, contract_name)
+                nodes_size, edges_size, ins_size, nodes = asm_analysis(file_name, contract_name)
+                result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
+                # conformation(nodes)
 
     else:
         print('Must use an argument, -l for individual source code')
@@ -119,71 +122,30 @@ def asm_analysis(file_name, contract_name):
 
     nodes, edges = cfg.cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
 
-    nodes_size, edges_size, ins_size = graph_detail(nodes, edges)
+    nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
     print('[INFO] CFG node count = ', nodes_size)
     print('[INFO] CFG edge count = ', edges_size)
     print('[INFO] Total instructions: ', ins_size)
     print('')
 
-    create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
+    graph.create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
 
     nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
-    nodes_out = node_add_gas_sum(nodes_out)
+    nodes_out = graph.node_add_gas_sum(nodes_out)
     try:
-        create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
+        graph.create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
     except Exception as e:
         print('[ERROR] graph drawing error:', e)
-    result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
+    return nodes_size, edges_size, ins_size, nodes_out
 
 
-def graph_detail(nodes, edges):
-    count = 0
-
-    for n in nodes:
-        label = n[1].get('label')
-        label_content = label.split('\n')
-        for l in label_content:
-            if 'Stack' in l or 'Gas' in l or 'PC' in l:
-                break
-            elif l == '' or (l.startswith('[TAG:') and l.endswith(']')):
-                continue
-            else:
-                count += 1
-    return len(nodes), len(edges), count
-
-
-def create_graph(n, e, dir_name, row_id):
-    digraph = functools.partial(gv.Digraph, format='svg')
-    g = add_edges(add_nodes(digraph(), n), e)
-    filename = 'img/{}/{}'.format(dir_name, row_id)
-    g.render(filename=filename)
-    return g
-
-
-def add_nodes(graph, nodes):
-    for n in nodes:
-        if isinstance(n, tuple):
-            graph.node(n[0], **n[1])
-        else:
-            graph.node(n)
-    return graph
-
-
-def add_edges(graph, edges):
-    for e in edges:
-        if isinstance(e[0], tuple):
-            graph.edge(*e[0], **e[1])
-        else:
-            graph.edge(*e)
-    return graph
-
-
-def node_add_gas_sum(nodes):
-    for key, val in global_vars.get_final_gas().items():
-        for n in nodes:
-            if n[0] == str(key):
-                n[1]['label'] += '\n\nGas Sum: %s' % val
-    return nodes
+def conformation(nodes):
+    global_vars.init_generator()
+    paths = global_vars.get_pc_gas()
+    for path in paths:
+        model = path['ans']
+        tags = path['tags']
+        attack_synthesis.attack_synthesis(tags, nodes, model)
 
 
 if __name__ == '__main__':

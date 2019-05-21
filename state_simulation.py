@@ -1,9 +1,8 @@
-import six
 import sha3
-from z3 import *
 from gas_price import gas_table
 from global_vars import *
 from global_constants import *
+from z3_func import *
 
 solver = Solver()
 
@@ -592,7 +591,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'SGT':
-        # FIXME: Not fully faithful to signed comparison
         if len(stack) > 1:
             row = len(stack) - 1
             first = stack.pop(str(row))
@@ -978,17 +976,17 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         # NOTE: Copy input data to memory
         if len(stack) > 2:
             row = len(stack) - 1
-            from_p = stack.pop(str(row))
-            to_p = stack.pop(str(row - 1))
+            mem_p = stack.pop(str(row))
+            msg_p = stack.pop(str(row - 1))
             num_bytes = stack.pop(str(row - 2))
 
             new_var_name = get_gen().gen_data_var(line)
             new_var = BitVec(new_var_name, 256)
             gas_constraint = add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER)
-            memory[str(from_p)] = new_var
+            memory[str(mem_p)] = new_var
 
             if not var_in_var_table(new_var_name):
-                add_var_table(new_var_name, 'msg.data[%s:%s+%s]' % (from_p, to_p, num_bytes))
+                add_var_table(new_var_name, 'msg.data[%s:%s+%s]' % (msg_p, msg_p, num_bytes))
 
             # NOTE: GAS
             if is_real(num_bytes):
@@ -1019,17 +1017,17 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
     elif opcode == 'CODECOPY':
         if len(stack) > 2:
             row = len(stack) - 1
-            from_p = stack.pop(str(row))
-            to_p = stack.pop(str(row - 1))
+            mem_p = stack.pop(str(row))
+            msg_p = stack.pop(str(row - 1))
             num_bytes = stack.pop(str(row - 2))
 
             new_var_name = get_gen().gen_code_var(line)
             new_var = BitVec(new_var_name, 256)
             gas_constraint = add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER)
-            memory[str(from_p)] = new_var
+            memory[str(mem_p)] = new_var
 
             if not var_in_var_table(new_var_name):
-                add_var_table(new_var_name, 'address(this).code[%s:%s+%s]' % (from_p, to_p, num_bytes))
+                add_var_table(new_var_name, 'address(this).code[%s:%s+%s]' % (mem_p, msg_p, num_bytes))
 
             # NOTE: GAS
             if is_real(num_bytes):
@@ -1306,7 +1304,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         gas = gas_table[opcode]
     elif opcode.startswith('PUSH', 0):
         # NOTE: this is a push instruction
-        pushed_value = ''
         if len(instruction_set) > 1:
             if instruction_set[1] == '[tag]':
                 pushed_value = int(instruction_set[2])
@@ -1322,6 +1319,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
 
                 if not var_in_var_table(new_var_name):
                     add_var_table(new_var_name, 'address(deployed)')
+            else:
+                raise ValueError('PUSH ERROR')
         row = len(stack)
         stack[str(row)] = pushed_value
 
@@ -1387,7 +1386,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             out_length = stack.pop(str(row - 6))
 
             row = len(stack)
-            new_var_name = 'CallSuccess'
+            new_var_name = get_gen().gen_call_success(line)
             new_var = BitVec(new_var_name, 256)
             stack[str(row)] = new_var
             gas_constraint = Or(new_var == 1, new_var == 0)
@@ -1418,7 +1417,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             out_size = stack.pop(str(row - 6))
 
             row = len(stack)
-            new_var_name = 'CallSuccess'
+            new_var_name = get_gen().gen_call_success(line)
             new_var = BitVec(new_var_name, 256)
             stack[str(row)] = new_var
             gas_constraint = Or(new_var == 1, new_var == 0)
@@ -1529,62 +1528,62 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
     return state, gas, path_constraint, gas_constraint, prev_jumpi_ins, str(next_tag)
 
 
-def to_z3_symbolic(var):
-    return BitVec(str(var), 256)
-
-
-def to_unsigned(number):
-    if number < 0:
-        return number + 2**256
-    return number
-
-
-def to_signed(number):
-    if number > 2**(256 - 1):
-        return (2**256 - number) * (-1)
-    else:
-        return number
-
-
-def is_symbolic(value):
-    return not isinstance(value, six.integer_types)
-
-
-def is_all_real(*args):
-    for element in args:
-        if is_symbolic(element):
-            return False
-    return True
-
-
-def to_symbolic(number):
-    if is_real(number):
-        return BitVecVal(number, 256)
-    return number
-
-
-def is_real(value):
-    return isinstance(value, six.integer_types)
-
-
-def check_sat(solver, pop_if_exception=True):
-    try:
-        ret = solver.check()
-        if ret == unknown:
-            raise Z3Exception(solver.reason_unknown())
-    except Exception as e:
-        if pop_if_exception:
-            solver.pop()
-        raise e
-    return ret
-
-
-def add_gas_constraint(formula, size):
-    return simplify(ULT(formula, size))
-
-
-def numref_to_int(expr):
-    if isinstance(expr, z3.z3.BitVecNumRef):
-        return expr.as_long()
-    else:
-        return expr
+# def to_z3_symbolic(var):
+#     return BitVec(str(var), 256)
+#
+#
+# def to_unsigned(number):
+#     if number < 0:
+#         return number + 2**256
+#     return number
+#
+#
+# def to_signed(number):
+#     if number > 2**(256 - 1):
+#         return (2**256 - number) * (-1)
+#     else:
+#         return number
+#
+#
+# def is_symbolic(value):
+#     return not isinstance(value, six.integer_types)
+#
+#
+# def is_all_real(*args):
+#     for element in args:
+#         if is_symbolic(element):
+#             return False
+#     return True
+#
+#
+# def to_symbolic(number):
+#     if is_real(number):
+#         return BitVecVal(number, 256)
+#     return number
+#
+#
+# def is_real(value):
+#     return isinstance(value, six.integer_types)
+#
+#
+# def check_sat(solver, pop_if_exception=True):
+#     try:
+#         ret = solver.check()
+#         if ret == unknown:
+#             raise Z3Exception(solver.reason_unknown())
+#     except Exception as e:
+#         if pop_if_exception:
+#             solver.pop()
+#         raise e
+#     return ret
+#
+#
+# def add_gas_constraint(formula, size):
+#     return simplify(ULT(formula, size))
+#
+#
+# def numref_to_int(expr):
+#     if isinstance(expr, z3.z3.BitVecNumRef):
+#         return expr.as_long()
+#     else:
+#         return expr

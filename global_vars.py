@@ -24,6 +24,11 @@ def init():
     UNSIGNED_BOUND_NUMBER = 2**256 - 1
 
 
+def init_generator():
+    global gen
+    gen = var_generator.Generator()
+
+
 def set_gas_limit(gas):
     global gas_limit
     gas_limit = gas

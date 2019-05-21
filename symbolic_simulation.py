@@ -10,7 +10,7 @@ import global_vars
 import loop_detection
 
 count_sim = 0
-stack = []
+# stack = []
 storage = []
 memory = []
 nodes = []
@@ -69,7 +69,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
     [pc_track]: track the path constraint for z3
     [loop_condition]: last JUMPI condition in order to calculate the loop condit\textbf{nodes}T\textbf{nodion
     """
-    global stack
+    # global stack
     global nodes
     global edges
     global count_path
@@ -451,17 +451,14 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     for gc in gas_cons.assertions():
                         path_cons.add(gc)
                     # print('[PC]:', tag, path_cons)
+                    # print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...'
+                    #       % (tag, len(path_cons.assertions())))
 
                     if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
-                        # print('[GAS]:', type(gas), gas)
                         gas_cons = global_vars.get_gas_limit() < gas
-                        # gas_cons = ULT(global_vars.get_gas_limit(), gas)
                         # path_cons.assert_and_track(gas_cons, 'gas_cons')
                         path_cons.add(gas_cons)
                         # pc_var = get_solver_var(path_cons)
-
-                        # print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...'
-                        #       % (tag, len(path_cons.assertions())))
                         if path_cons.check() == sat:
                             print('[INFO] Path Constraints: sat')
                             global_vars.add_sat_path_count()
@@ -474,14 +471,12 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         #     unsat_core = path_cons.unsat_core()
                         #     print('[INFO] Conflict: %s' % unsat_core)
                     else:
-                        # print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...'
-                        #       % (tag, len(path_cons.assertions())))
                         if isinstance(gas, z3.z3.IntNumRef):
                             gas = gas.as_long()
                         if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
+                            print('[INFO] Path Constraints: sat')
                             global_vars.add_sat_path_count()
                             ans = path_cons.model()
-                            # print('[INFO] model:', len(ans), 'variables')
                             new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
                             global_vars.add_pc_gas(new_pc_gas)
 
