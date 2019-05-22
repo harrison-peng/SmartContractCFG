@@ -111,8 +111,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag.append(tag)
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, prev_jumpi_ins, next_jump_tag = state_simulation.\
-                        state_simulation(opcode, state, line, prev_jumpi_ins)
+                    state, ins_gas, path_constraint, gas_constraint, var_constraint, prev_jumpi_ins, next_jump_tag = \
+                        state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins)
 
                     if is_expr(gas_constraint):
                         gas_cons.add(gas_constraint)
@@ -156,7 +156,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag.append(tag)
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, prev_jumpi_ins, next_jump_tag = \
+                    state, ins_gas, path_constraint, gas_constraint, var_constraint, prev_jumpi_ins, next_jump_tag = \
                         state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins)
 
                     if is_expr(gas_constraint):
@@ -221,7 +221,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_tag.append(tag)
 
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, prev_jumpi_ins, next_true_tag = \
+                    state, ins_gas, path_constraint, gas_constraint, var_constraint, prev_jumpi_ins, next_true_tag = \
                         state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins)
 
                     if is_expr(gas_constraint):
@@ -257,13 +257,13 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     else:
                         if tag not in count_loop.keys():
                             count_loop[tag] = 0
-                        if count_loop[tag] == 3:
+                        if count_loop[tag] == 10:
                             return
                         else:
                             count_loop[tag] += 1
                             has_loop = False
                             cons_val = None
-                            if count_loop[tag] > 1:
+                            if tag == '25':
                                 print('[LOOP PC - %s]: [TAG %s]' % (count_loop[tag], tag), path_constraint)
                     if has_loop:
                         new_var = BitVec(global_vars.get_gen().gen_loop_var(tag), 256)
@@ -512,7 +512,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     return
                 else:
                     # NOTE: stack simulation
-                    state, ins_gas, path_constraint, gas_constraint, prev_jumpi_ins, _ = \
+                    state, ins_gas, path_constraint, gas_constraint, var_constraint, prev_jumpi_ins, _ = \
                         state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins)
 
                     if state is None:
@@ -520,6 +520,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
                     if is_expr(gas_constraint):
                         gas_cons.add(gas_constraint)
+
+                    if is_expr(var_constraint):
+                        gas_cons.add(var_constraint)
 
                     if is_expr(gas):
                         gas = simplify(gas + ins_gas)

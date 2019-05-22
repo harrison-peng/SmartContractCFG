@@ -20,6 +20,9 @@ def init():
     global VAR_TABLE
     VAR_TABLE = dict()
 
+    global SAME_VAR_TABLE
+    SAME_VAR_TABLE = dict()
+
     global UNSIGNED_BOUND_NUMBER
     UNSIGNED_BOUND_NUMBER = 2**256 - 1
 
@@ -97,3 +100,11 @@ def get_var_table():
 def get_var_in_table(key):
     return VAR_TABLE[key]
 
+
+def set_same_var(v1, v2):
+    global SAME_VAR_TABLE
+    SAME_VAR_TABLE[v1] = v2
+
+
+def get_same_var(var):
+    return SAME_VAR_TABLE[var]

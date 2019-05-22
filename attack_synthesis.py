@@ -28,13 +28,14 @@ def attack_synthesis(path, nodes, m):
 
                     if opcode.split(' ')[0] == 'tag':
                         pass
+                    elif line == 'Stack Sum':
+                        break
                     else:
                         state, ins_gas = ins_sim(state, opcode, line)
                         gas += ins_gas
 
                         if opcode in \
-                                ['STOP', 'RETURN', 'REVERT', 'INVALID', 'JUMP', 'JUMP [in]', 'JUMP [out]', 'JUMPI'] \
-                                or line == 'Stack Sum':
+                                ['STOP', 'RETURN', 'REVERT', 'INVALID', 'JUMP', 'JUMP [in]', 'JUMP [out]', 'JUMPI']:
                             break
                 break
     print('[Attack Synthesis Gas]:', gas)
@@ -404,7 +405,7 @@ def ins_sim(state, instruction, line):
         gas = 30 + 6 * ((len(hex(length)) - 2) / 4)
     elif opcode == 'ADDRESS':
         row = len(stack)
-        stack[str(row)] = model['Ia']
+        stack[str(row)] = get_model_var('Ia')
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -550,7 +551,11 @@ def ins_sim(state, instruction, line):
     elif opcode == 'MLOAD':
         row = len(stack) - 1
         address = stack.pop(str(row))
-        value = memory[address]
+        if str(address) in memory:
+            value = memory[str(address)]
+        else:
+            value = 0
+        # value = memory[str(address)]
 
         row = len(stack)
         stack[str(row)] = value
@@ -569,10 +574,10 @@ def ins_sim(state, instruction, line):
         row = len(stack) - 1
         address = stack.pop(str(row))
 
-        if len(storage) == 0:
-            value = 0
+        if str(address) in storage:
+            value = storage[str(address)]
         else:
-            value = storage[address]
+            value = 0
 
         row = len(stack)
         stack[str(row)] = value
@@ -775,7 +780,7 @@ def ins_sim(state, instruction, line):
         val = get_model_var(var)
         gas = 5000 if val <= 0 else 30000
     else:
-        raise Exception('UNKNOWN INSTRUCTION:', opcode)
+        raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
     return state, gas
 
 
@@ -788,5 +793,7 @@ def get_model_var(var):
         if str(v) == var:
             val = model[v]
     if val is None:
-        raise ValueError('No Model Variable')
+        # print('[MODEL]:', var, model_vars)
+        return get_model_var(get_same_var(var))
+        # raise ValueError('No Model Variable')
     return val
