@@ -47,5 +47,5 @@ def output_result(file, contract, nodes_size, edges_size, ins_size):
 
             count += 1
 
-    print('[INFO]: Finished contract <%s> result file' % contract)
+    print('[INFO]: Finished contract <%s> result file\n' % contract)
 

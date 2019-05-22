@@ -38,7 +38,7 @@ def attack_synthesis(path, nodes, m):
                                 ['STOP', 'RETURN', 'REVERT', 'INVALID', 'JUMP', 'JUMP [in]', 'JUMP [out]', 'JUMPI']:
                             break
                 break
-    print('[Attack Synthesis Gas]:', gas)
+    print('[INFO] Attack Synthesis Gas:', gas)
 
 
 def ins_sim(state, instruction, line):

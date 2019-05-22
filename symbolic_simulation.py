@@ -16,6 +16,9 @@ memory = []
 nodes = []
 edges = []
 count_path = 0
+constant_path = 0
+bounded_path = 0
+unbounded_path = 0
 tag_run_time = dict()
 tag_gas_sum = dict()
 final_gas_sum = dict()
@@ -28,6 +31,9 @@ def symbolic_simulation(nodes_in, edges_in):
     global nodes
     global edges
     global count_path
+    global constant_path
+    global bounded_path
+    global unbounded_path
     global tag_run_time
     global prime_list
     global prime_check_list
@@ -37,6 +43,9 @@ def symbolic_simulation(nodes_in, edges_in):
     edges = edges_in
 
     count_path = 0
+    constant_path = 0
+    bounded_path = 0
+    unbounded_path = 0
     tag_run_time = dict()
     count_loop = dict()
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
@@ -49,7 +58,8 @@ def symbolic_simulation(nodes_in, edges_in):
     symbolic_implement(state, gas, path_cons, gas_cons,
                        '0', [], count_loop,
                        pc_track, loop_condition)
-    print('\n[INFO] Find', count_path, 'path')
+    print('\n[INFO] Find %s path: %s constant path, %s bounded path, and %s unbounded path.' %
+          (count_path, constant_path, bounded_path, unbounded_path))
     print('[INFO] Vulnerability Path:', global_vars.get_sat_path_count())
     return nodes, edges
 
@@ -73,6 +83,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
     global nodes
     global edges
     global count_path
+    global constant_path
+    global bounded_path
+    global unbounded_path
     global tag_run_time
     global prime_list
     global LT_condition
@@ -455,6 +468,11 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     #       % (tag, len(path_cons.assertions())))
 
                     if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
+                        if 'loop' in str(gas):
+                            unbounded_path += 1
+                        else:
+                            bounded_path += 1
+
                         gas_cons = global_vars.get_gas_limit() < gas
                         # path_cons.assert_and_track(gas_cons, 'gas_cons')
                         path_cons.add(gas_cons)
@@ -471,6 +489,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         #     unsat_core = path_cons.unsat_core()
                         #     print('[INFO] Conflict: %s' % unsat_core)
                     else:
+                        constant_path += 1
                         if isinstance(gas, z3.z3.IntNumRef):
                             gas = gas.as_long()
                         if gas > global_vars.get_gas_limit() and path_cons.check() == sat:

@@ -38,6 +38,7 @@ def main():
                 nodes_size, edges_size, ins_size, nodes = asm_analysis(file_name, contract_name)
                 result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
                 conformation(nodes)
+            print('')
 
     else:
         print('Must use an argument, -l for individual source code')
