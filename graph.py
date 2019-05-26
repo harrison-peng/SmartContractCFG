@@ -22,7 +22,33 @@ def graph_detail(nodes, edges):
 def create_graph(n, e, dir_name, row_id):
     digraph = functools.partial(gv.Digraph, format='svg')
     g = add_edges(add_nodes(digraph(), n), e)
-    filename = 'img/{}/{}'.format(dir_name, row_id)
+    filename = 'img/%s/%s' % (dir_name, row_id)
+    g.render(filename=filename)
+    return g
+
+
+def create_graph_new(nodes, edges, dir_name, row_id):
+    cfg_nodes = list()
+    for node in nodes:
+        content = ''
+        content += '[ADDRESS: %s]\n\n' % node['addr']
+
+        for ins in node['ins']:
+            content += '%s\n' % ins
+
+        if node['gas']:
+            content += '\nGAS:\n%s' % node['gas']
+        if node['state']:
+            content += '\nSTATE:\n%s' % node['state']
+
+        if node['ins'][-1].split(' ')[1] in ['STOP', 'REVERT', 'INVALID', 'RETURN']:
+            cfg_nodes.append((str(node['addr']), {'label': content, 'shape': 'box', 'color': 'red'}))
+        else:
+            cfg_nodes.append((str(node['addr']), {'label': content, 'shape': 'box'}))
+
+    digraph = functools.partial(gv.Digraph, format='svg')
+    g = add_edges(add_nodes(digraph(), cfg_nodes), edges)
+    filename = 'cfg/%s/%s' % (dir_name, row_id)
     g.render(filename=filename)
     return g
 

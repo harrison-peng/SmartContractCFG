@@ -7,6 +7,10 @@ output/
 opcode/
 opcode_pre/
 result/
+opcodes/
+opcodes_raw/
+contracts/
+cfg/
 
 .DS_Store
 .idea

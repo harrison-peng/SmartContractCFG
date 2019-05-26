@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from subprocess import call
 import cfg
+import cfg_new
 import symbolic_simulation
 import argparse
 import os
@@ -9,6 +10,7 @@ import global_vars
 import result_file
 import graph
 import attack_synthesis
+import preprocessing
 
 
 def main():
@@ -29,17 +31,27 @@ def main():
 
             global_vars.set_gas_limit(int(args.gas))
 
-            print('[INFO] Start Transforming contract {} source code to Assembly.'.format(contract_name))
+            print('[INFO] Start Transforming contract %s source code to opcodes.' % contract_name)
             # NOTE: 將 SOURCE CODE 編譯成 OPCODE
-            preproc(f_src)
+            preprocessing.source_code_to_opcodes(f_src)
+            for file in os.listdir('./opcodes/%s' % contract_name):
+                file_name = file.split('.')[0]
+                with open('./opcodes/%s/%s' % (contract_name, file), 'r') as f:
+                    opcodes = f.read()
 
-            for file in os.listdir("./opcode"):
-                file_name, contract_name = file.split('_')
-                nodes_size, edges_size, ins_size, nodes = asm_analysis(file_name, contract_name)
-                result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
-                conformation(nodes)
-            print('')
+                if opcodes != '':
+                    nodes, edges = cfg_new.cfg_construction(opcodes, file_name)
+                    graph.create_graph_new(nodes, edges, contract_name, file_name)
 
+            # preproc(f_src)
+            #
+            # for file in os.listdir("./opcode"):
+            #     file_name, contract_name = file.split('_')
+            #     asm_analysis(file_name, contract_name)
+                # nodes_size, edges_size, ins_size, nodes = asm_analysis(file_name, contract_name)
+            #     result_file.output_result(file_name, contract_name, nodes_size, edges_size, ins_size)
+            #     conformation(nodes)
+            # print('')
     else:
         print('Must use an argument, -l for individual source code')
 
@@ -123,21 +135,21 @@ def asm_analysis(file_name, contract_name):
 
     nodes, edges = cfg.cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
 
-    nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
-    print('[INFO] CFG node count = ', nodes_size)
-    print('[INFO] CFG edge count = ', edges_size)
-    print('[INFO] Total instructions: ', ins_size)
-    print('')
-
-    graph.create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
-
-    nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
-    nodes_out = graph.node_add_gas_sum(nodes_out)
-    try:
-        graph.create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
-    except Exception as e:
-        print('[ERROR] graph drawing error:', e)
-    return nodes_size, edges_size, ins_size, nodes_out
+    # nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
+    # print('[INFO] CFG node count = ', nodes_size)
+    # print('[INFO] CFG edge count = ', edges_size)
+    # print('[INFO] Total instructions: ', ins_size)
+    # print('')
+    #
+    # graph.create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
+    #
+    # nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
+    # nodes_out = graph.node_add_gas_sum(nodes_out)
+    # try:
+    #     graph.create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
+    # except Exception as e:
+    #     print('[ERROR] graph drawing error:', e)
+    # return nodes_size, edges_size, ins_size, nodes_out
 
 
 def conformation(nodes):

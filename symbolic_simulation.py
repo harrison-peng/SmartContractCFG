@@ -467,37 +467,38 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     # print('[INFO] Checking Satisfiability of Path Constraints on tag %s with %s pc...'
                     #       % (tag, len(path_cons.assertions())))
 
-                    if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
-                        if 'loop' in str(gas):
-                            unbounded_path += 1
-                        else:
-                            bounded_path += 1
+                    if path_cons.check() == sat:
+                        if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
+                            if 'loop' in str(gas):
+                                unbounded_path += 1
+                            else:
+                                bounded_path += 1
 
-                        gas_cons = global_vars.get_gas_limit() < gas
-                        # path_cons.assert_and_track(gas_cons, 'gas_cons')
-                        path_cons.add(gas_cons)
-                        # pc_var = get_solver_var(path_cons)
-                        if path_cons.check() == sat:
-                            print('[INFO] Path Constraints: sat')
-                            global_vars.add_sat_path_count()
-                            ans = path_cons.model()
-                            # print('[INFO] model:', len(ans), 'variables')
-                            new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
-                            global_vars.add_pc_gas(new_pc_gas)
-                        # else:
-                        #     print('[INFO] Path Constraints: unsat')
-                        #     unsat_core = path_cons.unsat_core()
-                        #     print('[INFO] Conflict: %s' % unsat_core)
-                    else:
-                        constant_path += 1
-                        if isinstance(gas, z3.z3.IntNumRef):
-                            gas = gas.as_long()
-                        if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
-                            print('[INFO] Path Constraints: sat')
-                            global_vars.add_sat_path_count()
-                            ans = path_cons.model()
-                            new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
-                            global_vars.add_pc_gas(new_pc_gas)
+                            gas_cons = global_vars.get_gas_limit() < gas
+                            # path_cons.assert_and_track(gas_cons, 'gas_cons')
+                            path_cons.add(gas_cons)
+                            # pc_var = get_solver_var(path_cons)
+                            if path_cons.check() == sat:
+                                print('[INFO] Path Constraints: sat')
+                                global_vars.add_sat_path_count()
+                                ans = path_cons.model()
+                                # print('[INFO] model:', len(ans), 'variables')
+                                new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
+                                global_vars.add_pc_gas(new_pc_gas)
+                            # else:
+                            #     print('[INFO] Path Constraints: unsat')
+                            #     unsat_core = path_cons.unsat_core()
+                            #     print('[INFO] Conflict: %s' % unsat_core)
+                        else:
+                            constant_path += 1
+                            if isinstance(gas, z3.z3.IntNumRef):
+                                gas = gas.as_long()
+                            if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
+                                print('[INFO] Path Constraints: sat')
+                                global_vars.add_sat_path_count()
+                                ans = path_cons.model()
+                                new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'tags': path_tag}
+                                global_vars.add_pc_gas(new_pc_gas)
 
                     return
                 elif line == 'Stack Sum':

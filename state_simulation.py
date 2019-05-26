@@ -830,6 +830,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             else:
                 if str(data) == 'Ia_caller':
                     gas = 150
+                elif str(data) == 'Id_size':
+                    gas = simplify(30 + 6 * BV2Int(data))
                 else:
                     new_var_name = get_gen().gen_sha_word_size(str(data).split('_')[1])
                     new_var = BitVec(new_var_name, 256)
@@ -964,7 +966,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
     elif opcode == 'CALLDATASIZE':
         new_var_name = get_gen().gen_data_size(line)
         new_var = BitVec(new_var_name, 256)
-        gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
+        # gas_constraint = add_gas_constraint(new_var, BYTE_BOUND_NUMBER)
 
         if not var_in_var_table(new_var_name):
             add_var_table(new_var_name, 'msg.data.size')
@@ -993,6 +995,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             # NOTE: GAS
             if is_real(num_bytes):
                 gas = 2 + 3 * (len(hex(num_bytes))-2)
+            elif str(num_bytes) == 'Id_size':
+                gas = simplify(2 + 3 * BV2Int(num_bytes))
             else:
                 new_var_name = get_gen().gen_sha_word_size(str(num_bytes).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
@@ -1034,6 +1038,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             # NOTE: GAS
             if is_real(num_bytes):
                 gas = 2 + 3 * (len(hex(num_bytes)) - 2)
+            elif str(num_bytes) == 'Id_size':
+                gas = simplify(30 + 6 * BV2Int(num_bytes))
             else:
                 new_var_name = get_gen().gen_sha_word_size(str(num_bytes).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
@@ -1075,6 +1081,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             # NOTE: GAS
             if is_real(x):
                 gas = 2 + 3 * (len(hex(x)) - 2)
+            elif str(x) == 'Id_size':
+                gas = simplify(30 + 6 * BV2Int(x))
             else:
                 new_var_name = get_gen().gen_sha_word_size(str(x).split('_')[1])
                 new_var = BitVec(new_var_name, 256)
@@ -1263,7 +1271,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     cond = False
                     for k in [e for e in storage.keys() if is_expr(e)]:
                         cond = Or(cond, k == address)
-                    gas = simplify(BV2Int(If(Or(Not(value == 0), cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
+                    gas = simplify(BV2Int(If(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
             storage[str(address)] = value
 
         else:

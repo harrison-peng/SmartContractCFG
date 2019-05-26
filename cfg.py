@@ -5,6 +5,7 @@ from opcode_table import *
 nodes = []
 edges = []
 
+
 def cfg_construction(opcode_data, contract_name):
     global nodes
     global edges
@@ -12,7 +13,7 @@ def cfg_construction(opcode_data, contract_name):
     nodes = []
     edges = []
 
-    print('''[INFO] Constructing CFG for contract '{}'. '''.format(contract_name))
+    print('''\n[INFO] Constructing CFG for contract '%s'. ''' % contract_name)
 
     opcode_list = opcode_data.split('\n')
     for i in range(len(opcode_list)):

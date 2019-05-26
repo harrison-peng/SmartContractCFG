@@ -573,7 +573,6 @@ def ins_sim(state, instruction, line):
     elif opcode == 'SLOAD':
         row = len(stack) - 1
         address = stack.pop(str(row))
-
         if str(address) in storage:
             value = storage[str(address)]
         else:
@@ -590,7 +589,7 @@ def ins_sim(state, instruction, line):
         value = stack.pop(str(row - 1))
 
         # NOTE: GAS
-        c1 = False if address in storage.keys() else True
+        c1 = False if str(address) in storage.keys() else True
         c2 = False if value == 0 else True
 
         gas = 20000 if c1 and c2 else 5000
