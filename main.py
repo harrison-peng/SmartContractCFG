@@ -3,6 +3,7 @@ from subprocess import call
 import asm_cfg_builder
 import opcodes_cfg_builder
 import symbolic_simulation
+import symbolic_simulation_new
 import argparse
 import os
 import json
@@ -40,7 +41,10 @@ def main():
                     opcodes = f.read()
 
                 if opcodes != '':
+                    global_vars.init()
                     nodes, edges = opcodes_cfg_builder.cfg_construction(opcodes, file_name)
+                    graph.create_graph_new(nodes, edges, contract_name, file_name)
+                    nodes, edges = symbolic_simulation_new.symbolic_simulation(nodes, edges)
                     graph.create_graph_new(nodes, edges, contract_name, file_name)
 
             # preproc(f_src)

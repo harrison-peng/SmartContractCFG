@@ -36,8 +36,8 @@ def create_graph_new(nodes, edges, dir_name, row_id):
         for ins in node['ins']:
             content += '%s\n' % ins
 
-        if node['gas']:
-            content += '\nGAS:\n%s' % node['gas']
+        if node['gas'] is not None:
+            content += '\nGAS:\n%s\n' % str(node['gas'])
         if node['state']:
             content += '\nSTATE:\n%s' % node['state']
 

@@ -1,5 +1,3 @@
-from state_simulation import state_simulation
-
 nodes = []
 edges = []
 addr_line_dict = dict()
@@ -147,4 +145,4 @@ def add_edge(from_addr, to_addr):
 
 
 def init_node_content():
-    return {'addr': None, 'ins': list(), 'gas': None, 'state': None}
+    return {'addr': None, 'ins': list(), 'gas': None, 'state': list()}
