@@ -10,7 +10,6 @@ import global_vars
 import loop_detection
 
 count_sim = 0
-# stack = []
 storage = []
 memory = []
 nodes = []
@@ -283,61 +282,6 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
                         loop_pc = loop_detection.handle_loop_condition(prev_jumpi_ins, loop_condition, tag,
                                                                        cons_val, new_var)
-                        # if prev_jumpi_ins['ins'] == 'ISZERO':
-                        #     sym_var = cons_val['var']
-                        #     gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
-                        #     if str(cons_val['op']) == 'ULT':
-                        #         if cons_val['var_position'] == 1:
-                        #             loop_pc = simplify(If(Not(ULT(sym_var, cons_val['diff'] * new_var)), 1, 0))
-                        #         else:
-                        #             loop_pc = simplify(If(Not(ULT(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                        #     elif str(cons_val['op']) == 'UGT':
-                        #         if cons_val['var_position'] == 1:
-                        #             loop_pc = simplify(If(Not(UGT(sym_var, cons_val['diff'] * new_var)), 1, 0))
-                        #         else:
-                        #             loop_pc = simplify(If(Not(UGT(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                        #     elif str(cons_val['op']) == 'ULE':
-                        #         if cons_val['var_position'] == 1:
-                        #             loop_pc = simplify(If(Not(ULE(sym_var, cons_val['diff'] * new_var)), 1, 0))
-                        #         else:
-                        #             loop_pc = simplify(If(Not(ULE(cons_val['diff'] * new_var, sym_var)), 1, 0))
-                        #     else:
-                        #         print('[LOOp ERROR]:', cons_val)
-                        #         raise ValueError('LOOP INS ERROR - 329')
-                        # elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
-                        #     if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[tag]['s1']:
-                        #         sym_var = prev_jumpi_ins['s1']
-                        #         var_position = 1
-                        #     elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[tag]['s2']:
-                        #         sym_var = prev_jumpi_ins['s2']
-                        #         var_position = 2
-                        #     else:
-                        #         raise ValueError('LOOP SYM VAR ERROR - 328')
-                        #
-                        #     if prev_jumpi_ins['ins'] == 'LT':
-                        #         if var_position == 1:
-                        #             loop_pc = simplify(If(ULT(sym_var, cons_val['diff'] * new_var), 1, 0))
-                        #         else:
-                        #             loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
-                        #     elif prev_jumpi_ins['ins'] == 'GT':
-                        #         if var_position == 1:
-                        #             loop_pc = simplify(If(UGT(sym_var, cons_val['diff'] * new_var), 1, 0))
-                        #         else:
-                        #             loop_pc = simplify(If(UGT(cons_val['diff'] * new_var, sym_var), 1, 0))
-                        #     elif prev_jumpi_ins['ins'] == 'EQ':
-                        #         loop_pc = simplify(If(cons_val['diff'] * new_var == sym_var, 1, 0))
-                        #     else:
-                        #         raise ValueError('LOOP INS ERROR - 339')
-                        # else:
-                        #     sym_var = BitVec(cons_val['var'], 256)
-                        #     gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
-                        #     if cons_val['op'] == 'ULT':
-                        #         if cons_val['var_position'] == 1:
-                        #             loop_pc = simplify(If(ULT(sym_var, cons_val['diff'] * new_var),1 , 0))
-                        #         else:
-                        #             loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
-                        #     else:
-                        #         raise ValueError('LOOP INS ERROR - 329')
                         loop_gas_var = simplify(loop_gas * BV2Int(new_var))
                         gas += loop_gas_var
                     else:

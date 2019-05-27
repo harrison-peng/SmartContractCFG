@@ -80,7 +80,6 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack):
                 if not is_node_exist(curr_addr):
                     add_node(curr_addr, node_content)
 
-                print('[JP]:', pc, stack)
                 jump_addr_true = stack.pop()
                 jump_idx_true = addr_line_dict[jump_addr_true]
                 jump_addr_false = pc + 1

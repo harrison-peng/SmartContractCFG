@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from subprocess import call
-import cfg
-import cfg_new
+import asm_cfg_builder
+import opcodes_cfg_builder
 import symbolic_simulation
 import argparse
 import os
@@ -40,7 +40,7 @@ def main():
                     opcodes = f.read()
 
                 if opcodes != '':
-                    nodes, edges = cfg_new.cfg_construction(opcodes, file_name)
+                    nodes, edges = opcodes_cfg_builder.cfg_construction(opcodes, file_name)
                     graph.create_graph_new(nodes, edges, contract_name, file_name)
 
             # preproc(f_src)
@@ -133,7 +133,7 @@ def asm_analysis(file_name, contract_name):
     with open('./opcode/%s_%s' % (file_name, contract_name), 'r') as f:
         opcode_data = f.read()
 
-    nodes, edges = cfg.cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
+    nodes, edges = asm_cfg_builder.cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
 
     # nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
     # print('[INFO] CFG node count = ', nodes_size)
