@@ -44,8 +44,16 @@ def main():
                     global_vars.init()
                     nodes, edges = opcodes_cfg_builder.cfg_construction(opcodes, file_name)
                     graph.create_graph_new(nodes, edges, contract_name, file_name)
+
+                    nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
+                    print('[INFO] CFG node count = ', nodes_size)
+                    print('[INFO] CFG edge count = ', edges_size)
+                    print('[INFO] Total instructions: ', ins_size, '\n')
+
                     nodes, edges = symbolic_simulation_new.symbolic_simulation(nodes, edges)
                     graph.create_graph_new(nodes, edges, contract_name, file_name)
+                    max_gas = conformation(nodes)
+                    result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
 
             # preproc(f_src)
             #
@@ -139,30 +147,36 @@ def asm_analysis(file_name, contract_name):
 
     nodes, edges = asm_cfg_builder.cfg_construction(opcode_data, contract_name)  # 將OPCODE建成CFG
 
-    # nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
-    # print('[INFO] CFG node count = ', nodes_size)
-    # print('[INFO] CFG edge count = ', edges_size)
-    # print('[INFO] Total instructions: ', ins_size)
-    # print('')
-    #
-    # graph.create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
-    #
-    # nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
-    # nodes_out = graph.node_add_gas_sum(nodes_out)
-    # try:
-    #     graph.create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
-    # except Exception as e:
-    #     print('[ERROR] graph drawing error:', e)
-    # return nodes_size, edges_size, ins_size, nodes_out
+    nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
+    print('[INFO] CFG node count = ', nodes_size)
+    print('[INFO] CFG edge count = ', edges_size)
+    print('[INFO] Total instructions: ', ins_size)
+    print('')
+
+    graph.create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
+
+    nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
+    nodes_out = graph.node_add_gas_sum(nodes_out)
+    try:
+        graph.create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)
+    except Exception as e:
+        print('[ERROR] graph drawing error:', e)
+    return nodes_size, edges_size, ins_size, nodes_out
 
 
 def conformation(nodes):
     global_vars.init_generator()
     paths = global_vars.get_pc_gas()
+    gas_list = list()
     for path in paths:
         model = path['ans']
-        tags = path['tags']
-        attack_synthesis.attack_synthesis(tags, nodes, model)
+        tags = path['path']
+        gas = attack_synthesis.attack_synthesis(tags, nodes, model)
+        gas_list.append(gas)
+    if gas_list:
+        return max(gas_list)
+    else:
+        return 0
 
 
 if __name__ == '__main__':

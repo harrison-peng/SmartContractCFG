@@ -4,6 +4,7 @@ import state_simulation
 
 
 def loop_detection(ins_dict, prev_ins_dict):
+    # print(ins_dict, ':::', prev_ins_dict)
     ins = ins_dict['ins']
     first = ins_dict['s1']
     second = ins_dict['s2']
@@ -21,6 +22,7 @@ def loop_detection(ins_dict, prev_ins_dict):
 
     if ((prev_first is not None and is_expr(prev_first)) or (prev_second is not None and is_expr(prev_second))) \
             and (is_expr(first) or is_expr(second)):
+        # print(prev_first, prev_second, first, second)
         val = dict()
         if ins not in ['LT', 'EQ', 'GT']:
             prev_first = prev_ins_dict['s1']
@@ -99,7 +101,7 @@ def loop_detection(ins_dict, prev_ins_dict):
         return False, val
 
 
-def handle_loop_condition(prev_jumpi_ins, loop_condition, tag, cons_val, new_var):
+def handle_loop_condition(prev_jumpi_ins, loop_condition, addr, cons_val, new_var):
     if prev_jumpi_ins['ins'] == 'ISZERO':
         sym_var = cons_val['var']
         # gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
@@ -118,14 +120,16 @@ def handle_loop_condition(prev_jumpi_ins, loop_condition, tag, cons_val, new_var
                 loop_pc = simplify(If(Not(ULE(sym_var, cons_val['diff'] * new_var)), 1, 0))
             else:
                 loop_pc = simplify(If(Not(ULE(cons_val['diff'] * new_var, sym_var)), 1, 0))
+        elif str(cons_val['op']) == '==':
+            loop_pc = simplify(If(Not(sym_var == cons_val['diff'] * new_var), 1, 0))
         else:
             print('[LOOp ERROR]:', cons_val)
-            raise ValueError('LOOP INS ERROR - 329')
+            raise ValueError('LOOP INS ERROR - ISZERO')
     elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
-        if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[tag]['s1']:
+        if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[addr]['s1']:
             sym_var = prev_jumpi_ins['s1']
             var_position = 1
-        elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[tag]['s2']:
+        elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[addr]['s2']:
             sym_var = prev_jumpi_ins['s2']
             var_position = 2
         else:
@@ -144,7 +148,7 @@ def handle_loop_condition(prev_jumpi_ins, loop_condition, tag, cons_val, new_var
         elif prev_jumpi_ins['ins'] == 'EQ':
             loop_pc = simplify(If(cons_val['diff'] * new_var == sym_var, 1, 0))
         else:
-            raise ValueError('LOOP INS ERROR - 339')
+            raise ValueError('LOOP INS ERROR - OP')
     else:
         sym_var = BitVec(cons_val['var'], 256)
         # gas_cons.add(state_simulation.add_gas_constraint(sym_var, UNSIGNED_BOUND_NUMBER))
@@ -154,7 +158,7 @@ def handle_loop_condition(prev_jumpi_ins, loop_condition, tag, cons_val, new_var
             else:
                 loop_pc = simplify(If(ULT(cons_val['diff'] * new_var, sym_var), 1, 0))
         else:
-            raise ValueError('LOOP INS ERROR - 329')
+            raise ValueError('LOOP INS ERROR - OTHER')
     return loop_pc
 
 

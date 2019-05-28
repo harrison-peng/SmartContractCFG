@@ -36,17 +36,19 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             raise Exception
 
     if 'ins' in prev_jumpi_ins.keys() and opcode in ['LT', 'GT', 'EQ', 'ISZERO']:
+        # print('[QQQQ]:', opcode, prev_jumpi_ins)
         prev_jumpi_ins['ins'] = opcode
         row = len(stack) - 1
         prev_jumpi_ins['s1'] = stack[str(row)]
-        if opcode == 'ISZERO':
+        if prev_jumpi_ins['ins'] == 'ISZERO':
             prev_jumpi_ins['s2'] = None
         else:
             prev_jumpi_ins['s2'] = simplify(stack[str(row - 1)]) if is_expr(stack[str(row - 1)]) else stack[str(row - 1)]
-    elif 'ins' in prev_jumpi_ins.keys() and len(state['Stack']) > 0 and opcode not in ['JUMPI', 'PUSH']:
+    elif 'ins' in prev_jumpi_ins.keys() and len(state['Stack']) > 0 and (opcode != 'JUMPI' and not opcode.startswith('PUSH')):
         prev_jumpi_ins['ins'] = opcode
         row = len(stack) - 1
         prev_jumpi_ins['s1'] = simplify(stack[str(row)]) if is_expr(stack[str(row)]) else stack[str(row)]
+        # prev_jumpi_ins['s1'] = stack[str(row)] if is_expr(stack[str(row)]) else stack[str(row)]
         prev_jumpi_ins['s2'] = None
 
     if opcode in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:

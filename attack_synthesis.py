@@ -14,12 +14,12 @@ def attack_synthesis(path, nodes, m):
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
     gas = 0
 
-    for tag in path:
+    for addr in path:
         for node in nodes:
-            if node[0] == tag:
-                label = node[1].get('label')
+            if node['addr'] == addr:
+                ins_list = node['ins']
                 # NOTE: remove 'TAG' in label ([0, 1])
-                ins_list = label.split('\n')[2:]
+                # ins_list = label.split('\n')[2:]
 
                 for ins in ins_list:
                     ins_set = ins.split(': ')
@@ -39,6 +39,7 @@ def attack_synthesis(path, nodes, m):
                             break
                 break
     print('[INFO] Attack Synthesis Gas:', gas)
+    return int(gas)
 
 
 def ins_sim(state, instruction, line):

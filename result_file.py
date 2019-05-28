@@ -2,7 +2,7 @@ import global_vars
 from z3_func import *
 
 
-def output_result(file, contract, nodes_size, edges_size, ins_size):
+def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
     os.makedirs('./result/%s' % file, exist_ok=True)
 
     with open('./result/%s/%s.txt' % (file, contract), 'w') as f:
@@ -13,6 +13,7 @@ def output_result(file, contract, nodes_size, edges_size, ins_size):
         f.write('Total edges: %s\n' % edges_size)
         f.write('Total path: %s\n' % global_vars.get_total_path_count())
         f.write('Reachable path: %s\n' % global_vars.get_sat_path_count())
+        f.write('Max Gas Consumption: %s\n' % max_gas)
         sep_line = '-|-' * 30
         f.write('%s\n' % sep_line)
 
@@ -26,7 +27,7 @@ def output_result(file, contract, nodes_size, edges_size, ins_size):
         infos = global_vars.get_pc_gas()
         for info in infos:
             f.write('Path No.%s:\n\n' % count)
-            f.write('[Path Tag]: %s\n\n' % info['tags'])
+            f.write('[Path Address]: %s\n\n' % info['path'])
             f.write('[Path Constraints]:\n')
             f.write(str(info['path_constraints']).replace('\n', '').replace(',', ',\n').replace('    ', ' '))
 
