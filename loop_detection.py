@@ -1,10 +1,9 @@
 from z3 import *
 from global_constants import *
-import state_simulation
+import asm_state_simulation
 
 
 def loop_detection(ins_dict, prev_ins_dict):
-    # print(ins_dict, ':::', prev_ins_dict)
     ins = ins_dict['ins']
     first = ins_dict['s1']
     second = ins_dict['s2']
@@ -22,7 +21,7 @@ def loop_detection(ins_dict, prev_ins_dict):
 
     if ((prev_first is not None and is_expr(prev_first)) or (prev_second is not None and is_expr(prev_second))) \
             and (is_expr(first) or is_expr(second)):
-        # print(prev_first, prev_second, first, second)
+        # print(ins_dict, ':::', prev_ins_dict)
         val = dict()
         if ins not in ['LT', 'EQ', 'GT']:
             prev_first = prev_ins_dict['s1']
@@ -164,7 +163,7 @@ def handle_loop_condition(prev_jumpi_ins, loop_condition, addr, cons_val, new_va
 
 def unpack_if(expr):
     # print('[IF]:', expr, expr.decl())
-    expr = state_simulation.numref_to_int(expr)
+    expr = asm_state_simulation.numref_to_int(expr)
     if is_expr(expr) and str(expr.decl()) == 'If':
         # print('[IF-1]:', expr.arg(0))
         return unpack_if(expr.arg(0))

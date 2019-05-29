@@ -2,8 +2,8 @@
 from subprocess import call
 import asm_cfg_builder
 import opcodes_cfg_builder
+import asm_symbolic_simulation
 import symbolic_simulation
-import symbolic_simulation_new
 import argparse
 import os
 import json
@@ -50,7 +50,7 @@ def main():
                     print('[INFO] CFG edge count = ', edges_size)
                     print('[INFO] Total instructions: ', ins_size, '\n')
 
-                    nodes, edges = symbolic_simulation_new.symbolic_simulation(nodes, edges)
+                    nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
                     graph.create_graph_new(nodes, edges, contract_name, file_name)
                     max_gas = conformation(nodes)
                     result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
@@ -155,7 +155,7 @@ def asm_analysis(file_name, contract_name):
 
     graph.create_graph(nodes, edges, 'CFG/%s' % file_name, contract_name)
 
-    nodes_out, edges_out = symbolic_simulation.symbolic_simulation(nodes, edges)
+    nodes_out, edges_out = asm_symbolic_simulation.symbolic_simulation(nodes, edges)
     nodes_out = graph.node_add_gas_sum(nodes_out)
     try:
         graph.create_graph(nodes_out, edges_out, 'CFG/%s' % file_name, contract_name)

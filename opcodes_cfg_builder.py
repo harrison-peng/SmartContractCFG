@@ -53,7 +53,7 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
         pc = int(code_set[0].replace(':', ''))
         s = code_set[1:]
         # if curr_addr in [3206]:
-        #     print(curr_addr, stack)
+        #     print(pc, curr_addr, stack)
 
         if s[0] == '':
             continue
