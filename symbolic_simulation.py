@@ -1,7 +1,6 @@
 from gas_price import *
 from z3_func import *
 from global_constants import *
-import json
 import state_simulation as state_simulation
 import copy
 import global_vars
@@ -169,10 +168,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     path_addr.append(addr)
 
                     # NOTE: stack simulation
-                    # print('[1]:', opcode, prev_jumpi_ins)
                     state, ins_gas, path_constraint, gas_constraint, prev_jumpi_ins, next_true_addr = \
                         state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins)
-                    # print('[2]:', opcode, prev_jumpi_ins)
 
                     for c in gas_constraint:
                         if is_expr(c):
@@ -205,7 +202,6 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         if addr not in loop_condition.keys():
                             loop_condition[addr] = None
                         has_loop, cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[addr])
-                        # print(addr, has_loop)
                     else:
                         if addr not in count_loop.keys():
                             count_loop[addr] = 0
@@ -223,9 +219,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         loop_gas_var = simplify(loop_gas * BV2Int(new_var))
                         gas += loop_gas_var
                     else:
-                        # print('[LOOP]:', prev_jumpi_ins)
                         loop_condition[addr] = prev_jumpi_ins
-                    # prev_jumpi_ins = dict()
 
                     # NOTE: Find next jump addr and add constraint to the edge
                     for idx, edge in enumerate(edges):
@@ -451,13 +445,6 @@ def edge_add_path_constraint(edge, constraint):
 def edge_change_loop_constraint(edge, constraint):
     edge[1]['label'].pop()
     edge[1]['label'].append(constraint)
-
-    # edge_split = edge[1]['label'].split('Path Constraint:\n')
-    # pc = edge_split[1]
-    # pc_list = json.loads(pc)
-    # pc_list.pop()
-    # pc_list.append(str(constraint))
-    # edge[1]['label'] = 'Path Constraint:\n' + json.dumps(pc_list)
     return edge
 
 

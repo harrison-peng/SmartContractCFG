@@ -1,5 +1,4 @@
 from z3 import *
-from global_constants import *
 import asm_state_simulation
 
 

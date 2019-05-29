@@ -18,8 +18,6 @@ def attack_synthesis(path, nodes, m):
         for node in nodes:
             if node['addr'] == addr:
                 ins_list = node['ins']
-                # NOTE: remove 'TAG' in label ([0, 1])
-                # ins_list = label.split('\n')[2:]
 
                 for ins in ins_list:
                     ins_set = ins.split(': ')
