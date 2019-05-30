@@ -3,17 +3,8 @@ from subprocess import call
 
 
 def source_code_to_opcodes(file_name):
-    print(file_name)
     contract_name = os.path.basename(file_name).split('.')[0]
-
-    try:
-        print('\n[INFO] Setup the opcodes_raw and opcodes directory.')
-        call(['rm', '-rf', './opcodes_raw'])
-        call(['rm', '-rf', './opcodes/%s' % contract_name])
-        call(['mkdir', './opcodes_raw'])
-        call(['mkdir', './opcodes/%s' % contract_name])
-    except Exception as ex:
-        print('Error: ', ex)
+    set_up_dir(contract_name)
 
     try:
         print('\n[INFO] Compiling source code to opcodes.')
@@ -64,5 +55,43 @@ def source_code_to_opcodes(file_name):
 
             with open('./opcodes/%s/%s' % (contract_name, file), 'w') as f:
                 f.write(code_after)
+    except Exception as ex:
+        print('Error:', ex)
+
+
+def bytecode_to_opcodes(file_name):
+    contract_name = os.path.basename(file_name).split('.')[0]
+    set_up_dir(contract_name)
+
+    try:
+        print('\n[INFO] Compiling bytecode to opcodes.')
+        call(['evmasm', '-d', '-i', file_name, '-o', './opcodes_raw/%s.opcode' % contract_name])
+
+        code_after = ''
+        with open('./opcodes_raw/%s.opcode' % contract_name, 'r') as f:
+            for line in f:
+                pc = line.split(': ')[0]
+                ins = line.split(': ')[1]
+                int_pc = int(pc, 16)
+                zero_num = 6 - len(str(int_pc))
+                code_after += '0' * zero_num + str(int_pc) + ': ' + ins
+
+        # NOTE: remove last '\n'
+        code_after = code_after[:-1] if code_after.endswith('\n') else code_after
+
+        with open('./opcodes/%s/%s.opcode' % (contract_name, contract_name), 'w') as f:
+            f.write(code_after)
+
+    except Exception as ex:
+        print('Error:', ex)
+
+
+def set_up_dir(contract_name):
+    try:
+        print('\n[INFO] Setup the opcodes_raw and opcodes directory.')
+        call(['rm', '-rf', './opcodes_raw'])
+        call(['rm', '-rf', './opcodes/%s' % contract_name])
+        call(['mkdir', './opcodes_raw'])
+        call(['mkdir', './opcodes/%s' % contract_name])
     except Exception as ex:
         print('Error: ', ex)

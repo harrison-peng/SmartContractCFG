@@ -86,6 +86,7 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
 
                 return
             elif s[0] == 'JUMPI':
+                # print('[JUMPI]:', pc, stack)
                 node_content['ins'].append(line)
 
                 if not is_node_exist(curr_addr):
