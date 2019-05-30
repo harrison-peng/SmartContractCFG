@@ -43,7 +43,7 @@ def loop_detection(ins_dict, prev_ins_dict):
                 if f_1 == s_2 or f_2 == s_1:
                     f_2, s_2 = s_2, f_2
 
-                if f_1.num_args() == f_2.num_args() and s_1.num_args() == s_2.num_args():
+                if f_1.num_args() == f_2.num_args() or s_1.num_args() == s_2.num_args():
                     if f_1 == f_2:
                         if isinstance(s_1, z3.z3.BitVecNumRef):
                             s_1 = s_1.as_long()

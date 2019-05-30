@@ -43,6 +43,7 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
             #             f.write('%s: %s\n' % (var, info['ans'][var]))
 
             f.write('\n\n[Gas]: %s\n\n' % info['gas'])
+            f.write('[Real Gas]: %s\n' % info['real gas'])
             f.write('=' * 90)
             f.write('\n\n')
 

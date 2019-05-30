@@ -108,3 +108,18 @@ def set_same_var(v1, v2):
 
 def get_same_var(var):
     return SAME_VAR_TABLE[var]
+
+
+def is_var_exist(des):
+    global VAR_TABLE
+    if des in VAR_TABLE.values():
+        return True
+    else:
+        return False
+
+
+def get_var_table_by_des(des):
+    global VAR_TABLE
+    for key, val in VAR_TABLE.items():
+        if des == val:
+            return key

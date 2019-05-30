@@ -71,10 +71,10 @@ def opcodes_analysis(contract_name):
             print('[INFO] CFG edge count = ', edges_size)
             print('[INFO] Total instructions: ', ins_size, '\n')
 
-            # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
-            # graph.create_graph_new(nodes, edges, contract_name, file_name)
-            # max_gas = conformation(nodes)
-            # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
+            nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
+            graph.create_graph_new(nodes, edges, contract_name, file_name)
+            max_gas = conformation(nodes)
+            result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
 
 
 def conformation(nodes):
@@ -85,6 +85,7 @@ def conformation(nodes):
         model = path['ans']
         tags = path['path']
         gas = attack_synthesis.attack_synthesis(tags, nodes, model)
+        path['real gas'] = gas
         gas_list.append(gas)
     if gas_list:
         return max(gas_list)
