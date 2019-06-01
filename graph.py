@@ -10,7 +10,7 @@ def graph_detail(nodes, edges):
     return len(nodes), len(edges), count
 
 
-def create_graph(n, e, dir_name, row_id):
+def create_graph_old(n, e, dir_name, row_id):
     digraph = functools.partial(gv.Digraph, format='svg')
     g = add_edges(add_nodes(digraph(), n), e)
     filename = 'img/%s/%s' % (dir_name, row_id)
@@ -18,7 +18,7 @@ def create_graph(n, e, dir_name, row_id):
     return g
 
 
-def create_graph_new(nodes, edges, dir_name, row_id):
+def create_graph(nodes, edges, dir_name, row_id):
     cfg_nodes = list()
     cfg_edges = list()
     for node in nodes:
@@ -30,12 +30,14 @@ def create_graph_new(nodes, edges, dir_name, row_id):
         if node['gas'] is not None:
             content += '\nGAS:\n%s\n' % str(node['gas'])
         if node['state']:
-            content += '\nSTATE:\n%s' % node['state']
-        content = content\
-            .replace("'Stack", "\n'Stack")\
-            .replace("'Memory", "\n'Memory")\
-            .replace("'Storage", "\n'Storage")\
-            .replace('}},', '}},\n')
+            state_content = '\nSTATE:\n%s' % node['state']
+            state_content = state_content \
+                .replace("'Stack", "\n'Stack") \
+                .replace("'Memory", "\n'Memory") \
+                .replace("'Storage", "\n'Storage") \
+                .replace('}},', '}},\n')
+
+            content += state_content
 
         if node['ins'][-1].split(' ')[1] in ['STOP', 'REVERT', 'INVALID', 'RETURN']:
             cfg_nodes.append((str(node['addr']), {'label': content, 'shape': 'box', 'color': 'red'}))

@@ -5,14 +5,70 @@ from z3_func import *
 from gas_price import gas_table
 
 model = None
+loop_info = dict()
 
 
 def attack_synthesis(path, nodes, m):
-    global  model
+    global model
+    global loop_info
 
     model = m
     state = {'Stack': {}, 'Memory': {}, 'Storage': {}}
     gas = 0
+    path_idx = 0
+
+    loop_addr = set([addr for addr in path if path.count(addr) > 1])
+    for addr in loop_addr:
+        idx_1 = path.index(addr)
+        idx_2 = path.index(addr, idx_1 + 1)
+        loop_info[addr] = {'index': [idx_1, idx_2], 'path': path[idx_1 + 1:idx_2 + 1]}
+
+    while path_idx < len(path):
+        addr = path[path_idx]
+        for node in nodes:
+            if node['addr'] == addr:
+                ins_list = node['ins']
+
+                for ins in ins_list:
+                    ins_set = ins.split(': ')
+                    line = ins_set[0]
+                    opcode = ins_set[1]
+
+                    state, ins_gas, pc, jump_addr = ins_sim(state, opcode, line)
+                    gas += ins_gas
+
+                    if ATTACK_SYNTHESIS_EXECUTE_LOOP:
+                        # NOTE: EXECUTE LOOP
+                        if opcode == 'JUMPI' and addr in loop_info:
+                            true_addr = jump_addr
+                            count_loop = 0
+                            if path[path_idx + 1] == true_addr:
+                                # NOTE: loop is in true direction
+                                pc = 1
+                                while pc == 1:
+                                    count_loop += 1
+                                    state, gas, pc = loop_execution(state, nodes, gas, addr)
+                            else:
+                                # NOTE: loop is in false direction
+                                pc = 0
+                                while pc == 0:
+                                    count_loop += 1
+                                    state, gas, pc = loop_execution(state, nodes, gas, addr)
+                            path_idx = loop_info[addr]['index'][1]
+
+                    if opcode in \
+                            ['STOP', 'RETURN', 'REVERT', 'INVALID', 'JUMP', 'JUMP [in]', 'JUMP [out]', 'JUMPI']:
+                        break
+                path_idx += 1
+                break
+    print('[INFO] Attack Synthesis Gas:', gas)
+    return int(gas)
+
+
+def loop_execution(state, nodes, gas, loop_addr):
+    global loop_info
+    path = loop_info[loop_addr]['path']
+    pc = None
 
     for addr in path:
         for node in nodes:
@@ -24,20 +80,14 @@ def attack_synthesis(path, nodes, m):
                     line = ins_set[0]
                     opcode = ins_set[1]
 
-                    if opcode.split(' ')[0] == 'tag':
-                        pass
-                    elif line == 'Stack Sum':
-                        break
-                    else:
-                        state, ins_gas = ins_sim(state, opcode, line)
-                        gas += ins_gas
+                    state, ins_gas, pc, jump_addr = ins_sim(state, opcode, line)
+                    gas += ins_gas
 
-                        if opcode in \
-                                ['STOP', 'RETURN', 'REVERT', 'INVALID', 'JUMP', 'JUMP [in]', 'JUMP [out]', 'JUMPI']:
-                            break
+                    if opcode in \
+                            ['STOP', 'RETURN', 'REVERT', 'INVALID', 'JUMP', 'JUMP [in]', 'JUMP [out]', 'JUMPI']:
+                        break
                 break
-    print('[INFO] Attack Synthesis Gas:', gas)
-    return int(gas)
+    return state, gas, pc
 
 
 def ins_sim(state, instruction, line):
@@ -49,6 +99,8 @@ def ins_sim(state, instruction, line):
     instruction_set = instruction.split(' ')
     opcode = instruction_set[0]
     gas = 0
+    pc = None
+    jump_addr = None
 
     for key, val in stack.items():
         if isinstance(val, z3.z3.BitVecNumRef):
@@ -596,14 +648,14 @@ def ins_sim(state, instruction, line):
         storage[str(address)] = value
     elif opcode == 'JUMP':
         row = len(stack) - 1
-        next_tag = stack.pop(str(row))
+        jump_addr = stack.pop(str(row))
 
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'JUMPI':
         row = len(stack) - 1
-        next_tag = stack.pop(str(row))
-        constraint = stack.pop(str(row - 1))
+        jump_addr = stack.pop(str(row))
+        pc = stack.pop(str(row - 1))
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -779,19 +831,20 @@ def ins_sim(state, instruction, line):
         gas = 5000 if val <= 0 else 30000
     else:
         raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
-    return state, gas
+    return state, gas, pc, jump_addr
 
 
 def get_model_var(var):
     global model
 
-    model_vars = model.decls()
-    val = None
-    for v in model_vars:
-        if str(v) == var:
-            val = model[v]
-    if val is None:
-        # print('[MODEL]:', var, model_vars)
-        return get_model_var(get_same_var(var))
-        # raise ValueError('No Model Variable')
+    if SET_MODEL_VALUE and var in MODEL_VALUE:
+        val = MODEL_VALUE[var]
+    else:
+        model_vars = model.decls()
+        val = None
+        for v in model_vars:
+            if str(v) == var:
+                val = model[v]
+        if val is None:
+            return get_model_var(get_same_var(var))
     return val

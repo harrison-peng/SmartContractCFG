@@ -64,7 +64,7 @@ def opcodes_analysis(contract_name):
         if opcodes != '':
             global_vars.init()
             nodes, edges = opcodes_cfg_builder.cfg_construction(opcodes, file_name)
-            graph.create_graph_new(nodes, edges, contract_name, file_name)
+            graph.create_graph(nodes, edges, contract_name, file_name)
 
             nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
             print('[INFO] CFG node count = ', nodes_size)
@@ -72,7 +72,7 @@ def opcodes_analysis(contract_name):
             print('[INFO] Total instructions: ', ins_size, '\n')
 
             nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
-            graph.create_graph_new(nodes, edges, contract_name, file_name)
+            graph.create_graph(nodes, edges, contract_name, file_name)
             max_gas = conformation(nodes)
             result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
 

@@ -34,13 +34,6 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
             f.write('\n\n')
             f.write('[Model]:\n')
             f.write(str(info['ans']))
-            # pc_var = get_solver_var(info['path_constraints'])
-            # for var in pc_var:
-            #     if info['ans'][var] is not None:
-            #         if isinstance(info['ans'][var], int):
-            #             f.write('%s: %s\n' % (var, hex(info['ans'][var])))
-            #         else:
-            #             f.write('%s: %s\n' % (var, info['ans'][var]))
 
             f.write('\n\n[Gas]: %s\n\n' % info['gas'])
             f.write('[Real Gas]: %s\n' % info['real gas'])
