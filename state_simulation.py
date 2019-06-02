@@ -59,6 +59,9 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         row = len(stack)
         stack[str(row)] = new_var
 
+        if not var_in_var_table(new_var_name):
+            add_var_table(new_var_name, 'block.timestamp')
+
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'ADD':
@@ -66,12 +69,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             row = len(stack) - 1
             first = stack.pop(str(row))
             second = stack.pop(str(row - 1))
-
-            # if isinstance(first, str):
-            #     first = to_z3_symbolic(first)
-            # if isinstance(second, str):
-            #     second = to_z3_symbolic(second)
-            # computed = first + second
 
             if isinstance(first, int) and first == 0:
                 computed = second
@@ -1055,9 +1052,15 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         gas = gas_table[opcode]
     elif opcode == 'NUMBER':
         # NOTE: information from block header
-        # TODO: handle it
+        new_var_name = get_gen().gen_block_number()
+        new_var = BitVec(new_var_name, 256)
+        gas_constraint.append(add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
+
         row = len(stack)
-        stack[str(row)] = to_z3_symbolic('BLOCKNUMBER')
+        stack[str(row)] = new_var
+
+        if not var_in_var_table(new_var_name):
+            add_var_table(new_var_name, 'block.number')
 
         # NOTE: GAS
         gas = gas_table[opcode]
@@ -1082,7 +1085,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             value = memory.get(address, None)
 
             if value is None:
-                value = If(memory == list(memory.keys())[0], memory[list(memory.keys())[0]], 0)
+                value = If(memory == list(memory.keys())[0], memory[list(memory.keys())[0]], BitVecVal(0, 256))
                 if len(memory) > 1:
                     tem_val = value
                     for key, val in memory.items():
@@ -1174,7 +1177,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
 
                 row = len(stack)
                 if value is None:
-                    value = If(address == list(storage.keys())[0], storage[list(storage.keys())[0]], 0)
+                    value = If(address == list(storage.keys())[0], storage[list(storage.keys())[0]], BitVecVal(0, 256))
                     if len(storage) > 1:
                         tem_val = value
                         for key, val in storage.items():
@@ -1473,11 +1476,14 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             row = len(stack) - 1
             block_num = stack.pop(str(row))
 
-            new_var_name = get_gen().gen_hash_var(block_num, line)
+            new_var_name = get_gen().gen_hash_var(line)
             new_var = BitVec(new_var_name, 256)
             gas_constraint.append(add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
             row = len(stack)
             stack[str(row)] = new_var
+
+            if not var_in_var_table(new_var_name):
+                add_var_table(new_var_name, ' block.blockHash(%s)' % block_num)
 
             # NOTE: GAS
             gas = gas_table[opcode]

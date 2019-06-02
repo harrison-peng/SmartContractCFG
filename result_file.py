@@ -12,7 +12,10 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
         f.write('Total nodes: %s\n' % nodes_size)
         f.write('Total edges: %s\n' % edges_size)
         f.write('Total path: %s\n' % global_vars.get_total_path_count())
-        f.write('Reachable path: %s\n' % global_vars.get_sat_path_count())
+        f.write('Constant Gas Path: %s\n' % global_vars.get_constant_path_count())
+        f.write('Bounded Gas Path: %s\n' % global_vars.get_bounded_path_count())
+        f.write('Unbounded Gas Path: %s\n' % global_vars.get_unbounded_path_count())
+        f.write('Vulnerability path: %s\n' % global_vars.get_sat_path_count())
         f.write('Max Gas Consumption: %s\n' % max_gas)
         sep_line = '-|-' * 30
         f.write('%s\n' % sep_line)

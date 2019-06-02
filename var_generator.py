@@ -70,11 +70,8 @@ class Generator:
         self.count_time += 1
         return 'It_%s' % line
 
-    def gen_hash_var(self, num, line):
-        if isinstance(num, int):
-            return 'Ih_%s_%s' % (num, line)
-        else:
-            return 'Ih_%s' % line
+    def gen_hash_var(self, line):
+        return 'Ih_%s' % line
 
     def gen_loop_var(self, tag):
         return 'loop_%s' % tag
@@ -88,6 +85,9 @@ class Generator:
 
     def gen_call_success(self, line):
         return 'CallSuccess_%s' % line
+
+    def gen_block_number(self):
+        return 'Ibn'
 
 
 class SolverUnsatCore:

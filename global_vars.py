@@ -14,6 +14,15 @@ def init():
     global TOTAL_PATH_COUNT
     TOTAL_PATH_COUNT = 0
 
+    global CONSTANT_PATH_COUNT
+    CONSTANT_PATH_COUNT = 0
+
+    global BOUNDED_PATH_COUNT
+    BOUNDED_PATH_COUNT = 0
+
+    global UNBOUNDED_PATH_COUNT
+    UNBOUNDED_PATH_COUNT = 0
+
     global SAT_PATH_COUNT
     SAT_PATH_COUNT = 0
 
@@ -71,6 +80,33 @@ def add_total_path_count():
 
 def get_total_path_count():
     return TOTAL_PATH_COUNT
+
+
+def set_constant_path_count(count):
+    global CONSTANT_PATH_COUNT
+    CONSTANT_PATH_COUNT = count
+
+
+def get_constant_path_count():
+    return CONSTANT_PATH_COUNT
+
+
+def set_bounded_path_count(count):
+    global BOUNDED_PATH_COUNT
+    BOUNDED_PATH_COUNT = count
+
+
+def get_bounded_path_count():
+    return BOUNDED_PATH_COUNT
+
+
+def set_unbounded_path_count(count):
+    global UNBOUNDED_PATH_COUNT
+    UNBOUNDED_PATH_COUNT = count
+
+
+def get_unbounded_path_count():
+    return UNBOUNDED_PATH_COUNT
 
 
 def add_sat_path_count():

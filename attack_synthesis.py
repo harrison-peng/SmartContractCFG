@@ -586,7 +586,8 @@ def ins_sim(state, instruction, line):
         # NOTE: GAS
         gas = gas_table[opcode]
     elif opcode == 'NUMBER':
-        val = get_model_var('BLOCKNUMBER')
+        var = get_gen().gen_block_number()
+        val = get_model_var(var)
 
         row = len(stack)
         stack[str(row)] = val
@@ -813,7 +814,7 @@ def ins_sim(state, instruction, line):
         row = len(stack) - 1
         block_num = stack.pop(str(row))
 
-        var = get_gen().gen_hash_var(block_num, line)
+        var = get_gen().gen_hash_var(line)
         val = get_model_var(var)
 
         row = len(stack)

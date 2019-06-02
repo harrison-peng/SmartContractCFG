@@ -51,6 +51,9 @@ def symbolic_simulation(nodes_in, edges_in):
     loop_condition = dict()
     symbolic_implement(state, gas, path_cons, gas_cons,
                        0, [], count_loop, loop_condition)
+    global_vars.set_constant_path_count(constant_path)
+    global_vars.set_bounded_path_count(bounded_path)
+    global_vars.set_unbounded_path_count(unbounded_path)
     print('\n[INFO] Find %s path: %s constant path, %s bounded path, and %s unbounded path.' %
           (count_path, constant_path, bounded_path, unbounded_path))
     print('[INFO] Vulnerability Path:', global_vars.get_sat_path_count())
@@ -351,7 +354,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                             else:
                                 bounded_path += 1
 
-                            gas_cons = global_vars.get_gas_limit() < gas
+                            gas_cons = gas >= global_vars.get_gas_limit()
                             path_cons.add(gas_cons)
                             if path_cons.check() == sat:
                                 print('[INFO] Path Constraints: sat')
