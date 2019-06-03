@@ -30,8 +30,10 @@ def create_graph(nodes, edges, dir_name, row_id):
         if node['gas'] is not None:
             content += '\nGAS:\n%s\n' % str(node['gas'])
         if node['state']:
-            state_content = '\nSTATE:\n%s' % node['state']
+            state_content = '\nSTATE:\n%s' % str(node['state'])
             state_content = state_content \
+                .replace(' ', '')\
+                .replace('\n', '')\
                 .replace("'Stack", "\n'Stack") \
                 .replace("'Memory", "\n'Memory") \
                 .replace("'Storage", "\n'Storage") \
@@ -47,12 +49,15 @@ def create_graph(nodes, edges, dir_name, row_id):
     for edge in edges:
         if edge[1]['label']:
             content = 'Path Constraint:\n['
-
-            for constraint in edge[1]['label']:
-                content += '%s,\n' % constraint
-            content = content[:-2] + ']'
+            for idx, constraint in enumerate(edge[1]['label']):
+                cons_str = str(constraint).replace('\n', '').replace(' ', '')
+                if idx == len(edge[1]['label']) - 1:
+                    content += '%s]' % cons_str
+                else:
+                    content += '%s,\n' % cons_str
         else:
             content = ''
+        print('[content]:', content)
         cfg_edges.append((edge[0], {'label': content, 'color': edge[1]['color']}))
 
     digraph = functools.partial(gv.Digraph, format='svg')

@@ -85,7 +85,7 @@ def loop_detection(ins_dict, prev_ins_dict):
                     raise ValueError('LOOP DETECTION ERROR - 3')
             else:
                 raise ValueError('LOOP DETECTION ERROR - 2')
-            return True, val
+            return val
         else:
             val['ins'] = ins
             if is_expr(first) and is_expr(prev_first) and first == prev_first:
@@ -94,9 +94,10 @@ def loop_detection(ins_dict, prev_ins_dict):
                 val['diff'] = first - prev_first
             else:
                 raise ValueError('LOOP DETECTION ERROR - 1')
-        return True, val
+        return val
     else:
-        return False, val
+        print(ins_dict, prev_ins_dict)
+        raise ValueError('LOOP DETECTION ERROR - 0')
 
 
 def handle_loop_condition(prev_jumpi_ins, loop_condition, addr, cons_val, new_var):
@@ -124,10 +125,10 @@ def handle_loop_condition(prev_jumpi_ins, loop_condition, addr, cons_val, new_va
             print('[LOOp ERROR]:', cons_val)
             raise ValueError('LOOP INS ERROR - ISZERO')
     elif prev_jumpi_ins['ins'] in ['LT', 'EQ', 'GT']:
-        if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition[addr]['s1']:
+        if is_expr(prev_jumpi_ins['s1']) and prev_jumpi_ins['s1'] == loop_condition['s1']:
             sym_var = prev_jumpi_ins['s1']
             var_position = 1
-        elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition[addr]['s2']:
+        elif is_expr(prev_jumpi_ins['s2']) and prev_jumpi_ins['s2'] == loop_condition['s2']:
             sym_var = prev_jumpi_ins['s2']
             var_position = 2
         else:

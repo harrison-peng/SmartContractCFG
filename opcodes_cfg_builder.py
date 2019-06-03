@@ -52,8 +52,14 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
         code_set = line.rstrip().split(' ')
         pc = int(code_set[0].replace(':', ''))
         s = code_set[1:]
-        # if curr_addr in [3206]:
-        #     print(pc, curr_addr, stack)
+
+        # if curr_addr in [6086]:
+        #     print(pc, curr_addr, s[0], stack)
+        #     print(path, '\n')
+
+        jump_addr = None
+        if exec_mode:
+            stack, jump_addr = ins_sim(stack, s, pc)
 
         if s[0] == '':
             continue
@@ -77,23 +83,20 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                     add_node(curr_addr, node_content)
 
                 if exec_mode:
-                    jump_addr = stack.pop()
                     jump_idx = addr_line_dict[jump_addr]
                     if not is_edge_exist(curr_addr, jump_addr):
                         add_edge(curr_addr, jump_addr)
-                    if jump_addr not in path:
-                        cfg_implement(opcode_list, jump_idx, jump_addr, stack, path, exec_mode)
+                    cfg_implement(opcode_list, jump_idx, jump_addr, list(stack), path, exec_mode)
 
                 return
             elif s[0] == 'JUMPI':
-                # print('[JUMPI]:', pc, stack)
                 node_content['ins'].append(line)
 
                 if not is_node_exist(curr_addr):
                     add_node(curr_addr, node_content)
 
                 if exec_mode:
-                    jump_addr_true = stack.pop()
+                    jump_addr_true = jump_addr
                     jump_idx_true = addr_line_dict[jump_addr_true]
                     jump_addr_false = pc + 1
                     jump_idx_false = index + 1
@@ -124,10 +127,10 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                 # NOTE: node content is empty -> from JUMPI
                 curr_addr = pc
                 path.append(pc)
-            if s[0] == 'PUSH2':
-                push_addr = int(s[1], 16)
-                if push_addr in addr_line_dict:
-                    stack.append(push_addr)
+            # if s[0] == 'PUSH2':
+            #     push_addr = int(s[1], 16)
+            #     if push_addr in addr_line_dict:
+            #         stack.append(push_addr)
             node_content['ins'].append(line)
 
 
@@ -170,3 +173,231 @@ def add_edge(from_addr, to_addr):
 
 def init_node_content():
     return {'addr': None, 'ins': list(), 'gas': None, 'state': list()}
+
+
+def ins_sim(stack, instruction, line):
+    opcode = instruction[0]
+    addr = None
+
+    if opcode in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
+        pass
+    elif opcode == 'TIMESTAMP':
+        stack.append('TIMESTAMP')
+    elif opcode == 'ADD':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('ADD')
+    elif opcode == 'MUL':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('MUL')
+    elif opcode == 'SUB':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SUB')
+    elif opcode == 'DIV':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('DIV')
+    elif opcode == 'SDIV':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SDIV')
+    elif opcode == 'MOD':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('MOD')
+    elif opcode == 'SMOD':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SMOD')
+    elif opcode == 'ADDMOD':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('ADDMOD')
+    elif opcode == 'MULMOD':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('MULMOD')
+    elif opcode == 'EXP':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('EXP')
+    elif opcode == 'SIGNEXTEND':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SIGNEXTEBD')
+    elif opcode == 'LT':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('LT')
+    elif opcode == 'GT':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('GT')
+    elif opcode == 'SLT':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SLT')
+    elif opcode == 'SGT':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SGT')
+    elif opcode == 'EQ':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('EQ')
+    elif opcode == 'ISZERO':
+        first = stack.pop()
+        stack.append('ISZERO')
+    elif opcode == 'AND':
+        first = stack.pop()
+        second = stack.pop()
+        if isinstance(first, int) and isinstance(second, int):
+            stack.append(first & second)
+        else:
+            stack.append('AND')
+    elif opcode == 'OR':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('OR')
+    elif opcode == 'XOR':
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('XOR')
+    elif opcode == 'NOT':
+        first = stack.pop()
+        stack.append('NOT')
+    elif opcode == 'BYTE':
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+        stack.append('BYTE')
+    elif opcode in ['SHA3', 'KECCAK256']:
+        first = stack.pop()
+        second = stack.pop()
+        stack.append('SHA3')
+    elif opcode == 'ADDRESS':
+        stack.append('ADDRESS')
+    elif opcode == 'BALANCE':
+        first = stack.pop()
+        stack.append('BALANCE')
+    elif opcode == 'CALLER':
+        stack.append('CALLER')
+    elif opcode == "ORIGIN":
+        stack.append('ORIGIN')
+    elif opcode == 'CALLVALUE':
+        stack.append('CALLVALUE')
+    elif opcode == 'CALLDATALOAD':
+        first = stack.pop()
+        stack.append('CALLDATALOAD')
+    elif opcode == 'CALLDATASIZE':
+        stack.append('CALLDATASIZE')
+    elif opcode == "CALLDATACOPY":
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+    elif opcode == 'CODESIZE':
+        stack.append('CODESIZE')
+    elif opcode == 'CODECOPY':
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+    elif opcode == 'GASPRICE':
+        stack.append('GASPRICE')
+    elif opcode == 'RETURNDATACOPY':
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+    elif opcode == 'RETURNDATASIZE':
+        stack.append('RETURNDATASIZE')
+    elif opcode == 'NUMBER':
+        stack.append('NUMBER')
+    elif opcode == 'POP':
+        stack.pop()
+    elif opcode == 'MLOAD':
+        first = stack.pop()
+        stack.append('MLOAD')
+    elif opcode == 'MSTORE':
+        first = stack.pop()
+        second = stack.pop()
+    elif opcode == 'SLOAD':
+        first = stack.pop()
+        stack.append('SLOAD')
+    elif opcode == 'SSTORE':
+        first = stack.pop()
+        second = stack.pop()
+    elif opcode == 'JUMP':
+        addr = stack.pop()
+    elif opcode == 'JUMPI':
+        addr = stack.pop()
+        second = stack.pop()
+    elif opcode == 'GAS':
+        stack.append('GAS')
+    elif opcode.startswith('PUSH', 0):
+        stack.append(int(instruction[1], 16))
+    elif opcode.startswith('DUP', 0):
+        idx = len(stack) - int(opcode[3:], 10)
+        if idx < 0:
+            stack.append('DUP')
+        else:
+            stack.append(stack[idx])
+    elif opcode.startswith('SWAP', 0):
+        idx_1 = len(stack) - 1
+        idx_2 = len(stack) - 1 - int(opcode[4:], 10)
+        if idx_2 < 0:
+            stack.append('SWAP')
+        else:
+            stack[idx_1], stack[idx_2] = stack[idx_2], stack[idx_1]
+    elif opcode in ('LOG0', 'LOG1', 'LOG2', 'LOG3', 'LOG4'):
+        first = stack.pop()
+        second = stack.pop()
+        for _ in range(int(opcode[3:])):
+            stack.pop()
+    elif opcode == 'CALL':
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+        fourth = stack.pop()
+        fifth = stack.pop()
+        sixth = stack.pop()
+        seventh = stack.pop()
+        stack.append('CALL')
+    elif opcode == 'CALLCODE':
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+        fourth = stack.pop()
+        fifth = stack.pop()
+        sixth = stack.pop()
+        seventh = stack.pop()
+        stack.append('CALLCODE')
+    elif opcode in ['DELEGATECALL', 'STATICCALL']:
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+        fourth = stack.pop()
+        fifth = stack.pop()
+        sixth = stack.pop()
+        stack.append('DELEGATECALL')
+    elif opcode == 'RETURN':
+        first = stack.pop()
+        second = stack.pop()
+    elif opcode == 'CREATE':
+        first = stack.pop()
+        second = stack.pop()
+        third = stack.pop()
+        stack.append('CREATE')
+    elif opcode == 'EXTCODESIZE':
+        first = stack.pop()
+        stack.append('EXTCODESIZE')
+    elif opcode == 'BLOCKHASH':
+        first = stack.pop()
+        stack.append('BLOCKHASH')
+    elif opcode == 'SELFDESTRUCT':
+        first = stack.pop()
+    else:
+        raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
+    if addr and not isinstance(addr, int):
+        raise ValueError('ERROR ADDRESS:', line, addr, stack)
+    return stack, addr

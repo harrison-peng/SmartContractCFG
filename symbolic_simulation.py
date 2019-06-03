@@ -5,6 +5,7 @@ import state_simulation as state_simulation
 import copy
 import global_vars
 import loop_detection
+import json
 
 count_sim = 0
 storage = []
@@ -96,9 +97,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if addr in [103]:
+                # if addr in [891]:
                 #     print('[INS]:', ins)
-                #    print('[STACK]:', addr, ins, state['Stack'])
+                #     print('[STACK]:', addr, ins, state['Stack'])
                 #     print('[MEM]:', state['Memory'])
                 #     print('[STO]:', state['Storage'])
                 #     print('[GAS]:', gas, '\n')
@@ -201,28 +202,40 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     node, loop_gas = node_add_state(node, new_state, path_addr, addr, gas)
 
                     # NOTE: Loop Detection
+                    if addr not in count_loop.keys():
+                        count_loop[addr] = 0
+                    count_loop[addr] += 1
+                    has_loop = False
+                    cons_val = None
                     if LOOP_DETECTION:
                         if addr not in loop_condition.keys():
-                            loop_condition[addr] = None
-                        has_loop, cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[addr])
+                            loop_condition[addr] = {'gas': None, 'cons': None}
+
+                        # NOTE: Store gas of first time in the loop
+                        if count_loop[addr] == 1:
+                            loop_condition[addr]['gas'] = gas
+
+                        # NOTE: detect the loop value in last two times
+                        if is_expr(path_constraint) and count_loop[addr] == LOOP_ITERATIONS:
+                            cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[addr]['cons'])
+                            has_loop = True
                     else:
-                        if addr not in count_loop.keys():
-                            count_loop[addr] = 0
                         if count_loop[addr] == LOOP_ITERATIONS:
                             return
-                        else:
-                            count_loop[addr] += 1
-                            has_loop = False
-                            cons_val = None
+
                     if has_loop:
                         new_var = BitVec(global_vars.get_gen().gen_loop_var(addr), 256)
                         gas_cons.add(state_simulation.add_gas_constraint(new_var, UNSIGNED_BOUND_NUMBER))
-                        loop_pc = loop_detection.handle_loop_condition(prev_jumpi_ins, loop_condition, addr,
-                                                                       cons_val, new_var)
+                        loop_pc = loop_detection.handle_loop_condition(prev_jumpi_ins, loop_condition[addr]['cons'],
+                                                                       addr, cons_val, new_var)
                         loop_gas_var = simplify(loop_gas * BV2Int(new_var))
-                        gas += loop_gas_var
+                        gas = loop_condition[addr]['gas'] + loop_gas_var
+
+                        addr_idx_1 = path_addr.index(addr)
+                        addr_idx_2 = path_addr.index(addr, addr_idx_1 + 1)
+                        path_addr = path_addr[:addr_idx_2 + 1]
                     else:
-                        loop_condition[addr] = prev_jumpi_ins
+                        loop_condition[addr]['cons'] = prev_jumpi_ins
 
                     # NOTE: Find next jump addr and add constraint to the edge
                     for idx, edge in enumerate(edges):
@@ -243,10 +256,9 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                     edges[idx] = edge_add_path_constraint(edge, constraint)
                                 else:
                                     constraint = simplify(loop_pc == 1)
-                                    # print('PCPC:', loop_pc, constraint)
                                     path_cons_true.add(constraint)
                                     edges[idx] = edge_change_loop_constraint(edge, constraint)
-                            else:
+                            elif edge[0][1] == str(next_false_addr):
                                 if loop_pc is None:
                                     if pop_pc is not None:
                                         path_cons_false.add(pop_pc)
@@ -264,6 +276,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                     constraint = simplify(loop_pc == 0)
                                     path_cons_false.add(constraint)
                                     edges[idx] = edge_change_loop_constraint(edge, constraint)
+                            else:
+                                raise ValueError('Edge Error:', edge)
 
                     # NOTE: Determine run the path or not
                     if isinstance(path_constraint, int):
@@ -306,8 +320,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     loop_condition_true = dict()
                     loop_condition_false = dict()
                     for idx, val in loop_condition.items():
-                        loop_condition_true[idx] = val
-                        loop_condition_false[idx] = val
+                        loop_condition_true[idx] = {'gas': val['gas'], 'cons': val['cons']}
+                        loop_condition_false[idx] = {'gas': val['gas'], 'cons': val['cons']}
 
                     # NOTE: Execute the path
                     if has_loop:
@@ -341,12 +355,15 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     count_path += 1
                     global_vars.add_total_path_count()
 
+                    constraint = Solver()
                     for gc in gas_cons.assertions():
-                        path_cons.add(gc)
+                        constraint.add(simplify(gc))
+                    for pc in path_cons.assertions():
+                        constraint.add(simplify(pc))
                     # print('[INFO] Checking Satisfiability of Path Constraints on addr %s with %s pc...'
                     #       % (addr, len(path_cons.assertions())))
 
-                    if path_cons.check() == sat:
+                    if constraint.check() == sat:
                         # print(addr)
                         if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
                             if 'loop' in str(gas):
@@ -354,23 +371,23 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                             else:
                                 bounded_path += 1
 
-                            gas_cons = gas >= global_vars.get_gas_limit()
-                            path_cons.add(gas_cons)
-                            if path_cons.check() == sat:
+                            gc = gas >= global_vars.get_gas_limit()
+                            constraint.add(simplify(gc))
+                            if constraint.check() == sat:
                                 print('[INFO] Path Constraints: sat')
                                 global_vars.add_sat_path_count()
-                                ans = path_cons.model()
-                                new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'path': path_addr}
+                                ans = constraint.model()
+                                new_pc_gas = {'path_constraints': constraint, 'ans': ans, 'gas': gas, 'path': path_addr}
                                 global_vars.add_pc_gas(new_pc_gas)
                         else:
                             constant_path += 1
                             if isinstance(gas, z3.z3.IntNumRef):
                                 gas = gas.as_long()
-                            if gas > global_vars.get_gas_limit() and path_cons.check() == sat:
+                            if gas > global_vars.get_gas_limit() and constraint.check() == sat:
                                 print('[INFO] Path Constraints: sat')
                                 global_vars.add_sat_path_count()
-                                ans = path_cons.model()
-                                new_pc_gas = {'path_constraints': path_cons, 'ans': ans, 'gas': gas, 'path': path_addr}
+                                ans = constraint.model()
+                                new_pc_gas = {'path_constraints': constraint, 'ans': ans, 'gas': gas, 'path': path_addr}
                                 global_vars.add_pc_gas(new_pc_gas)
 
                     return
@@ -438,7 +455,16 @@ def node_add_gas(node, gas):
 
 
 def edge_add_path_constraint(edge, constraint):
-    edge[1]['label'].append(constraint)
+    constraint = simplify(constraint) if is_expr(constraint) else constraint
+    constraint = str(constraint).replace('\n', '').replace(' ', '')
+    print(edge[1]['label'])
+    if constraint not in edge[1]['label'] and len(constraint) < 2000:
+        if len(edge[1]['label']) > 0 and len(constraint) > 20 and len(edge[1]['label'][-1]) > 20:
+            prefix_1 = constraint[:20]
+            prefix_2 = edge[1]['label'][-1][:20]
+            if prefix_1 == prefix_2:
+                edge[1]['label'].pop()
+        edge[1]['label'].append(constraint)
     color = edge[1]['color']
     constraint_false = not (isinstance(constraint, bool) and constraint is False)
     edge[1]['color'] = 'brown' if color == 'blue' and constraint_false else edge[1]['color']
@@ -446,8 +472,16 @@ def edge_add_path_constraint(edge, constraint):
 
 
 def edge_change_loop_constraint(edge, constraint):
-    edge[1]['label'].pop()
-    edge[1]['label'].append(constraint)
+    constraint = simplify(constraint) if is_expr(constraint) else constraint
+    constraint = str(constraint).replace('\n', '').replace(' ', '')
+    print(edge[1]['label'])
+    if len(edge[1]['label']) >= 4:
+        edge[1]['label'].pop()
+        edge[1]['label'].pop()
+        edge[1]['label'].pop()
+        edge[1]['label'].pop()
+    if constraint not in edge[1]['label']:
+        edge[1]['label'].append(constraint)
     return edge
 
 
