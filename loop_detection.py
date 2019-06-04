@@ -1,5 +1,4 @@
-from z3 import *
-import asm_state_simulation
+from z3_func import *
 
 
 def loop_detection(ins_dict, prev_ins_dict):
@@ -163,7 +162,7 @@ def handle_loop_condition(prev_jumpi_ins, loop_condition, addr, cons_val, new_va
 
 def unpack_if(expr):
     # print('[IF]:', expr, expr.decl())
-    expr = asm_state_simulation.numref_to_int(expr)
+    expr = numref_to_int(expr)
     if is_expr(expr) and str(expr.decl()) == 'If':
         # print('[IF-1]:', expr.arg(0))
         return unpack_if(expr.arg(0))

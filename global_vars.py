@@ -2,8 +2,11 @@ import var_generator
 
 
 def init():
-    global FINAL_PC_GAS
-    FINAL_PC_GAS = []
+    global FINAL_BOUNDED_PC_GAS
+    FINAL_BOUNDED_PC_GAS = []
+
+    global FINAL_UNBOUNDED_PC_GAS
+    FINAL_UNBOUNDED_PC_GAS = []
 
     global gen
     gen = var_generator.Generator()
@@ -35,6 +38,12 @@ def init():
     global UNSIGNED_BOUND_NUMBER
     UNSIGNED_BOUND_NUMBER = 2**256 - 1
 
+    global EXECUTED_BOUNDED_PATH
+    EXECUTED_BOUNDED_PATH = list()
+
+    global EXECUTED_UNBOUNDED_PATH
+    EXECUTED_UNBOUNDED_PATH = list()
+
 
 def init_generator():
     global gen
@@ -50,12 +59,25 @@ def get_gas_limit():
     return gas_limit
 
 
-def add_pc_gas(value):
-    FINAL_PC_GAS.append(value)
+def add_bounded_pc_gas(value):
+    FINAL_BOUNDED_PC_GAS.append(value)
 
 
-def get_pc_gas():
-    return FINAL_PC_GAS
+def get_bounded_pc_gas():
+    return FINAL_BOUNDED_PC_GAS
+
+
+def del_bounded_pc_gas(item):
+    global FINAL_BOUNDED_PC_GAS
+    FINAL_BOUNDED_PC_GAS.remove(item)
+
+
+def add_unbounded_pc_gas(value):
+    FINAL_UNBOUNDED_PC_GAS.append(value)
+
+
+def get_unbounded_pc_gas():
+    return FINAL_UNBOUNDED_PC_GAS
 
 
 def get_gen():
@@ -73,9 +95,9 @@ def get_final_gas():
     return FINAL_GAS_SUM
 
 
-def add_total_path_count():
+def set_total_path_count(val):
     global TOTAL_PATH_COUNT
-    TOTAL_PATH_COUNT += 1
+    TOTAL_PATH_COUNT = val
 
 
 def get_total_path_count():
@@ -109,9 +131,9 @@ def get_unbounded_path_count():
     return UNBOUNDED_PATH_COUNT
 
 
-def add_sat_path_count():
+def set_sat_path_count(val):
     global SAT_PATH_COUNT
-    SAT_PATH_COUNT += 1
+    SAT_PATH_COUNT  = val
 
 
 def get_sat_path_count():
@@ -159,3 +181,21 @@ def get_var_table_by_des(des):
     for key, val in VAR_TABLE.items():
         if des == val:
             return key
+
+
+def add_executed_bounded_path(path):
+    global EXECUTED_BOUNDED_PATH
+    EXECUTED_BOUNDED_PATH.append(path)
+
+
+def get_executed_bounded_path():
+    return EXECUTED_BOUNDED_PATH
+
+
+def add_executed_unbounded_path(path):
+    global EXECUTED_UNBOUNDED_PATH
+    EXECUTED_UNBOUNDED_PATH.append(path)
+
+
+def get_executed_unbounded_path():
+    return EXECUTED_UNBOUNDED_PATH

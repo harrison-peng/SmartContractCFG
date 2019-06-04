@@ -21,6 +21,7 @@ parsimonious==0.8.1
 pefile==2018.8.8
 psycopg2==2.7.6.1
 pycryptodome==3.7.0
+pyevmasm==0.2.0
 PyInstaller==3.4
 pyperclip==1.7.0
 pysha3==1.0.2

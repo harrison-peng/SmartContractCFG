@@ -5,7 +5,6 @@ import state_simulation as state_simulation
 import copy
 import global_vars
 import loop_detection
-import json
 
 count_sim = 0
 storage = []
@@ -52,9 +51,23 @@ def symbolic_simulation(nodes_in, edges_in):
     loop_condition = dict()
     symbolic_implement(state, gas, path_cons, gas_cons,
                        0, [], count_loop, loop_condition)
+
+    for up in global_vars.get_unbounded_pc_gas():
+        for bp in global_vars.get_bounded_pc_gas():
+            if up['path'] == bp['path']:
+                global_vars.del_bounded_pc_gas(bp)
+                count_path -= 1
+                if bp['type'] == 'bounded':
+                    bounded_path -= 1
+                else:
+                    constant_path -= 1
+                break
+
     global_vars.set_constant_path_count(constant_path)
     global_vars.set_bounded_path_count(bounded_path)
     global_vars.set_unbounded_path_count(unbounded_path)
+    global_vars.set_total_path_count(count_path)
+    global_vars.set_sat_path_count(len(global_vars.get_unbounded_pc_gas()) + len(global_vars.get_bounded_pc_gas()))
     print('\n[INFO] Find %s path: %s constant path, %s bounded path, and %s unbounded path.' %
           (count_path, constant_path, bounded_path, unbounded_path))
     print('[INFO] Vulnerability Path:', global_vars.get_sat_path_count())
@@ -352,9 +365,6 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     # NOTE: Add the state to the node on CFG
                     node_add_state(node, state, path_addr, addr, gas)
 
-                    count_path += 1
-                    global_vars.add_total_path_count()
-
                     constraint = Solver()
                     for gc in gas_cons.assertions():
                         constraint.add(simplify(gc))
@@ -363,33 +373,63 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     # print('[INFO] Checking Satisfiability of Path Constraints on addr %s with %s pc...'
                     #       % (addr, len(path_cons.assertions())))
 
-                    if constraint.check() == sat:
-                        # print(addr)
-                        if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
-                            if 'loop' in str(gas):
-                                unbounded_path += 1
-                            else:
-                                bounded_path += 1
+                    if 'loop' in str(gas):
+                        if path_addr not in global_vars.get_executed_unbounded_path():
+                            global_vars.add_executed_unbounded_path(path_addr)
+                            count_path += 1
 
-                            gc = gas >= global_vars.get_gas_limit()
-                            constraint.add(simplify(gc))
                             if constraint.check() == sat:
-                                print('[INFO] Path Constraints: sat')
-                                global_vars.add_sat_path_count()
-                                ans = constraint.model()
-                                new_pc_gas = {'path_constraints': constraint, 'ans': ans, 'gas': gas, 'path': path_addr}
-                                global_vars.add_pc_gas(new_pc_gas)
-                        else:
-                            constant_path += 1
-                            if isinstance(gas, z3.z3.IntNumRef):
-                                gas = gas.as_long()
-                            if gas > global_vars.get_gas_limit() and constraint.check() == sat:
-                                print('[INFO] Path Constraints: sat')
-                                global_vars.add_sat_path_count()
-                                ans = constraint.model()
-                                new_pc_gas = {'path_constraints': constraint, 'ans': ans, 'gas': gas, 'path': path_addr}
-                                global_vars.add_pc_gas(new_pc_gas)
+                                unbounded_path += 1
+                                gc = gas >= global_vars.get_gas_limit()
+                                constraint.add(simplify(gc))
+                                if constraint.check() == sat:
+                                    print('[INFO] Path Constraints: sat')
+                                    ans = constraint.model()
+                                    new_pc_gas = {
+                                        'type': 'unbounded',
+                                        'path_constraints': constraint,
+                                        'model': ans,
+                                        'gas': gas,
+                                        'path': path_addr
+                                    }
+                                    global_vars.add_unbounded_pc_gas(new_pc_gas)
+                    else:
+                        if path_addr not in global_vars.get_executed_bounded_path():
+                            global_vars.add_executed_bounded_path(path_addr)
+                            count_path += 1
 
+                            if is_expr(gas) and not isinstance(gas, z3.z3.IntNumRef):
+                                if constraint.check() == sat:
+                                    bounded_path += 1
+                                    gc = gas >= global_vars.get_gas_limit()
+                                    constraint.add(simplify(gc))
+                                    if constraint.check() == sat:
+                                        print('[INFO] Path Constraints: sat')
+                                        ans = constraint.model()
+                                        new_pc_gas = {
+                                            'type': 'bounded',
+                                            'path_constraints': constraint,
+                                            'model': ans,
+                                            'gas': gas,
+                                            'path': path_addr
+                                        }
+                                        global_vars.add_bounded_pc_gas(new_pc_gas)
+                            else:
+                                if constraint.check() == sat:
+                                    constant_path += 1
+                                    if isinstance(gas, z3.z3.IntNumRef):
+                                        gas = gas.as_long()
+                                    if gas > global_vars.get_gas_limit():
+                                        print('[INFO] Path Constraints: sat')
+                                        ans = constraint.model()
+                                        new_pc_gas = {
+                                            'type': 'constant',
+                                            'path_constraints': constraint,
+                                            'model': ans,
+                                            'gas': gas,
+                                            'path': path_addr
+                                        }
+                                        global_vars.add_bounded_pc_gas(new_pc_gas)
                     return
                 else:
                     # NOTE: stack simulation
@@ -457,7 +497,6 @@ def node_add_gas(node, gas):
 def edge_add_path_constraint(edge, constraint):
     constraint = simplify(constraint) if is_expr(constraint) else constraint
     constraint = str(constraint).replace('\n', '').replace(' ', '')
-    print(edge[1]['label'])
     if constraint not in edge[1]['label'] and len(constraint) < 2000:
         if len(edge[1]['label']) > 0 and len(constraint) > 20 and len(edge[1]['label'][-1]) > 20:
             prefix_1 = constraint[:20]
@@ -467,14 +506,13 @@ def edge_add_path_constraint(edge, constraint):
         edge[1]['label'].append(constraint)
     color = edge[1]['color']
     constraint_false = not (isinstance(constraint, bool) and constraint is False)
-    edge[1]['color'] = 'brown' if color == 'blue' and constraint_false else edge[1]['color']
+    edge[1]['color'] = 'brown' if color == 'blue' and constraint != 'False' and constraint_false else edge[1]['color']
     return edge
 
 
 def edge_change_loop_constraint(edge, constraint):
     constraint = simplify(constraint) if is_expr(constraint) else constraint
     constraint = str(constraint).replace('\n', '').replace(' ', '')
-    print(edge[1]['label'])
     if len(edge[1]['label']) >= 4:
         edge[1]['label'].pop()
         edge[1]['label'].pop()
@@ -495,16 +533,6 @@ def node_add_state(node, state, path_label, addr, gas):
     in_storage = state['Storage']
     loop_gas = 0
 
-    for key in in_stack:
-        if not isinstance(in_stack[key], str):
-            in_stack[key] = str(in_stack[key])
-    for key in in_memory:
-        if not isinstance(in_memory[key], str):
-            in_memory[key] = str(in_memory[key])
-    for key in in_storage:
-        if not isinstance(in_storage[key], str):
-            in_storage[key] = str(in_storage[key])
-
     new_path = True
     if path_label.count(path_label[-1]) > 1:
         first_idx = path_label.index(path_label[-1])
@@ -524,6 +552,13 @@ def node_add_state(node, state, path_label, addr, gas):
                 break
     else:
         addr_gas_sum.update({addr: gas})
+
+        for val in node['state']:
+            if val['Path Label'] == path_label:
+                new_path = False
+                val['Stack'] = in_stack
+                val['Memory'] = in_memory
+                val['Storage'] = in_storage
 
     if new_path:
         node['state'].append({'Path Label': path_label, 'Stack': in_stack, 'Memory': in_memory, 'Storage': in_storage})

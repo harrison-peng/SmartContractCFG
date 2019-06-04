@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-import opcodes_cfg_builder
+import cfg_builder
 import symbolic_simulation
 import argparse
 import os
@@ -63,7 +63,7 @@ def opcodes_analysis(contract_name):
 
         if opcodes != '':
             global_vars.init()
-            nodes, edges = opcodes_cfg_builder.cfg_construction(opcodes, file_name)
+            nodes, edges = cfg_builder.cfg_construction(opcodes, file_name)
             graph.create_graph(nodes, edges, contract_name, file_name)
 
             nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
@@ -79,14 +79,23 @@ def opcodes_analysis(contract_name):
 
 def conformation(nodes):
     global_vars.init_generator()
-    paths = global_vars.get_pc_gas()
+    b_paths = global_vars.get_bounded_pc_gas()
+    u_paths = global_vars.get_unbounded_pc_gas()
     gas_list = list()
-    for path in paths:
-        model = path['ans']
+    for path in b_paths:
+        model = path['model']
         tags = path['path']
         gas = attack_synthesis.attack_synthesis(tags, nodes, model)
         path['real gas'] = gas
         gas_list.append(gas)
+
+    for path in u_paths:
+        model = path['model']
+        tags = path['path']
+        gas = attack_synthesis.attack_synthesis(tags, nodes, model)
+        path['real gas'] = gas
+        gas_list.append(gas)
+
     if gas_list:
         return max(gas_list)
     else:

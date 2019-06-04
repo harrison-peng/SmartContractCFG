@@ -53,7 +53,7 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
         pc = int(code_set[0].replace(':', ''))
         s = code_set[1:]
 
-        # if curr_addr in [6086]:
+        # if curr_addr in [7779, 7742]:
         #     print(pc, curr_addr, s[0], stack)
         #     print(path, '\n')
 
@@ -127,10 +127,6 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                 # NOTE: node content is empty -> from JUMPI
                 curr_addr = pc
                 path.append(pc)
-            # if s[0] == 'PUSH2':
-            #     push_addr = int(s[1], 16)
-            #     if push_addr in addr_line_dict:
-            #         stack.append(push_addr)
             node_content['ins'].append(line)
 
 
@@ -214,10 +210,12 @@ def ins_sim(stack, instruction, line):
     elif opcode == 'ADDMOD':
         first = stack.pop()
         second = stack.pop()
+        third = stack.pop()
         stack.append('ADDMOD')
     elif opcode == 'MULMOD':
         first = stack.pop()
         second = stack.pop()
+        third = stack.pop()
         stack.append('MULMOD')
     elif opcode == 'EXP':
         first = stack.pop()
@@ -260,18 +258,23 @@ def ins_sim(stack, instruction, line):
     elif opcode == 'OR':
         first = stack.pop()
         second = stack.pop()
-        stack.append('OR')
+        if isinstance(first, int) and isinstance(second, int):
+            stack.append(first | second)
+        else:
+            stack.append('AND')
     elif opcode == 'XOR':
         first = stack.pop()
         second = stack.pop()
         stack.append('XOR')
     elif opcode == 'NOT':
         first = stack.pop()
-        stack.append('NOT')
+        if isinstance(first, int):
+            stack.append(~first)
+        else:
+            stack.append('NOT')
     elif opcode == 'BYTE':
         first = stack.pop()
         second = stack.pop()
-        third = stack.pop()
         stack.append('BYTE')
     elif opcode in ['SHA3', 'KECCAK256']:
         first = stack.pop()
@@ -338,17 +341,19 @@ def ins_sim(stack, instruction, line):
         stack.append(int(instruction[1], 16))
     elif opcode.startswith('DUP', 0):
         idx = len(stack) - int(opcode[3:], 10)
-        if idx < 0:
-            stack.append('DUP')
-        else:
-            stack.append(stack[idx])
+        stack.append(stack[idx])
+        # if idx < 0:
+        #     stack.append('DUP')
+        # else:
+        #     stack.append(stack[idx])
     elif opcode.startswith('SWAP', 0):
         idx_1 = len(stack) - 1
         idx_2 = len(stack) - 1 - int(opcode[4:], 10)
-        if idx_2 < 0:
-            stack.append('SWAP')
-        else:
-            stack[idx_1], stack[idx_2] = stack[idx_2], stack[idx_1]
+        stack[idx_1], stack[idx_2] = stack[idx_2], stack[idx_1]
+        # if idx_2 < 0:
+        #     stack.append('SWAP')
+        # else:
+        #     stack[idx_1], stack[idx_2] = stack[idx_2], stack[idx_1]
     elif opcode in ('LOG0', 'LOG1', 'LOG2', 'LOG3', 'LOG4'):
         first = stack.pop()
         second = stack.pop()

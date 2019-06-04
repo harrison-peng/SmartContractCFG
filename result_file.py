@@ -27,8 +27,46 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
         f.write('%s\n' % sep_line)
 
         count = 1
-        infos = global_vars.get_pc_gas()
-        for info in infos:
+        b_infos = global_vars.get_bounded_pc_gas()
+        u_infos = global_vars.get_unbounded_pc_gas()
+        f.write('【CONSTANT GAS PATH】\n\n')
+        for info in b_infos:
+            if info['type'] == 'constant':
+                f.write('Path No.%s:\n\n' % count)
+                f.write('[Path Address]: %s\n\n' % info['path'])
+                f.write('[Path Constraints]:\n')
+                f.write(str(info['path_constraints']).replace('\n', '').replace(',', ',\n').replace('    ', ' '))
+
+                f.write('\n\n')
+                f.write('[Model]:\n')
+                f.write(str(info['model']))
+
+                f.write('\n\n[Gas]: %s\n\n' % info['gas'])
+                f.write('[Real Gas]: %s\n' % info['real gas'])
+                f.write('=' * 90)
+                f.write('\n\n')
+                count += 1
+
+        f.write('【BOUNDED GAS PATH】\n\n')
+        for info in b_infos:
+            if info['type'] == 'bounded':
+                f.write('Path No.%s:\n\n' % count)
+                f.write('[Path Address]: %s\n\n' % info['path'])
+                f.write('[Path Constraints]:\n')
+                f.write(str(info['path_constraints']).replace('\n', '').replace(',', ',\n').replace('    ', ' '))
+
+                f.write('\n\n')
+                f.write('[Model]:\n')
+                f.write(str(info['model']))
+
+                f.write('\n\n[Gas]: %s\n\n' % info['gas'])
+                f.write('[Real Gas]: %s\n' % info['real gas'])
+                f.write('=' * 90)
+                f.write('\n\n')
+                count += 1
+
+        f.write('【UNBOUNDED GAS PATH】\n\n')
+        for info in u_infos:
             f.write('Path No.%s:\n\n' % count)
             f.write('[Path Address]: %s\n\n' % info['path'])
             f.write('[Path Constraints]:\n')
@@ -36,13 +74,12 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
 
             f.write('\n\n')
             f.write('[Model]:\n')
-            f.write(str(info['ans']))
+            f.write(str(info['model']))
 
             f.write('\n\n[Gas]: %s\n\n' % info['gas'])
             f.write('[Real Gas]: %s\n' % info['real gas'])
             f.write('=' * 90)
             f.write('\n\n')
-
             count += 1
 
     print('[INFO]: Finished contract <%s> result file\n' % contract)
