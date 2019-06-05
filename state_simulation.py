@@ -1227,21 +1227,18 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 else:
                     gas = simplify(BV2Int(If(Not(value == 0), BitVecVal(20000, 256), BitVecVal(5000, 256))))
             else:
-                if isinstance(address, int) and all([isinstance(e, int) for e in storage.keys()]):
-                    if address in storage.keys():
+                if address in storage.keys():
+                    gas = 5000
+                else:
+                    if value == 0:
                         gas = 5000
                     else:
-                        if value == 0:
-                            gas = 5000
-                        else:
-                            gas = 20000
-                else:
-                    cond = False
-                    for k in [e for e in storage.keys() if is_expr(e)]:
-                        cond = Or(cond, k == address)
-                    gas = simplify(BV2Int(If(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
-            storage[address] = value
+                        cond = False
+                        for k in [e for e in storage.keys() if is_expr(e)]:
+                            cond = Or(cond, k == address)
+                        gas = simplify(BV2Int(If(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
 
+            storage[address] = value
         else:
             raise ValueError('STACK underflow')
     elif opcode == 'JUMP':

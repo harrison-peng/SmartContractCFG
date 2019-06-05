@@ -25,6 +25,7 @@ def attack_synthesis(path, nodes, m):
 
     while path_idx < len(path):
         addr = path[path_idx]
+        # print('[A]:', addr, gas)
         for node in nodes:
             if node['addr'] == addr:
                 ins_list = node['ins']
@@ -645,7 +646,6 @@ def ins_sim(state, instruction, line):
         c2 = False if value == 0 else True
 
         gas = 20000 if c1 and c2 else 5000
-
         storage[str(address)] = value
     elif opcode == 'JUMP':
         row = len(stack) - 1
