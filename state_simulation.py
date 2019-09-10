@@ -1077,11 +1077,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
         if len(stack) > 0:
             row = len(stack) - 1
             address = stack.pop(str(row))
-
-            # value = None
-            # for key, val in memory.items():
-            #     if str(address) == str(key):
-            #         value = val
             value = memory.get(address, None)
 
             if value is None:
@@ -1093,59 +1088,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                         tem_val = value
                 value = simplify(value) if is_expr(value) else value
                 value = value.as_long() if isinstance(value, IntNumRef) else value
-
-            # if value is None:
-            #     if is_real(address):
-            #         if address in memory.keys():
-            #             value = memory[address]
-            #         else:
-            #             sym_key = False
-            #             for key in memory.keys():
-            #                 if is_expr(key):
-            #                     sym_key = True
-            #                     break
-            #             if sym_key:
-            #                 # NOTE: Check if sym var is already created or not
-            #                 mem_var_exist = False
-            #                 var_name = None
-            #                 for key, val in get_var_table().items():
-            #                     if val == 'memory[%s:%s], %s' % (address, address + 32, memory):
-            #                         var_name = key
-            #                         mem_var_exist = True
-            #                         break
-            #
-            #                 if mem_var_exist:
-            #                     value = BitVec(var_name, 256)
-            #                     gas_constraint.append(add_gas_constraint(value, UNSIGNED_BOUND_NUMBER))
-            #                 else:
-            #                     new_var_name = get_gen().gen_mem_var(line)
-            #                     value = BitVec(new_var_name, 256)
-            #                     gas_constraint.append(add_gas_constraint(value, UNSIGNED_BOUND_NUMBER))
-            #
-            #                     if not var_in_var_table(new_var_name):
-            #                         add_var_table(new_var_name, 'memory[%s:%s], %s' % (address, address + 32, memory))
-            #             else:
-            #                 value = 0
-            #     else:
-            #         # NOTE: Check if sym var is already created or not
-            #         mem_var_exist = False
-            #         var_name = None
-            #         for key, val in get_var_table().items():
-            #             if val == 'memory[%s:%s+32], %s' % (address, address, memory):
-            #                 var_name = key
-            #                 mem_var_exist = True
-            #                 break
-            #
-            #         if mem_var_exist:
-            #             value = BitVec(var_name, 256)
-            #             gas_constraint.append(add_gas_constraint(value, UNSIGNED_BOUND_NUMBER))
-            #         else:
-            #             new_var_name = get_gen().gen_mem_var(line)
-            #             value = BitVec(new_var_name, 256)
-            #             gas_constraint.append(add_gas_constraint(value, UNSIGNED_BOUND_NUMBER))
-            #
-            #             if not var_in_var_table(new_var_name):
-            #                 add_var_table(new_var_name, 'memory[%s:%s+32], %s' % (address, address, memory))
 
             row = len(stack)
             stack[str(row)] = value
@@ -1187,25 +1129,6 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     value = simplify(value) if is_expr(value) else value
                     value = value.as_long() if isinstance(value, IntNumRef) else value
 
-                    # NOTE: Check if sym var is already created or not
-                    # sto_var_exist = False
-                    # var_name = None
-                    # for key, val in get_var_table().items():
-                    #     if val == 'storage[%s]' % address:
-                    #         var_name = key
-                    #         sto_var_exist = True
-                    #         break
-                    #
-                    # if sto_var_exist:
-                    #     value = BitVec(var_name, 256)
-                    #     gas_constraint.append(add_gas_constraint(value, UNSIGNED_BOUND_NUMBER))
-                    # else:
-                    #     new_var_name = get_gen().gen_owner_store_var(line)
-                    #     value = BitVec(new_var_name, 256)
-                    #     gas_constraint.append(add_gas_constraint(value, UNSIGNED_BOUND_NUMBER))
-                    #
-                    #     if not var_in_var_table(new_var_name):
-                    #         add_var_table(new_var_name, 'storage[%s], %s' % (address, storage))
             stack[str(row)] = value
 
             # NOTE: GAS

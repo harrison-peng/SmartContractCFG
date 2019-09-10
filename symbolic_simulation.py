@@ -293,6 +293,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                 raise ValueError('Edge Error:', edge)
 
                     # NOTE: Determine run the path or not
+                    path_constraint = simplify(path_constraint) if is_expr(path_constraint) else path_constraint
+                    path_constraint = path_constraint.as_long() if isinstance(path_constraint, z3.z3.BitVecNumRef) else path_constraint
                     if isinstance(path_constraint, int):
                         if path_constraint == 1:
                             go_true = True
