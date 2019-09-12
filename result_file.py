@@ -43,7 +43,7 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
                     b_model = True
                     b_infos.append(info)
             if c_model:
-                f.write('【CONSTANT GAS PATH】\n\n')
+                f.write('[CONSTANT GAS PATH]\n\n')
                 for info in c_infos:
                     f.write('Path No.%s:\n\n' % count)
                     f.write('[Path Address]: %s\n\n' % info['path'])
@@ -60,7 +60,7 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
                     f.write('\n\n')
                     count += 1
             if b_model:
-                f.write('【BOUNDED GAS PATH】\n\n')
+                f.write('[BOUNDED GAS PATH]\n\n')
                 for info in b_infos:
                     f.write('Path No.%s:\n\n' % count)
                     f.write('[Path Address]: %s\n\n' % info['path'])
@@ -78,7 +78,7 @@ def output_result(file, contract, nodes_size, edges_size, ins_size, max_gas):
                     count += 1
 
         if u_infos:
-            f.write('【UNBOUNDED GAS PATH】\n\n')
+            f.write('[UNBOUNDED GAS PATH]\n\n')
             for info in u_infos:
                 f.write('Path No.%s:\n\n' % count)
                 f.write('[Path Address]: %s\n\n' % info['path'])
