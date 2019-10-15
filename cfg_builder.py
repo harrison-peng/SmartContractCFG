@@ -43,7 +43,7 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
     global addr_line_dict
     global count_edge
 
-    segment_ins = ['JUMPDEST', 'JUMP', 'JUMPI', 'STOP', 'REVERT', 'INVALID', 'RETURN']
+    segment_ins = ['JUMPDEST', 'JUMP', 'JUMPI', 'STOP', 'REVERT', 'INVALID', 'RETURN', 'SELFDESTRUCT']
 
     node_content = init_node_content()
 

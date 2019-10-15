@@ -86,7 +86,7 @@ def create_graph(nodes, edges, dir_name, row_id):
             # if node['addr'] == 5890:
             #     print(content)
 
-        if node['ins'][-1].split(' ')[1] in ['STOP', 'REVERT', 'INVALID', 'RETURN']:
+        if node['ins'][-1].split(' ')[1] in ['STOP', 'REVERT', 'INVALID', 'RETURN', 'SELFDESTRUCT']:
             cfg_nodes.append((str(node['addr']), {'label': content, 'shape': 'box', 'color': 'red'}))
         else:
             cfg_nodes.append((str(node['addr']), {'label': content, 'shape': 'box'}))
