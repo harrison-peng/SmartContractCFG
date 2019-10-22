@@ -1,0 +1,8 @@
+
+======= Ownable.sol:Ownable =======
+Gas estimation:
+construction:
+   20449 + 140600 = 161049
+external:
+   owner():	442
+   transferOwnership(address):	22547

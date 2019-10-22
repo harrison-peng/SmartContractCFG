@@ -1,0 +1,430 @@
+    /* "../contracts/SIXcontracts/Bank.sol":26:750  contract Bank{... */
+  mstore(0x40, 0x80)
+  callvalue
+    /* "--CODEGEN--":8:17   */
+  dup1
+    /* "--CODEGEN--":5:7   */
+  iszero
+  tag_1
+  jumpi
+    /* "--CODEGEN--":30:31   */
+  0x0
+    /* "--CODEGEN--":27:28   */
+  dup1
+    /* "--CODEGEN--":20:32   */
+  revert
+    /* "--CODEGEN--":5:7   */
+tag_1:
+    /* "../contracts/SIXcontracts/Bank.sol":26:750  contract Bank{... */
+  pop
+  dataSize(sub_0)
+  dup1
+  dataOffset(sub_0)
+  0x0
+  codecopy
+  0x0
+  return
+stop
+
+sub_0: assembly {
+        /* "../contracts/SIXcontracts/Bank.sol":26:750  contract Bank{... */
+      mstore(0x40, 0x80)
+      jumpi(tag_1, lt(calldatasize, 0x4))
+      calldataload(0x0)
+      0x100000000000000000000000000000000000000000000000000000000
+      swap1
+      div
+      0xffffffff
+      and
+      dup1
+      0x3506f54d
+      eq
+      tag_2
+      jumpi
+      dup1
+      0x47734892
+      eq
+      tag_3
+      jumpi
+      dup1
+      0x5fd8c710
+      eq
+      tag_4
+      jumpi
+      dup1
+      0xc0e317fb
+      eq
+      tag_5
+      jumpi
+    tag_1:
+      0x0
+      dup1
+      revert
+        /* "../contracts/SIXcontracts/Bank.sol":644:747  function contractHoldEth() public view returns (uint256){... */
+    tag_2:
+      callvalue
+        /* "--CODEGEN--":8:17   */
+      dup1
+        /* "--CODEGEN--":5:7   */
+      iszero
+      tag_6
+      jumpi
+        /* "--CODEGEN--":30:31   */
+      0x0
+        /* "--CODEGEN--":27:28   */
+      dup1
+        /* "--CODEGEN--":20:32   */
+      revert
+        /* "--CODEGEN--":5:7   */
+    tag_6:
+        /* "../contracts/SIXcontracts/Bank.sol":644:747  function contractHoldEth() public view returns (uint256){... */
+      pop
+      tag_7
+      jump(tag_8)
+    tag_7:
+      mload(0x40)
+      dup1
+      dup3
+      dup2
+      mstore
+      0x20
+      add
+      swap2
+      pop
+      pop
+      mload(0x40)
+      dup1
+      swap2
+      sub
+      swap1
+      return
+        /* "../contracts/SIXcontracts/Bank.sol":122:230  function getUserBalance(address user) public view returns(uint) {... */
+    tag_3:
+      callvalue
+        /* "--CODEGEN--":8:17   */
+      dup1
+        /* "--CODEGEN--":5:7   */
+      iszero
+      tag_9
+      jumpi
+        /* "--CODEGEN--":30:31   */
+      0x0
+        /* "--CODEGEN--":27:28   */
+      dup1
+        /* "--CODEGEN--":20:32   */
+      revert
+        /* "--CODEGEN--":5:7   */
+    tag_9:
+        /* "../contracts/SIXcontracts/Bank.sol":122:230  function getUserBalance(address user) public view returns(uint) {... */
+      pop
+      tag_10
+      0x4
+      dup1
+      calldatasize
+      sub
+      dup2
+      add
+      swap1
+      dup1
+      dup1
+      calldataload
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      swap1
+      0x20
+      add
+      swap1
+      swap3
+      swap2
+      swap1
+      pop
+      pop
+      pop
+      jump(tag_11)
+    tag_10:
+      mload(0x40)
+      dup1
+      dup3
+      dup2
+      mstore
+      0x20
+      add
+      swap2
+      pop
+      pop
+      mload(0x40)
+      dup1
+      swap2
+      sub
+      swap1
+      return
+        /* "../contracts/SIXcontracts/Bank.sol":364:637  function withdrawBalance() public {... */
+    tag_4:
+      callvalue
+        /* "--CODEGEN--":8:17   */
+      dup1
+        /* "--CODEGEN--":5:7   */
+      iszero
+      tag_12
+      jumpi
+        /* "--CODEGEN--":30:31   */
+      0x0
+        /* "--CODEGEN--":27:28   */
+      dup1
+        /* "--CODEGEN--":20:32   */
+      revert
+        /* "--CODEGEN--":5:7   */
+    tag_12:
+        /* "../contracts/SIXcontracts/Bank.sol":364:637  function withdrawBalance() public {... */
+      pop
+      tag_13
+      jump(tag_14)
+    tag_13:
+      stop
+        /* "../contracts/SIXcontracts/Bank.sol":237:357  function addToBalance() public payable{... */
+    tag_5:
+      tag_15
+      jump(tag_16)
+    tag_15:
+      stop
+        /* "../contracts/SIXcontracts/Bank.sol":644:747  function contractHoldEth() public view returns (uint256){... */
+    tag_8:
+        /* "../contracts/SIXcontracts/Bank.sol":692:699  uint256 */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":726:730  this */
+      address
+        /* "../contracts/SIXcontracts/Bank.sol":718:739  address(this).balance */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      balance
+        /* "../contracts/SIXcontracts/Bank.sol":711:739  return address(this).balance */
+      swap1
+      pop
+        /* "../contracts/SIXcontracts/Bank.sol":644:747  function contractHoldEth() public view returns (uint256){... */
+      swap1
+      jump	// out
+        /* "../contracts/SIXcontracts/Bank.sol":122:230  function getUserBalance(address user) public view returns(uint) {... */
+    tag_11:
+        /* "../contracts/SIXcontracts/Bank.sol":180:184  uint */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":204:216  userBalances */
+      dup1
+        /* "../contracts/SIXcontracts/Bank.sol":204:222  userBalances[user] */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":217:221  user */
+      dup4
+        /* "../contracts/SIXcontracts/Bank.sol":204:222  userBalances[user] */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      dup2
+      mstore
+      0x20
+      add
+      swap1
+      dup2
+      mstore
+      0x20
+      add
+      0x0
+      keccak256
+      sload
+        /* "../contracts/SIXcontracts/Bank.sol":197:222  return userBalances[user] */
+      swap1
+      pop
+        /* "../contracts/SIXcontracts/Bank.sol":122:230  function getUserBalance(address user) public view returns(uint) {... */
+      swap2
+      swap1
+      pop
+      jump	// out
+        /* "../contracts/SIXcontracts/Bank.sol":364:637  function withdrawBalance() public {... */
+    tag_14:
+        /* "../contracts/SIXcontracts/Bank.sol":409:430  uint amountToWithdraw */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":433:445  userBalances */
+      dup1
+        /* "../contracts/SIXcontracts/Bank.sol":433:457  userBalances[msg.sender] */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":446:456  msg.sender */
+      caller
+        /* "../contracts/SIXcontracts/Bank.sol":433:457  userBalances[msg.sender] */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      dup2
+      mstore
+      0x20
+      add
+      swap1
+      dup2
+      mstore
+      0x20
+      add
+      0x0
+      keccak256
+      sload
+        /* "../contracts/SIXcontracts/Bank.sol":409:457  uint amountToWithdraw = userBalances[msg.sender] */
+      swap1
+      pop
+        /* "../contracts/SIXcontracts/Bank.sol":473:489  Name(msg.sender) */
+      0x3042fbbf8fb97fb253117bdf7c2385c241b9eaf856a585675ce0521e592ca7a5
+        /* "../contracts/SIXcontracts/Bank.sol":478:488  msg.sender */
+      caller
+        /* "../contracts/SIXcontracts/Bank.sol":473:489  Name(msg.sender) */
+      mload(0x40)
+      dup1
+      dup3
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      dup2
+      mstore
+      0x20
+      add
+      swap2
+      pop
+      pop
+      mload(0x40)
+      dup1
+      swap2
+      sub
+      swap1
+      log1
+        /* "../contracts/SIXcontracts/Bank.sol":549:554  false */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":504:554  msg.sender.call.value(amountToWithdraw)() == false */
+      iszero
+      iszero
+        /* "../contracts/SIXcontracts/Bank.sol":504:514  msg.sender */
+      caller
+        /* "../contracts/SIXcontracts/Bank.sol":504:519  msg.sender.call */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+        /* "../contracts/SIXcontracts/Bank.sol":526:542  amountToWithdraw */
+      dup3
+        /* "../contracts/SIXcontracts/Bank.sol":504:545  msg.sender.call.value(amountToWithdraw)() */
+      mload(0x40)
+      0x0
+      mload(0x40)
+      dup1
+      dup4
+      sub
+      dup2
+      dup6
+      dup8
+      gas
+      call
+      swap3
+      pop
+      pop
+      pop
+        /* "../contracts/SIXcontracts/Bank.sol":504:554  msg.sender.call.value(amountToWithdraw)() == false */
+      iszero
+      iszero
+      eq
+        /* "../contracts/SIXcontracts/Bank.sol":500:591  if (msg.sender.call.value(amountToWithdraw)() == false) {... */
+      iszero
+      tag_20
+      jumpi
+        /* "../contracts/SIXcontracts/Bank.sol":571:579  revert() */
+      0x0
+      dup1
+      revert
+        /* "../contracts/SIXcontracts/Bank.sol":500:591  if (msg.sender.call.value(amountToWithdraw)() == false) {... */
+    tag_20:
+        /* "../contracts/SIXcontracts/Bank.sol":628:629  0 */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":601:613  userBalances */
+      dup1
+        /* "../contracts/SIXcontracts/Bank.sol":601:625  userBalances[msg.sender] */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":614:624  msg.sender */
+      caller
+        /* "../contracts/SIXcontracts/Bank.sol":601:625  userBalances[msg.sender] */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      dup2
+      mstore
+      0x20
+      add
+      swap1
+      dup2
+      mstore
+      0x20
+      add
+      0x0
+      keccak256
+        /* "../contracts/SIXcontracts/Bank.sol":601:629  userBalances[msg.sender] = 0 */
+      dup2
+      swap1
+      sstore
+      pop
+        /* "../contracts/SIXcontracts/Bank.sol":364:637  function withdrawBalance() public {... */
+      pop
+      jump	// out
+        /* "../contracts/SIXcontracts/Bank.sol":237:357  function addToBalance() public payable{... */
+    tag_16:
+        /* "../contracts/SIXcontracts/Bank.sol":340:349  msg.value */
+      callvalue
+        /* "../contracts/SIXcontracts/Bank.sol":313:325  userBalances */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":313:337  userBalances[msg.sender] */
+      dup1
+        /* "../contracts/SIXcontracts/Bank.sol":326:336  msg.sender */
+      caller
+        /* "../contracts/SIXcontracts/Bank.sol":313:337  userBalances[msg.sender] */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      dup2
+      mstore
+      0x20
+      add
+      swap1
+      dup2
+      mstore
+      0x20
+      add
+      0x0
+      keccak256
+      sload
+        /* "../contracts/SIXcontracts/Bank.sol":313:349  userBalances[msg.sender] + msg.value */
+      add
+        /* "../contracts/SIXcontracts/Bank.sol":286:298  userBalances */
+      0x0
+        /* "../contracts/SIXcontracts/Bank.sol":286:310  userBalances[msg.sender] */
+      dup1
+        /* "../contracts/SIXcontracts/Bank.sol":299:309  msg.sender */
+      caller
+        /* "../contracts/SIXcontracts/Bank.sol":286:310  userBalances[msg.sender] */
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      0xffffffffffffffffffffffffffffffffffffffff
+      and
+      dup2
+      mstore
+      0x20
+      add
+      swap1
+      dup2
+      mstore
+      0x20
+      add
+      0x0
+      keccak256
+        /* "../contracts/SIXcontracts/Bank.sol":286:349  userBalances[msg.sender] = userBalances[msg.sender] + msg.value */
+      dup2
+      swap1
+      sstore
+      pop
+        /* "../contracts/SIXcontracts/Bank.sol":237:357  function addToBalance() public payable{... */
+      jump	// out
+
+    auxdata: 0xa165627a7a72305820a823363ceb4abc5909a01674d3a3bc602e24182a53695d5b64e2d7b29a630e0b0029
+}

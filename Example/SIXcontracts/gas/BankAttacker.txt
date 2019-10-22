@@ -1,0 +1,13 @@
+
+======= BankAttacker.sol:BankAttacker =======
+Gas estimation:
+construction:
+   41008 + 263800 = 304808
+external:
+   fallback:	infinite
+   bankAddress():	558
+   contractHoldEth():	607
+   deposit():	infinite
+   is_attack():	530
+   withdraw():	infinite
+   withdrawBalance():	infinite

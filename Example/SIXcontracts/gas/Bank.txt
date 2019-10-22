@@ -1,0 +1,10 @@
+
+======= Bank.sol:Bank =======
+Gas estimation:
+construction:
+   214 + 168800 = 169014
+external:
+   addToBalance():	20572
+   contractHoldEth():	607
+   getUserBalance(address):	581
+   withdrawBalance():	infinite

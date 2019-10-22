@@ -110,12 +110,12 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if addr in [1045]:
+                # if addr in [192]:
                 #     print('[INS]:', ins)
-                #     print('[STACK]:', addr, ins, state['Stack'])
-                #     # print('[MEM]:', state['Memory'])
+                #     print('[STACK]:', addr, ins, state['Stack'], '\n')
+                #     print('[MEM]:', state['Memory'])
                 #     print('[STO]:', state['Storage'], '\n')
-                #     # print('[GAS]:', gas, '\n')
+                #     print('[GAS]:', gas, '\n')
 
                 if isinstance(gas, z3.z3.IntNumRef):
                     gas = gas.as_long()
@@ -167,6 +167,11 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     return symbolic_implement(state, gas, path_cons, gas_cons,
                                               next_jump_addr, path_addr, count_loop, loop_condition)
                 elif opcode == 'JUMPI':
+                    # if addr == 260:
+                    #     print('[260]:', state['Stack'])
+                    #     print('[mem]:', state['Memory'])
+                    #     print('[sto]:', state['Storage'])
+                    #     print('[gas]:', gas)
                     next_false_addr = int(line) + 1
                     go_true = True
                     go_false = True
@@ -188,7 +193,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     # print('[STACK]:', addr, state['Stack'])
                     state, ins_gas, path_constraint, gas_constraint, prev_jumpi_ins, next_true_addr = \
                         state_simulation.state_simulation(opcode, state, line, prev_jumpi_ins)
-                    # print('[JUMPIIIII]:', addr, next_true_addr, path_constraint)
+                    # print('[JUMPIIIII]:', addr, next_true_addr, simplify(path_constraint), '\n')
 
                     for c in gas_constraint:
                         if is_expr(c):

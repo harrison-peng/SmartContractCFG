@@ -1,0 +1,32 @@
+
+======= PurchaseOrder.sol:Ownable =======
+Gas estimation:
+construction:
+   20449 + 140600 = 161049
+external:
+   owner():	442
+   transferOwnership(address):	22547
+
+======= PurchaseOrder.sol:purchaseOrder =======
+Gas estimation:
+construction:
+   infinite + 626800 = infinite
+external:
+   fallback:	1773
+   bank():	596
+   changeStatus(uint256,bool):	infinite
+   customer():	464
+   disable():	infinite
+   ec():	728
+   finalized():	infinite
+   logistic():	552
+   owner():	640
+   pOfEc():	482
+   pOfLogistic():	614
+   pOfSme():	570
+   productNumber():	infinite
+   sme():	442
+   status(uint256):	629
+   transferOwnership(address):	22789
+internal:
+   pay():	infinite

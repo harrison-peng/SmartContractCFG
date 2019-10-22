@@ -1,0 +1,23 @@
+
+======= Account.sol:Account =======
+Gas estimation:
+construction:
+   20591 + 309200 = 329791
+external:
+   fallback:	1622
+   deployCode(bytes):	infinite
+   forward(address,uint256,bytes):	infinite
+   isOwner(address):	557
+   owner():	486
+   transfer(address):	20823
+internal:
+   executeCall(address,uint256,bytes memory):	infinite
+
+======= Owned.sol:Owned =======
+Gas estimation:
+construction:
+   20443 + 129600 = 150043
+external:
+   isOwner(address):	557
+   owner():	486
+   transfer(address):	20823
