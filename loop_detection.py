@@ -1,4 +1,6 @@
 from z3_func import *
+import global_vars
+from pprint import pprint
 
 
 def loop_detection(ins_dict, prev_ins_dict):
@@ -92,6 +94,16 @@ def loop_detection(ins_dict, prev_ins_dict):
             elif is_expr(second) and is_expr(prev_second) and second == prev_second:
                 val['diff'] = first - prev_first
             else:
+                print('=========================ERROR - 1=========================')
+                print(first)
+                print('-----------------------------------------------------------')
+                print(prev_first)
+                print('-----------------------------------------------------------')
+                print(second)
+                print('-----------------------------------------------------------')
+                print(prev_second)
+                print('-----------------------------------------------------------\n\n')
+                pprint(global_vars.get_var_table())
                 raise ValueError('LOOP DETECTION ERROR - 1')
         return val
     else:

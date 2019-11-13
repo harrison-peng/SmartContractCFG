@@ -1,10 +1,10 @@
 # NOTE: ANALYSIS OPTIONS
 
 # NOTE: Detect loop once and evaluate to n
-LOOP_DETECTION = True
+LOOP_DETECTION = False
 
 # NOTE: How many times to execute the loop if not detecting the loop
-LOOP_ITERATIONS = 5
+LOOP_ITERATIONS = 3
 
 # NOTE: Execute the loop in attack synthesis
 ATTACK_SYNTHESIS_EXECUTE_LOOP = False

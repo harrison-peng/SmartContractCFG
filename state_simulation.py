@@ -82,7 +82,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 computed = first + second
             else:
                 computed = (first + second) % (2 ** 256)
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -102,7 +102,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             elif is_symbolic(first) and is_real(second):
                 second = BitVecVal(second, 256)
             computed = first * second & UNSIGNED_BOUND_NUMBER
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -125,7 +125,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 computed = first - second
             else:
                 computed = (first - second) % (2 ** 256)
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -152,7 +152,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed = first / second
                 else:
                     computed = If(second == 0, 0, first/second)
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -200,7 +200,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                         solver.pop()
                     solver.pop()
                 solver.pop()
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -235,7 +235,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 else:
                     computed = URem(first, second)
                 solver.pop()
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -282,7 +282,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed = sign * (first % second)
                 solver.pop()
 
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
             row = len(stack)
             stack[str(row)] = computed
 
@@ -316,7 +316,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed = (first + second) % third
                     computed = Extract(255, 0, computed)
                 solver.pop()
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[row] = computed
@@ -351,7 +351,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed = URem(first * second, third)
                     computed = Extract(255, 0, computed)
                 solver.pop()
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -437,7 +437,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     solver.pop()
                 solver.pop()
 
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
             row = len(stack)
             stack[row] = computed
 
@@ -512,7 +512,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed = 0
             else:
                 computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -536,7 +536,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed = 0
             else:
                 computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -578,7 +578,10 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 else:
                     computed = 0
             else:
-                computed = If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
+                if first.decl().name() == 'if' and str(first.arg(1)) in ['1', '0'] and str(first.arg(2)) in ['1', '0']:
+                    computed = If(first.arg(0), first.arg(2), first.arg(1))
+                else:
+                    computed = If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
             # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
@@ -609,7 +612,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                 #                   Int2BV(first & second.arg(2).as_long(), 256))
                 # else:
                 computed = first & second
-                computed = simplify(computed) if is_expr(computed) else computed
+                # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -628,7 +631,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             #     computed = If(second.arg(0), first | second.arg(1).as_long(), first | second.arg(2).as_long())
             # else:
             computed = first | second
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -644,7 +647,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             second = stack.pop(str(row - 1))
 
             computed = first ^ second
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -659,7 +662,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
             first = stack.pop(str(row))
 
             computed = (~first) & UNSIGNED_BOUND_NUMBER
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
 
             row = len(stack)
             stack[str(row)] = computed
@@ -693,7 +696,7 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     computed >>= (8 * byte_index)
                 solver.pop()
 
-            computed = simplify(computed) if is_expr(computed) else computed
+            # computed = simplify(computed) if is_expr(computed) else computed
             row = len(stack)
             stack[str(row)] = computed
 
@@ -1086,8 +1089,8 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                     for key, val in memory.items():
                         value = If(address == key, val, tem_val)
                         tem_val = value
-                value = simplify(value) if is_expr(value) else value
-                value = value.as_long() if isinstance(value, IntNumRef) else value
+                value_s = simplify(value) if is_expr(value) else value
+                value = value_s.as_long() if isinstance(value_s, BitVecNumRef) else value
 
             row = len(stack)
             stack[str(row)] = value
@@ -1124,10 +1127,17 @@ def state_simulation(instruction, state, line, prev_jumpi_ins):
                         tem_val = value
                         for key, val in storage.items():
                             # print(type(val), val, type(tem_val), tem_val)
-                            value = If(address == key, val, tem_val)
-                            tem_val = value
-                    value = simplify(value) if is_expr(value) else value
-                    value = value.as_long() if isinstance(value, IntNumRef) else value
+                            cond = address == key
+                            if cond == True:
+                                value = val
+                                tem_val = value
+                            elif cond == False:
+                                continue
+                            else:
+                                value = If(address == key, val, tem_val)
+                                tem_val = value
+                    value_s = simplify(value) if is_expr(value) else value
+                    value = value_s.as_long() if isinstance(value_s, BitVecNumRef) else value
 
             stack[str(row)] = value
 

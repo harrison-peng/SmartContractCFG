@@ -1,8 +1,14 @@
+from Opcode import Opcode
+from Node import Node
+from Edge import Edge
+
 nodes = []
 edges = []
 node_addr_li = []
 addr_line_dict = dict()
 count_edge = dict()
+node_obj_list = list()
+edge_obj_list = list()
 
 
 def cfg_construction(opcode_data, contract_name):
@@ -34,7 +40,7 @@ def cfg_construction(opcode_data, contract_name):
         if addr not in node_addr_li:
             cfg_implement(opcode_list, addr_line_dict[addr], addr, [0], list(), False)
 
-    return nodes, edges
+    return nodes, edges, node_obj_list, edge_obj_list
 
 
 def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
@@ -42,10 +48,13 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
     global edges
     global addr_line_dict
     global count_edge
+    global node_obj_list
+    global edge_obj_list
 
     segment_ins = ['JUMPDEST', 'JUMP', 'JUMPI', 'STOP', 'REVERT', 'INVALID', 'RETURN', 'SELFDESTRUCT']
 
     node_content = init_node_content()
+    opcode_obj_list = list()
 
     opcode_sublist = opcode_list[start_idx:]
     for index, line in opcode_sublist:
@@ -73,27 +82,49 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                     if exec_mode and not is_edge_exist(curr_addr, pc):
                         add_edge(curr_addr, pc)
                     node_content = init_node_content()
+                
+                if opcode_obj_list:
+                    node_obj = Node(int(curr_addr), opcode_obj_list)
+                    edge_obj = Edge(int(curr_addr), int(pc))
+                    if node_obj not in node_obj_list:
+                        node_obj_list.append(node_obj)
+                    if edge_obj not in edge_obj_list:
+                        edge_obj_list.append(edge_obj)
+                    opcode_obj_list = list()
 
                 curr_addr = pc
                 node_content['ins'].append(line)
+                opcode_obj_list.append(Opcode(int(pc), s[0], None))
             elif s[0] == 'JUMP':
                 node_content['ins'].append(line)
+                opcode_obj_list.append(Opcode(int(pc), s[0], None))
 
                 if not is_node_exist(curr_addr):
                     add_node(curr_addr, node_content)
+                node_obj = Node(int(curr_addr), opcode_obj_list)
+                if node_obj not in node_obj_list:
+                    node_obj_list.append(node_obj)
 
                 if exec_mode:
                     jump_idx = addr_line_dict[jump_addr]
                     if not is_edge_exist(curr_addr, jump_addr):
                         add_edge(curr_addr, jump_addr)
                     cfg_implement(opcode_list, jump_idx, jump_addr, list(stack), path, exec_mode)
+                
+                edge_obj = Edge(int(curr_addr), int(jump_addr))
+                if edge_obj not in edge_obj_list:
+                    edge_obj_list.append(edge_obj)
 
                 return
             elif s[0] == 'JUMPI':
                 node_content['ins'].append(line)
+                opcode_obj_list.append(Opcode(int(pc), s[0], None))
 
                 if not is_node_exist(curr_addr):
                     add_node(curr_addr, node_content)
+                node_obj = Node(int(curr_addr), opcode_obj_list)
+                if node_obj not in node_obj_list:
+                    node_obj_list.append(node_obj)
 
                 if exec_mode:
                     jump_addr_true = jump_addr
@@ -104,11 +135,20 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                     stack_false = list(stack)
                     path_true = list(path)
                     path_false = list(path)
+
+                    edge_obj = Edge(int(curr_addr), int(jump_addr_true))
+                    if edge_obj not in edge_obj_list:
+                        edge_obj_list.append(edge_obj)
+
                     if not is_edge_exist(curr_addr, jump_addr_true):
                         add_edge(curr_addr, jump_addr_true)
                     if jump_addr_true not in path:
                         cfg_implement(opcode_list, jump_idx_true, jump_addr_true, stack_true, path_true, exec_mode)
 
+                    edge_obj = Edge(int(curr_addr), int(jump_addr_false))
+                    if edge_obj not in edge_obj_list:
+                        edge_obj_list.append(edge_obj)
+                    
                     if not is_edge_exist(curr_addr, jump_addr_false):
                         add_edge(curr_addr, jump_addr_false)
                     if jump_addr_false not in path:
@@ -121,6 +161,10 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                 node_content['ins'].append(line)
                 if not is_node_exist(curr_addr):
                     add_node(curr_addr, node_content)
+                opcode_obj_list.append(Opcode(int(pc), s[0], None))
+                node_obj = Node(int(curr_addr), opcode_obj_list)
+                if node_obj not in node_obj_list:
+                    node_obj_list.append(node_obj)
                 return
         else:
             if not node_content['ins']:
@@ -128,6 +172,10 @@ def cfg_implement(opcode_list, start_idx, curr_addr, stack, path, exec_mode):
                 curr_addr = pc
                 path.append(pc)
             node_content['ins'].append(line)
+            if len(s) == 1:
+                opcode_obj_list.append(Opcode(int(pc), s[0], None))
+            else:
+                opcode_obj_list.append(Opcode(int(pc), s[0], s[1]))
 
 
 def is_edge_exist(from_addr, to_addr):

@@ -102,6 +102,7 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
 
     for node in nodes:
         if node['addr'] == addr:
+            # print('[ADDR]:', addr)
             node_gas = 0
             ins_list = node['ins']
 
@@ -110,10 +111,10 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                 line = ins_set[0]
                 opcode = ins_set[1]
 
-                # if addr in [192]:
+                # if addr in [1699]:
                 #     print('[INS]:', ins)
-                #     print('[STACK]:', addr, ins, state['Stack'], '\n')
-                #     print('[MEM]:', state['Memory'])
+                #     print('[STACK]:', addr, ins, state['Stack'])
+                #     print('[MEM]:', state['Memory'], '\n\n')
                 #     print('[STO]:', state['Storage'], '\n')
                 #     print('[GAS]:', gas, '\n')
 
@@ -227,16 +228,24 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                     count_loop[addr] += 1
                     has_loop = False
                     cons_val = None
+                    if addr not in loop_condition.keys():
+                        loop_condition[addr] = {'gas': None, 'cons': None}
                     if LOOP_DETECTION:
-                        if addr not in loop_condition.keys():
-                            loop_condition[addr] = {'gas': None, 'cons': None}
-
                         # NOTE: Store gas of first time in the loop
                         if count_loop[addr] == 1:
                             loop_condition[addr]['gas'] = gas
 
                         # NOTE: detect the loop value in last two times
                         if is_expr(path_constraint) and count_loop[addr] == LOOP_ITERATIONS:
+                            # FIXME: debug log
+                            print('==================FINDLOOP===================')
+                            print('[ADDR]:', addr)
+                            print(prev_jumpi_ins)
+                            print('---------------')
+                            print(path_constraint)
+                            print('---------------')
+                            print(loop_condition[addr]['cons'])
+                            print('====================END======================\n\n')
                             cons_val = loop_detection.loop_detection(prev_jumpi_ins, loop_condition[addr]['cons'])
                             has_loop = True
                     else:
@@ -256,6 +265,13 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                         path_addr = path_addr[:addr_idx_2 + 1]
                     else:
                         loop_condition[addr]['cons'] = prev_jumpi_ins
+                        # FIXME: debug log
+                        print('==================LOOOOOP===================')
+                        print('[ADDR]:', addr)
+                        print(path_constraint)
+                        print('-------------------')
+                        print(loop_condition[addr]['cons'])
+                        print('====================END=====================\n\n')
 
                     # NOTE: Find next jump addr and add constraint to the edge
                     for idx, edge in enumerate(edges):
@@ -275,7 +291,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                         constraint = path_constraint == 1
                                     edges[idx] = edge_add_path_constraint(edge, constraint)
                                 else:
-                                    constraint = simplify(loop_pc == 1)
+                                    # constraint = simplify(loop_pc == 1)
+                                    constraint = loop_pc == 1
                                     path_cons_true.add(constraint)
                                     edges[idx] = edge_change_loop_constraint(edge, constraint)
                             elif edge[0][1] == str(next_false_addr):
@@ -283,7 +300,8 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                     if pop_pc is not None:
                                         path_cons_false.add(pop_pc)
                                     if is_expr(path_constraint):
-                                        constraint = simplify(path_constraint == 0)
+                                        # constraint = simplify(path_constraint == 0)
+                                        constraint = path_constraint == 0
                                         if constraint not in path_cons_false.assertions():
                                             path_cons_false.push()
                                             path_cons_false.add(constraint)
@@ -293,15 +311,19 @@ def symbolic_implement(state, gas, path_cons, gas_cons,
                                         constraint = path_constraint == 0
                                     edges[idx] = edge_add_path_constraint(edge, constraint)
                                 else:
-                                    constraint = simplify(loop_pc == 0)
+                                    # constraint = simplify(loop_pc == 0)
+                                    constraint = loop_pc == 0
                                     path_cons_false.add(constraint)
                                     edges[idx] = edge_change_loop_constraint(edge, constraint)
                             else:
                                 raise ValueError('Edge Error:', edge)
 
                     # NOTE: Determine run the path or not
-                    path_constraint = simplify(path_constraint) if is_expr(path_constraint) else path_constraint
-                    path_constraint = path_constraint.as_long() if isinstance(path_constraint, z3.z3.BitVecNumRef) else path_constraint
+                    path_constraint_s = simplify(path_constraint) if is_expr(path_constraint) else path_constraint
+                    path_constraint = path_constraint_s.as_long() if isinstance(path_constraint_s, z3.z3.BitVecNumRef) else path_constraint
+                    # print('\n--------------------------------')
+                    # print('|[PC]:', path_constraint, '|')
+                    # print('----------------------------------\n')
                     if isinstance(path_constraint, int):
                         if path_constraint == 1:
                             go_true = True

@@ -8,6 +8,7 @@ import result_file
 import graph
 import attack_synthesis
 import preprocessing
+from Cfg import Cfg
 
 
 def main():
@@ -63,18 +64,20 @@ def opcodes_analysis(contract_name):
 
         if opcodes != '':
             global_vars.init()
-            nodes, edges = cfg_builder.cfg_construction(opcodes, file_name)
+            nodes, edges, nodes_obj, edges_obj = cfg_builder.cfg_construction(opcodes, file_name)
             graph.create_graph(nodes, edges, contract_name, file_name)
+            cfg = Cfg(nodes_obj, edges_obj)
+            cfg.build_cfg('./result/%s/cfg/%s_Obj' % (contract_name, file_name))
 
-            nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
-            print('[INFO] CFG node count = ', nodes_size)
-            print('[INFO] CFG edge count = ', edges_size)
-            print('[INFO] Total instructions: ', ins_size, '\n')
+            # nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
+            # print('[INFO] CFG node count = ', nodes_size)
+            # print('[INFO] CFG edge count = ', edges_size)
+            # print('[INFO] Total instructions: ', ins_size, '\n')
 
-            nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
-            graph.create_graph(nodes, edges, contract_name, file_name)
-            max_gas = conformation(nodes)
-            result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
+            # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
+            # graph.create_graph(nodes, edges, contract_name, file_name)
+            # max_gas = conformation(nodes)
+            # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
 
 
 def conformation(nodes):
