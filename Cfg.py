@@ -143,3 +143,12 @@ class Cfg:
 
     def ins_num(self) -> int:
         return sum([len(node.opcodes) for node in self.nodes])
+
+    def get_node(self, tag: int) -> Node:
+        return [node for node in self.nodes if tag == node.tag][0]
+
+    def add_edge(self, edge: Edge):
+        self.edges.append(edge)
+
+    def get_edge(self, from_: int, to_: int) -> Edge:
+        return [edge for edge in self.edges if edge.from_ == from_ and edge.to_ == to_][0]
