@@ -1,5 +1,6 @@
 import os
 from subprocess import call
+from global_constants import logging
 
 
 def source_code_to_opcodes(file_name):
@@ -7,7 +8,7 @@ def source_code_to_opcodes(file_name):
     set_up_dir(contract_name)
 
     try:
-        print('\n[INFO] Compiling source code to opcodes.')
+        logging.info('Compiling source code to opcodes.')
         call(['solc', '--opcodes', '-o', './opcodes_raw', '--overwrite', file_name])
 
         for file in os.listdir("./opcodes_raw"):
@@ -88,7 +89,7 @@ def bytecode_to_opcodes(file_name):
 
 def set_up_dir(contract_name):
     try:
-        print('\n[INFO] Setup the opcodes_raw and opcodes directory.')
+        logging.info('Setup the opcodes_raw and opcodes directory.')
         call(['rm', '-rf', './opcodes_raw'])
         call(['rm', '-rf', './opcodes/%s' % contract_name])
         call(['mkdir', './opcodes_raw'])

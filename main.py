@@ -8,6 +8,7 @@ import result_file
 import graph
 import attack_synthesis
 import preprocessing
+from global_constants import logging
 from Cfg import Cfg
 
 
@@ -30,7 +31,7 @@ def main():
 
             global_vars.set_gas_limit(int(args.gas))
 
-            print('[INFO] Start Transforming contract %s source code to opcodes.' % contract_name)
+            logging.info('Start Transforming contract %s source code to opcodes.' % contract_name)
             # NOTE: Compile source code to opcodes
             preprocessing.source_code_to_opcodes(f_src)
 
@@ -46,7 +47,7 @@ def main():
 
             global_vars.set_gas_limit(int(args.gas))
 
-            print('[INFO] Start Transforming contract %s source code to opcodes.' % contract_name)
+            logging.info('Start Transforming contract %s source code to opcodes.' % contract_name)
             # NOTE: Compile source code to opcodes
             preprocessing.bytecode_to_opcodes(f_src)
 
@@ -64,20 +65,28 @@ def opcodes_analysis(contract_name):
 
         if opcodes != '':
             global_vars.init()
+
+            # FIXME: old cfg builder
             nodes, edges, nodes_obj, edges_obj = cfg_builder.cfg_construction(opcodes, file_name)
             graph.create_graph(nodes, edges, contract_name, file_name)
-            cfg = Cfg(nodes_obj, edges_obj)
-            cfg.build_cfg('./result/%s/cfg/%s_Obj' % (contract_name, file_name))
 
-            # nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
-            # print('[INFO] CFG node count = ', nodes_size)
-            # print('[INFO] CFG edge count = ', edges_size)
-            # print('[INFO] Total instructions: ', ins_size, '\n')
+            nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
+            print('[INFO] CFG node count = ', nodes_size)
+            print('[INFO] CFG edge count = ', edges_size)
+            print('[INFO] Total instructions: ', ins_size, '\n')
+            
+            # NOTE: Build CFG
+            # cfg = Cfg()
+            # cfg.build_cfg(opcodes)
+            # cfg.render('./result/%s/cfg/%s_Obj' % (contract_name, file_name))
+            # logging.info('CFG node count = %s' % cfg.node_num())
+            # logging.info('CFG edge count = %s' % cfg.edge_num())
+            # logging.info('Total instructions: %s' % cfg.ins_num())
 
-            # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
-            # graph.create_graph(nodes, edges, contract_name, file_name)
-            # max_gas = conformation(nodes)
-            # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
+            nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
+            graph.create_graph(nodes, edges, contract_name, file_name)
+            max_gas = conformation(nodes)
+            result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
 
 
 def conformation(nodes):

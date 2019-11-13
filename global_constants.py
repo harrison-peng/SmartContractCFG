@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(format='[%(levelname)s]: %(message)s\n', level=logging.DEBUG)
+
 # NOTE: ANALYSIS OPTIONS
 
 # NOTE: Detect loop once and evaluate to n
