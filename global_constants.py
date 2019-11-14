@@ -8,6 +8,7 @@ LOOP_DETECTION = False
 
 # NOTE: How many times to execute the loop if not detecting the loop
 LOOP_ITERATIONS = 3
+MAX_LOOP_ITERATIONS = 3
 
 # NOTE: Execute the loop in attack synthesis
 ATTACK_SYNTHESIS_EXECUTE_LOOP = False
