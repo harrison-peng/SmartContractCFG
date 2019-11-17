@@ -8,12 +8,12 @@ import result_file
 import graph
 import attack_synthesis
 import preprocessing
-from global_constants import logging
+from settings import *
+from settings import logging
 from Cfg import Cfg
 from Analyzer import Analyzer
 from Path import Path
 from State import State
-from global_constants import PATHS
 
 
 def main():
@@ -63,8 +63,10 @@ def main():
 
 def opcodes_analysis(contract_name):
     for file in os.listdir('./opcodes/%s' % contract_name):
+        init_path()
+        init_variables()
         file_name = file.split('.')[0]
-        logging.info('Contract: %s - %s' % (contract_name, file_name))
+        logging.info('Analyze contract %s - %s' % (contract_name, file_name))
         with open('./opcodes/%s/%s' % (contract_name, file), 'r') as f:
             opcodes = f.read()
 
@@ -83,20 +85,29 @@ def opcodes_analysis(contract_name):
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
-            cfg.render('./result/%s/cfg/%s_Obj' % (contract_name, file_name))
-            logging.info('CFG node count = %s' % cfg.node_num())
-            logging.info('CFG edge count = %s' % cfg.edge_num())
+            cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
             logging.info('Total instructions: %s' % cfg.ins_num())
 
             # NOTE: Analysis
             analyzer = Analyzer(cfg)
             analyzer.symbolic_execution(0, Path(), State())
+            logging.info('CFG node count = %s' % cfg.node_num())
+            logging.info('CFG edge count = %s' % cfg.edge_num())
             logging.info('Total path: %s' % len(PATHS))
+            cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
+
+            # NOTE: Solve PATHS
+            # for path in PATHS:
+            #     path.solve()
 
             # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
             # graph.create_graph(nodes, edges, contract_name, file_name)
             # max_gas = conformation(nodes)
             # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
+
+            logging.info('Analysis complete\n')
+        else:
+            logging.info('%s is empyty\n' % file_name)
 
 
 def conformation(nodes):

@@ -1,16 +1,18 @@
 import functools
-from global_constants import logging
+from z3 import simplify
+from settings import logging
 from graphviz import Digraph
 from Node import Node
 from Edge import Edge
 from Opcode import Opcode
+from subprocess import call
 
 class Cfg:
 
     def __init__(self):
         self.nodes = list()
         self.edges = list()
-        self.graph = Digraph(format='svg', node_attr={'shape': 'box'})
+        self.graph = None
 
     def build_cfg(self, opcode_data):
         logging.info('Constructing CFG...')
@@ -112,17 +114,21 @@ class Cfg:
                 content.append(opcode)
 
     def render(self, file):
+        self.graph = Digraph(format='svg', node_attr={'shape': 'box'})
         for node in self.nodes:
             self.graph.node(str(node.tag), label=self.__node_to_graph_content(node))
         for edge in self.edges:
-            self.graph.edge(str(edge.from_), str(edge.to_))
+            self.graph.edge(str(edge.from_), str(edge.to_), label=edge.path_constraint, color=edge.color)
         self.graph.render(file)
+        call(['rm', file])
 
     def __node_to_graph_content(self, node: Node) -> str:
         content = '[ADDRESS: %s]\n\n' % str(node.tag)
         opcdoes = node.opcodes
         for opcode in opcdoes:
             content += '%s: %s %s\n' % (opcode.pc, opcode.name, opcode.value if opcode.value else '')
+        if not (isinstance(node.gas, int) and node.gas == 0):
+            content += '\n[GAS]: %s' % str(node.gas).replace('\n', '').replace('\t', '').replace(' ', '')
         return content
 
     def node_num(self) -> int:

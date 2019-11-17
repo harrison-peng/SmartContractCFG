@@ -1,7 +1,7 @@
 import sha3
 from z3_func import *
 from gas_price import gas_table
-from global_constants import *
+from settings import *
 from Opcode import Opcode
 from SimulationResult import SimularionResult
 from PathConstraint import PathConstraint
@@ -585,12 +585,10 @@ class State:
 
                 # NOTE: GAS
                 if isinstance(length, int):
-                    gas = 30 + 6 * ((len(hex(length)) - 2)/4)
+                    gas = 30 + 6 * (length/32)
                 else:
                     if str(data) == 'Ia_caller':
                         gas = 150
-                    # elif str(data) == 'Id_size':
-                    #     gas = simplify(30 + 6 * BV2Int(data))
                     else:
                         size_var = BitVec('Isize_%s' % opcode.pc, 256)
                         result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))

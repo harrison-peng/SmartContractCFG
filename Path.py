@@ -1,3 +1,4 @@
+from z3 import *
 from Node import Node
 from PathConstraint import PathConstraint
 
@@ -22,3 +23,16 @@ class Path:
 
     def count_specific_node_num(self, tag: int) -> int:
         return len([node for node in self.path if node.tag == tag])
+
+    def add_gas(self, gas):
+        self.gas += gas
+        self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
+
+    def solve(self):
+        solver = Solver()
+        for contraint in self.path_constraint:
+            solver.add(contraint)
+        if solver.check() == sat:
+            print(solver.model())
+        else:
+            print("UNSAT")
