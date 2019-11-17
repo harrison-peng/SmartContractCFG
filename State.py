@@ -21,8 +21,7 @@ class State:
         if opcode.name in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
             pass
         elif opcode.name == 'TIMESTAMP':
-            time_var = BitVec('It_%s' % opcode.pc, 256)
-            variables.add_variable(Variable('It_%s' % opcode.pc, 'TIMESTAMP', time_var))
+            time_var = variables.get_variable(Variable('It_%s' % opcode.pc, 'TIMESTAMP', BitVec('It_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(time_var, UNSIGNED_BOUND_NUMBER))
 
             self.stack[str(len(self.stack))] = time_var
@@ -90,17 +89,9 @@ class State:
                 second = self.stack.pop(str(len(self.stack) - 1))
 
                 if is_all_real(first, second):
-                    if second == 0:
-                        computed = 0
-                    else:
-                        first = to_unsigned(first)
-                        second = to_unsigned(second)
-                        computed = first // second
+                    computed = 0 if second == 0 else to_unsigned(first) // to_unsigned(second)
                 else:
-                    if is_real(second):
-                        computed = first / second
-                    else:
-                        computed = If(second == 0, 0, first/second)
+                    computed =first / second if is_real(second) else If(second == 0, 0, first/second)
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -299,8 +290,7 @@ class State:
                     # NOTE: GAS
                     gas = 10 if computed == 0 else 10 + 10 * (1 + math.log(computed, 256))
                 else:
-                    computed = BitVec('Iexp_%s' % opcode.pc, 256)
-                    variables.add_variable(Variable('Iexp_%s', 'EXP(%s, %s)' % (base, exponent), computed))
+                    computed = variables.get_variable(Variable('Iexp_%s', 'EXP(%s, %s)' % (base, exponent), BitVec('Iexp_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(computed, UNSIGNED_BOUND_NUMBER))
 
                     # NOTE: GAS
@@ -310,10 +300,9 @@ class State:
                         if isinstance(base, int) and base == 256:
                             gas = simplify(10 + (10 * (1 + BV2Int(exponent)))) if is_bv(exponent) else simplify(10 + (10 * (1 + exponent)))
                         else:
-                            gas_var = BitVec('log_%s' % opcode.pc, 256)
+                            gas_var = variables.get_variable(Variable('log_%s' % opcode.pc, 'log256(%s)' % computed, BitVec('log_%s' % opcode.pc, 256)))
                             gas = simplify(10 + (10 * (1 + BV2Int(gas_var))))
                             result.add_path_constraint(ULT(gas_var, UNSIGNED_BOUND_NUMBER))
-                            variables.add_variable(Variable('log_%s' % opcode.pc, 'log256(%s)' % computed, gas_var))
 
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas)
@@ -560,24 +549,19 @@ class State:
                                 data += self.memory[position + 32 * i]
                                 data = simplify(data) if is_expr(data) else data
                         else:
-                            mem_var = BitVec('Imem_%s' % opcode.pc, 256)
+                            mem_var = variables.get_variable(Variable('Imem_%s' % opcode.pc, 'memory[%s:%s+32]' % (i, i), BitVec('Imem_%s' % opcode.pc, 256)))
                             data = data + mem_var
                             result.add_path_constraint(ULT(mem_var, UNSIGNED_BOUND_NUMBER))
                             result.add_path_constraint(ULT(data, UNSIGNED_BOUND_NUMBER))
-                            variables.add_variable(Variable('Imem_%s' % opcode.pc, 'memory[%s:%s+32]' % (i, i), mem_var))
                 else:
-                    data = BitVec('Isha3_%s' % opcode.pc, 256)
+                    data = variables.get_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(memory[%s:%s])' % (position, position + length), BitVec('Isha3_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(data, UNSIGNED_BOUND_NUMBER))
-                    variables.add_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(memory[%s:%s])' % (position, position + length), data))
 
                 if isinstance(data, int):
                     computed = int(sha3.sha3_224(str(data).encode('utf-8')).hexdigest(), 16)
                 else:
-                    computed = variables.get_z3_var_by_value('SHA3(%s)' % data)
-                    if computed is None:
-                        computed = BitVec('Isha3_%s' % opcode.pc, 256)
-                        result.add_path_constraint(ULT(computed, UNSIGNED_BOUND_NUMBER))
-                        variables.add_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(%s)' % data, computed))
+                    computed = variables.get_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(%s)' % data, BitVec('Isha3_%s' % opcode.pc, 256)))
+                    result.add_path_constraint(ULT(computed, UNSIGNED_BOUND_NUMBER))
                 # data = simplify(data) if is_expr(data) else data
 
                 self.stack[str(len(self.stack))] = computed
@@ -589,18 +573,16 @@ class State:
                     if str(data) == 'Ia_caller':
                         gas = 150
                     else:
-                        size_var = BitVec('Isize_%s' % opcode.pc, 256)
+                        size_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % data, BitVec('Isize_%s' % opcode.pc, 256)))
                         result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
-                        variables.add_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % data, size_var))
                         gas = simplify(30 + 6 * BV2Int(size_var))
 
                 result.set_gas(gas)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'ADDRESS':
-            addr_var = BitVec('Ia', 256)
+            addr_var = variables.get_variable(Variable('Ia', 'address(this) (address of the executing contract)', BitVec('Ia', 256)))
             result.add_path_constraint(ULT(addr_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Ia', 'address(this) (address of the executing contract)', addr_var))
 
             self.stack[str(len(self.stack))] = addr_var
             result.set_gas(gas_table[opcode.name])
@@ -608,32 +590,28 @@ class State:
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
-                banlance_var = BitVec('balance_%s' % opcode.pc, 256)
+                banlance_var = variables.get_variable(Variable('Ibalance_%s' % opcode.pc, 'address(%s).balance' % address, BitVec('Ibalance_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(banlance_var, UNSIGNED_BOUND_NUMBER))
-                variables.add_variable(Variable('balance_%s' % opcode.pc, 'address(%s).balance' % address, banlance_var))
 
                 self.stack[str(len(self.stack))] = banlance_var
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CALLER':
-            caller_var = BitVec('Ia_caller', 256)
+            caller_var = variables.get_variable(Variable('Ia_caller', 'msg.caller (caller address)', BitVec('Ia_caller', 256)))
             result.add_path_constraint(ULT(caller_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Ia_caller', 'msg.caller (caller address)', caller_var))
 
             self.stack[str(len(self.stack))] = caller_var
             result.set_gas(gas_table[opcode.name])
-        elif opcode.name == "ORIGIN":
-            origin_var = BitVec('Io_%s' % opcode.pc, 256)
+        elif opcode.name == 'ORIGIN':
+            origin_var = variables.get_variable(Variable('Io_%s' % opcode.pc, 'tx.origin (transaction origin address)', BitVec('Io_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(origin_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Io_%s' % opcode.pc, 'tx.origin (transaction origin address)', origin_var))
 
             self.stack[str(len(self.stack))] = caller_var
             result.set_gas(gas_table[opcode.name])
         elif opcode.name == 'CALLVALUE':
-            value_var = BitVec('Iv', 256)
+            value_var = variables.get_variable(Variable('Iv', 'tx.origin (transaction origin address)', BitVec('Iv', 256)))
             result.add_path_constraint(ULT(value_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Iv', 'tx.origin (transaction origin address)', value_var))
 
             self.stack[str(len(self.stack))] = value_var
             result.set_gas(gas_table[opcode.name])
@@ -643,25 +621,17 @@ class State:
 
                 # NOTE: Check if the sym var of msg.data is already created or not
                 if isinstance(position, int):
-                    data_var = variables.get_z3_var_by_value('msg.data[%s:%s]' % (position, position + 32))
+                    data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (position, position + 32), BitVec('Id_%s' % opcode.pc, 256)))
                 else:
-                    data_var = variables.get_z3_var_by_value('msg.data[%s:%s]' % (position, simplify(position+32)))
-                if data_var is None:
-                    data_var = BitVec('Id_%s' % opcode.pc, 256)
-                    result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
-                    if isinstance(position, int):
-                        variables.add_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (position, position + 32), data_var))
-                    else:
-                        pass
-                        # variables.add_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (position, simplify(position+32), data_var))
+                    data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (position, simplify(position+32)), BitVec('Id_%s' % opcode.pc, 256)))
+                result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
 
                 self.stack[str(len(self.stack))] = data_var
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CALLDATASIZE':
-            ds_var = BitVec('Id_size', 256)
-            variables.add_variable(Variable('Id_size', 'msg.data.size', ds_var))
+            ds_var = variables.get_variable(Variable('Id_size', 'msg.data.size', BitVec('Id_size', 256)))
 
             self.stack[str(len(self.stack))] = ds_var
             result.set_gas(gas_table[opcode.name])
@@ -671,26 +641,23 @@ class State:
                 msg_p = self.stack.pop(str(len(self.stack) - 1))
                 num_bytes = self.stack.pop(str(len(self.stack) - 1))
 
-                data_var = BitVec('Id_%s' % opcode.pc, 256)
+                data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s+%s]' % (msg_p, msg_p, num_bytes), BitVec('Id_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
-                variables.add_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s+%s]' % (msg_p, msg_p, num_bytes), data_var))
                 self.memory[mem_p] = data_var
 
                 # NOTE: GAS
                 if is_real(num_bytes):
-                    gas = 2 + 3 * (len(hex(num_bytes))-2)
+                    gas = 2 + 3 * (num_bytes / 32)
                 else:
-                    ws_var = BitVec('Isize_%s' % opcode.pc, 256)
+                    ws_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % num_bytes, BitVec('Isize_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(ws_var, BYTE_BOUND_NUMBER))
-                    variables.add_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % num_bytes, ws_var))
                     gas = simplify(2 + 3 * BV2Int(ws_var))
                 result.set_gas(gas)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CODESIZE':
-            size_var = BitVec('Id_size', 256)
+            size_var = variables.get_variable(Variable('Id_size', 'address(this).code.size', BitVec('Id_size', 256)))
             result.add_path_constraint(ULT(size_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Id_size', 'address(this).code.size', size_var))
 
             self.stack[str(len(self.stack))] = size_var
             result.set_gas(gas_table[opcode.name])
@@ -700,27 +667,24 @@ class State:
                 msg_p = self.stack.pop(str(len(self.stack) - 1))
                 num_bytes = self.stack.pop(str(len(self.stack) - 1))
 
-                code_var = BitVec('Ic_%s' % opcode.pc, 256)
+                code_var = variables.get_variable(Variable('Ic_%s' % opcode.pc, 'address(this).code[%s:%s+%s]' % (mem_p, msg_p, num_bytes), BitVec('Ic_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(code_var, UNSIGNED_BOUND_NUMBER))
-                variables.add_variable(Variable('Ic_%s' % opcode.pc, 'address(this).code[%s:%s+%s]' % (mem_p, msg_p, num_bytes), code_var))
                 self.memory[mem_p] = code_var
 
                 # NOTE: GAS
                 if is_real(num_bytes):
-                    gas = 2 + 3 * (len(hex(num_bytes)) - 2)
+                    gas = 2 + 3 * (num_bytes / 32)
                 else:
-                    size_var = BitVec('Isize_%s' % str(num_bytes).split('_')[1], 256)
+                    size_var = variables.get_variable(Variable('Isize_%s' % str(num_bytes).split('_')[1], 'The word size of %s' % num_bytes, BitVec('Isize_%s' % str(num_bytes).split('_')[1], 256)))
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
-                    variables.add_variable(Variable('Isize_%s' % str(num_bytes).split('_')[1], 'The word size of %s' % num_bytes, size_var))
 
                     gas = simplify(30 + 6 * BV2Int(size_var))
                 result.set_gas(gas)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'GASPRICE':
-            gas_var = BitVec('Ip_%s' % opcode.pc, 256)
+            gas_var = variables.get_variable(Variable('Ip_%s' % opcode.pc, 'tx.gasprice', BitVec('Ip_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(gas_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Ip_%s' % opcode.pc, 'tx.gasprice', gas_var))
 
             self.stack[str(len(self.stack))] = gas_var
             result.set_gas(gas_table[opcode.name])
@@ -730,35 +694,29 @@ class State:
                 y = self.stack.pop(str(len(self.stack) - 1))
                 x = self.stack.pop(str(len(self.stack) - 1))
 
-                data_var = variables.get_z3_var_by_value('RETURNDATA[%s:%s+%s]' % (y, y, x))
-                if data_var is None:
-                    data_var = BitVec('Id_%s'% opcode.pc, 256)
-                    result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
-                    variables.add_variable(Variable('Id_%s'% opcode.pc, 'RETURNDATA[%s:%s+%s]' % (y, y, x), data_var))
+                data_var = variables.get_variable(Variable('Id_%s'% opcode.pc, 'RETURNDATA[%s:%s+%s]' % (y, y, x), BitVec('Id_%s'% opcode.pc, 256)))
+                result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
                 self.memory[z] = data_var
 
                 # NOTE: GAS
                 if is_real(x):
-                    gas = 2 + 3 * (len(hex(x)) - 2)
+                    gas = 2 + 3 * (x / 32)
                 else:
-                    size_var = BitVec('Isize_%s' % str(x).split('_')[1], 256)
+                    size_var = variables.get_variable(Variable('Isize_%s' % str(x).split('_')[1], 'The word size of %s' % x, BitVec('Isize_%s' % str(x).split('_')[1], 256)))
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
-                    variables.add_variable(Variable('Isize_%s' % str(x).split('_')[1], 'The word size of %s' % x, size_var))
                     gas = simplify(30 + 6 * BV2Int(size_var))
                 result.set_gas(gas)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'RETURNDATASIZE':
-            size_var = BitVec('Id_size', 256)
+            size_var = variables.get_variable(Variable('Id_size', 'data.size', BitVec('Id_size', 256)))
             result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
-            variables.add_variable(Variable('Id_size', 'data.size', size_var))
 
             self.stack[str(len(self.stack))] = size_var
             result.set_gas(gas_table[opcode.name])
         elif opcode.name == 'NUMBER':
-            number_var = BitVec('Iblocknum', 256)
+            number_var = variables.get_variable(Variable('Iblocknum', 'block.number', BitVec('Iblocknum', 256)))
             result.add_path_constraint(ULT(number_var, BYTE_BOUND_NUMBER))
-            variables.add_variable(Variable('Iblocknum', 'block.number', number_var))
 
             self.stack[str(len(self.stack))] = number_var
             result.set_gas(gas_table[opcode.name])
@@ -868,17 +826,15 @@ class State:
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'GAS':
-            gas_var = BitVec('Igas_%s' % opcode.pc, 256)
+            gas_var = variables.get_variable(Variable('Igas_%s' % opcode.pc, 'Gas Remaining', BitVec('Igas_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(gas_var, UNSIGNED_BOUND_NUMBER))
-            variables.add_variable(Variable('Igas_%s' % opcode.pc, 'Gas Remaining', gas_var))
 
             self.stack[str(len(self.stack))] = gas_var
             result.set_gas(gas_table[opcode.name])
         elif opcode.name.startswith('PUSH', 0):
             if opcode.name == 'PUSHDEPLOYADDRESS':
-                pushed_value = BitVec('Iaddr_%s' % opcode.pc, 256)
+                pushed_value = variables.get_variable(Variable('Iaddr_%s' % opcode.pc, 'address(deployed)', BitVec('Iaddr_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(pushed_value, UNSIGNED_BOUND_NUMBER))
-                variables.add_variable(Variable('Iaddr_%s' % opcode.pc, 'address(deployed)', pushed_value))
             else:
                 pushed_value = int(str(opcode.value), 16)
             self.stack[str(len(self.stack))] = pushed_value
@@ -911,11 +867,10 @@ class State:
 
                 # NOTE: GAS
                 if isinstance(word, int):
-                    gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (len(hex(word)) - 2))
+                    gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (word / 32))
                 else:
-                    size_var = BitVec('Isize_%s' % opcode.pc, 256)
+                    size_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The bytes of %s' % word, BitVec('Isize_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
-                    variables.add_variable(Variable('Isize_%s' % opcode.pc, 'The bytes of %s' % word, size_var))
                     gas = (int(opcode.name[3:]) + 1) * 375 + (8 * BV2Int(size_var))
                 result.set_gas(gas)
             else:
@@ -930,9 +885,8 @@ class State:
                 out_position = self.stack.pop(str(len(self.stack) - 1))
                 out_length = self.stack.pop(str(len(self.stack) - 1))
 
-                call_var = BitVec('Icall_%s' % opcode.pc, 256)
+                call_var = variables.get_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', BitVec('Icall_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(call_var == 1, call_var == 0))
-                variables.add_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', call_var))
                 self.stack[str(len(self.stack))] = call_var
 
                 # NOTE: GAS
@@ -960,11 +914,9 @@ class State:
                 out_value = self.stack.pop(str(len(self.stack) - 1))
                 out_size = self.stack.pop(str(len(self.stack) - 1))
 
-                call_var = BitVec('Icall_%s' % opcode.pc, 256)
+                call_var = variables.get_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', BitVec('Icall_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(call_var == 1, call_var == 0))
-                variables.add_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', call_var))
                 self.stack[str(len(self.stack))] = call_var
-                # TODO: fix gas
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')
@@ -977,11 +929,9 @@ class State:
                 out_value = self.stack.pop(str(len(self.stack) - 1))
                 out_size = self.stack.pop(str(len(self.stack) - 1))
 
-                call_var = BitVec('Icall_%s' % opcode.pc, 256)
+                call_var = variables.get_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', BitVec('Icall_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(call_var == 1, call_var == 0))
-                variables.add_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', call_var))
                 self.stack[str(len(self.stack))] = call_var
-                # TODO: fix gas
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')
@@ -998,9 +948,8 @@ class State:
                 offset = self.stack.pop(str(len(self.stack) - 1))
                 length = self.stack.pop(str(len(self.stack) - 1))
 
-                addr_var = BitVec('Iaddr_%s' % opcode.pc, 256)
+                addr_var = variables.get_variable(Variable('Iaddr_%s' % opcode.pc, 'memory[%s:%s].value(%s)' % (offset, offset + length, value), BitVec('Iaddr_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(addr_var, ADDRESS_BOUND_NUMBER))
-                variables.add_variable(Variable('Iaddr_%s' % opcode.pc, 'memory[%s:%s].value(%s)' % (offset, offset + length, value), addr_var))
 
                 self.stack[str(len(self.stack))] = addr_var
                 result.set_gas(gas_table[opcode.name])
@@ -1010,9 +959,8 @@ class State:
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
-                code_var = BitVec('Icodesize_%s' % opcode.pc, 256)
+                code_var = variables.get_variable(Variable('Icodesize_%s' % opcode.pc, 'address(%s).code.size' % address, BitVec('Icodesize_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(code_var, ADDRESS_BOUND_NUMBER))
-                variables.add_variable(Variable('Icodesize_%s' % opcode.pc, 'address(%s).code.size' % address, code_var))
 
                 self.stack[str(len(self.stack))] = code_var
                 result.set_gas(gas_table[opcode.name])
@@ -1022,9 +970,8 @@ class State:
             if len(self.stack) > 0:
                 block_num = self.stack.pop(str(len(self.stack) - 1))
 
-                hash_var = BitVec('Ih_%s' % opcode.pc, 256)
+                hash_var = variables.get_variable(Variable('Ih_%s' % opcode.pc, 'block.blockHash(%s)' % block_num, BitVec('Ih_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(hash_var, ADDRESS_BOUND_NUMBER))
-                variables.add_variable(Variable('Ih_%s' % opcode.pc, 'block.blockHash(%s)' % block_num, hash_var))
 
                 self.stack[str(len(self.stack))] = hash_var
                 result.set_gas(gas_table[opcode.name])
@@ -1034,9 +981,8 @@ class State:
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
-                contract_var = BitVec('Inewaccount_%s' % opcode.pc, 256)
+                contract_var = variables.get_variable(Variable('Inewaccount_%s' % opcode.pc, 'selfdestruct(address(%s))' % address, BitVec('Inewaccount_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(contract_var==1, contract_var==0))
-                variables.add_variable(Variable('Inewaccount_%s' % opcode.pc, 'selfdestruct(address(%s))' % address, contract_var))
                 result.set_gas(5000 + BV2Int(If(contract_var, 25000, 0)))
             else:
                 raise ValueError('STACK underflow')
@@ -1044,3 +990,361 @@ class State:
             raise Exception('UNKNOWN INSTRUCTION:', opcode)
         
         return result
+
+    def simulate_with_model(self, opcode: Opcode, model) -> int:
+        if opcode.name in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
+            gas = 0
+        elif opcode.name == 'TIMESTAMP':
+            value = self.__get_value_from_model('It_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = value
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'ADD':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = first + second
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'MUL':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = first * second
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SUB':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = (first - second) % (2 ** 256)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'DIV':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            computed = 0 if second == 0 else first // second
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SDIV':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            if second == 0:
+                computed = 0
+            elif first == -2 ** 255 and second == -1:
+                computed = -2 ** 255
+            else:
+                sign = -1 if (first / second) < 0 else 1
+                computed = sign * (abs(first) / abs(second))
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'MOD':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            computed = 0 if second == 0 else first % second & UNSIGNED_BOUND_NUMBER
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SMOD':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            if second == 0:
+                computed = 0
+            else:
+                sign = -1 if first < 0 else 1
+                computed = sign * (abs(first) % abs(second))
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'ADDMOD':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            third = self.stack.pop(str(len(self.stack) - 1))
+            computed = 0 if third == 0 else (first + second) % third
+            self.stack[len(self.stack)] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'MULMOD':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            third = self.stack.pop(str(len(self.stack) - 1))
+            computed = 0 if third == 0 else (first * second) % third
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'EXP':
+            base = self.stack.pop(str(len(self.stack) - 1))
+            exponent = self.stack.pop(str(len(self.stack) - 1))
+            computed = pow(base, exponent, 2 ** 256)
+            self.stack[str(len(self.stack))] = computed
+            gas = 10 if computed == 0 else 10 + 10 * (1 + math.log(computed, 256))
+        elif opcode.name == 'SIGNEXTEND':
+            bit = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+
+            if bit >= 32 or bit < 0:
+                computed = second
+            else:
+                signbit_index_from_right = 8 * bit + 7
+                if second & (1 << signbit_index_from_right):
+                    computed = second | (2 ** 256 - (1 << signbit_index_from_right))
+                else:
+                    computed = second & ((1 << signbit_index_from_right) - 1)
+
+            self.stack[len(self.stack)] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'LT':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            computed = 1 if first < second else 0
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'GT':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            computed = 1 if first > second else 0
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SLT':
+            first = self.stack.pop(len(self.stack) - 1)
+            second = self.stack.pop(len(self.stack) - 1)
+            computed = 1 if first < second else 0
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SGT':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            computed = 1 if first > second else 0
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'EQ':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            computed = 0 if first == second else 0
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'ISZERO':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            computed = 0 if first == 0 else 0
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'AND':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = first & second
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'OR':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = first | second
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'XOR':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = first ^ second
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'NOT':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = (~first) & UNSIGNED_BOUND_NUMBER
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'BYTE':
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
+            byte_index = 32 - first - 1
+
+            if first >= 32 or first < 0:
+                computed = 0
+            else:
+                computed = second & (255 << (8 * byte_index))
+                computed >>= (8 * byte_index)
+            
+            self.stack[str(len(self.stack))] = computed
+            gas = gas_table[opcode.name]
+        elif opcode.name in ['SHA3', 'KECCAK256']:
+            position = self.stack.pop(str(len(self.stack) - 1))
+            length = self.stack.pop(str(len(self.stack) - 1))
+            stop = position + length
+
+            val = 0
+            for i in self.memory:
+                if position <= int(i) <= stop:
+                    val += self.memory[i]
+            computed = int(sha3.sha3_224(str(val).encode('utf-8')).hexdigest(), 16)
+
+            self.stack[str(len(self.stack))] = computed
+            gas = 30 + 6 * (length / 32)
+        elif opcode.name == 'ADDRESS':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ia', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'BALANCE':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ibalance_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'CALLER':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ia_caller', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'ORIGIN':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Io_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'CALLVALUE':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Iv', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'CALLDATALOAD':
+            position = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'CALLDATASIZE':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_size', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == "CALLDATACOPY":
+            mem_p = self.stack.pop(str(len(self.stack) - 1))
+            msg_p = self.stack.pop(str(len(self.stack) - 1))
+            num_bytes = self.stack.pop(str(len(self.stack) - 1))
+            self.memory[str(mem_p)] = self.__get_value_from_model('Id_%s' % opcode.pc, model)
+            gas = 2 + 3 * (num_bytes / 32)
+        elif opcode.name == 'CODESIZE':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_size', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'CODECOPY':
+            mem_p = self.stack.pop(str(len(self.stack) - 1))
+            msg_p = self.stack.pop(str(len(self.stack) - 1))
+            num_bytes = self.stack.pop(str(len(self.stack) - 1))
+            self.memory[str(mem_p)] = self.__get_value_from_model('Ic_%s' % opcode.pc, model)
+            gas = 2 + 3 * (num_bytes / 32)
+        elif opcode.name == 'GASPRICE':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ip_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'RETURNDATACOPY':
+            z = self.stack.pop(str(len(self.stack) - 1))
+            y = self.stack.pop(str(len(self.stack) - 1))
+            x = self.stack.pop(str(len(self.stack) - 1))
+            self.memory[str(z)] = self.__get_value_from_model('Id_%s'% opcode.pc, model)
+            gas = 2 + 3 * (x / 32)
+        elif opcode.name == 'RETURNDATASIZE':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_size', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'NUMBER':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Iblocknum', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'POP':
+            self.stack.pop(str(len(self.stack) - 1))
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'MLOAD':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            if str(address) in self.memory:
+                value = self.memory[str(address)]
+            else:
+                value = 0
+            self.stack[str(len(self.stack))] = value
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'MSTORE':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            value = self.stack.pop(str(len(self.stack) - 1))
+            self.memory[str(address)] = value
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SLOAD':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            if str(address) in self.storage:
+                value = self.storage[str(address)]
+            else:
+                value = 0
+            self.stack[str(len(self.stack))] = value
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SSTORE':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            value = self.stack.pop(str(len(self.stack) - 1))
+
+            # NOTE: GAS
+            c1 = False if str(address) in self.storage.keys() else True
+            c2 = False if value == 0 else True
+            gas = 20000 if c1 and c2 else 5000
+            self.storage[str(address)] = value
+        elif opcode.name == 'JUMP':
+            jump_tag = self.stack.pop(str(len(self.stack) - 1))
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'JUMPI':
+            jump_tag = self.stack.pop(str(len(self.stack) - 1))
+            jump_condition = self.stack.pop(str(len(self.stack) - 1))
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'GAS':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Igas_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name.startswith('PUSH', 0):
+            if opcode.name == 'PUSHDEPLOYADDRESS':
+                pushed_value = self.__get_value_from_model('Iaddr_%s' % opcode.pc, model)
+            else:
+                pushed_value = int(str(opcode.value), 16)
+            self.stack[str(len(self.stack))] = pushed_value
+            gas = gas_table['PUSH']
+        elif opcode.name.startswith('DUP', 0):
+            position = len(self.stack) - int(opcode.name[3:], 10)
+            self.stack[str(len(self.stack))] = self.stack[str(position)]
+            gas = gas_table['DUP']
+        elif opcode.name.startswith('SWAP', 0):
+            position = len(self.stack) - 1 - int(opcode.name[4:], 10)
+            temp_value = self.stack[str(position)]
+            self.stack[str(position)] = self.stack[str(len(self.stack) - 1)]
+            self.stack[str(len(self.stack) - 1)] = temp_value
+            gas = gas_table['SWAP']
+        elif opcode.name in ('LOG0', 'LOG1', 'LOG2', 'LOG3', 'LOG4'):
+            num_of_pops = 2 + int(opcode.name[3:])
+
+            offset = self.stack.pop(str(len(self.stack) - 1))
+            word = self.stack.pop(str(len(self.stack) - 1))
+            for _ in range(int(opcode.name[3:])):
+                num_of_pops -= 1
+                pop_value = self.stack.pop(str(len(self.stack) - 1))
+
+            # NOTE: GAS
+            gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (word / 32))
+        elif opcode.name == 'CALL':
+            out_gas = self.stack.pop(str(len(self.stack) - 1))
+            addr = self.stack.pop(str(len(self.stack) - 1))
+            out_value = self.stack.pop(str(len(self.stack) - 1))
+            in_position = self.stack.pop(str(len(self.stack) - 1))
+            in_length = self.stack.pop(str(len(self.stack) - 1))
+            out_position = self.stack.pop(str(len(self.stack) - 1))
+            out_length = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icall_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+            if out_value != 0:
+                gas += 9000
+        elif opcode.name == 'CALLCODE':
+            out_gas = self.stack.pop(str(len(self.stack) - 1))
+            recipient = self.stack.pop(str(len(self.stack) - 1))
+            out_wei = self.stack.pop(str(len(self.stack) - 1))
+            in_value = self.stack.pop(str(len(self.stack) - 1))
+            in_size = self.stack.pop(str(len(self.stack) - 1))
+            out_value = self.stack.pop(str(len(self.stack) - 1))
+            out_size = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icall_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name in ['DELEGATECALL', 'STATICCALL']:
+            out_gas = self.stack.pop(str(len(self.stack) - 1))
+            recipient = self.stack.pop(str(len(self.stack) - 1))
+            in_value = self.stack.pop(str(len(self.stack) - 1))
+            in_size = self.stack.pop(str(len(self.stack) - 1))
+            out_value = self.stack.pop(str(len(self.stack) - 1))
+            out_size = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icall_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'RETURN':
+            self.stack.pop(str(len(self.stack) - 1))
+            self.stack.pop(str(len(self.stack) - 1))
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'CREATE':
+            wei = self.stack.pop(str(len(self.stack) - 1))
+            position = self.stack.pop(str(len(self.stack) - 1))
+            length = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Iaddr_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'EXTCODESIZE':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icodesize_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'BLOCKHASH':
+            block_num = self.stack.pop(str(len(self.stack) - 1))
+            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ih_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'SELFDESTRUCT':
+            self.stack.pop(str(len(self.stack) - 1))
+            gas = 5000 if self.__get_value_from_model('Inewaccount_%s' % opcode.pc, model) <= 0 else 30000
+        else:
+            raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
+        
+        return int(gas)
+
+    def __get_value_from_model(self, variable, model) -> int:
+        for value in model.decls():
+            if str(value) == variable:
+                return int(model[value].as_long())
+        return self.__get_value_from_model(VARIABLES.variable_mapping[variable], model)

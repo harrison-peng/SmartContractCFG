@@ -17,6 +17,7 @@ class Variables:
 
     def __init__(self):
         self.variables = list()
+        self.variable_mapping = dict()
 
     def __str__(self) -> str:
         return self.variables
@@ -24,12 +25,10 @@ class Variables:
     def __repr__(self) -> str:
         return '<%s object> %s' % (self.__class__.__name__, self.variables)
 
-    def add_variable(self, variable: Variable):
+    def get_variable(self, variable: Variable) -> BitVecRef:
+        for v in self.variables:
+            if variable.value == v.value:
+                self.variable_mapping[variable.name] = v.name
+                return v.z3_var
         self.variables.append(variable)
-
-    def get_z3_var_by_value(self, value: str) -> BitVecRef:
-        z3_vars = [variable.z3_var for variable in self.variables if variable.value == value]
-        if len(z3_vars) == 0:
-            return None
-        else:
-            return z3_vars[0]
+        return variable.z3_var
