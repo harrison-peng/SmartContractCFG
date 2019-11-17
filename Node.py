@@ -7,7 +7,6 @@ class Node:
         self.tag = tag
         self.opcodes = opcodes
         self.state = State()
-        # FIXME: fix gas type
         self.gas = 0
     
     def __str__(self) -> str:
@@ -20,5 +19,4 @@ class Node:
         return self.tag == other.tag
 
     def set_gas(self, gas: int):
-        # FIXME: fix gas type
         self.gas = gas

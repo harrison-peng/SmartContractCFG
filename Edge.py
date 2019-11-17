@@ -16,7 +16,6 @@ class Edge:
         return self.from_ == other.from_ and self.to_ == other.to_
 
     def change_color(self):
-        # TODO: implement change color
         color = {'black': 'blue', 'blue': 'green', 'green': 'purple', 'purple': 'red', 'red': 'red'}
         self.color = color[self.color]
 

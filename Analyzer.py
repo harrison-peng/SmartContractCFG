@@ -6,7 +6,6 @@ from Opcode import Opcode
 from Node import Node
 from Edge import Edge
 from State import State
-from PathConstraint import PathConstraint
 from Path import Path
 
 class Analyzer:

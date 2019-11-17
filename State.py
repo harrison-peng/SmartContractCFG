@@ -4,7 +4,6 @@ from gas_price import gas_table
 from settings import *
 from Opcode import Opcode
 from SimulationResult import SimularionResult
-from PathConstraint import PathConstraint
 from Variable import Variable
 
 class State:
@@ -24,7 +23,7 @@ class State:
         elif opcode.name == 'TIMESTAMP':
             time_var = BitVec('It_%s' % opcode.pc, 256)
             variables.add_variable(Variable('It_%s' % opcode.pc, 'TIMESTAMP', time_var))
-            result.add_path_constraint(PathConstraint(ULT(time_var, UNSIGNED_BOUND_NUMBER)))
+            result.add_path_constraint(ULT(time_var, UNSIGNED_BOUND_NUMBER))
 
             self.stack[str(len(self.stack))] = time_var
             result.set_gas(gas_table[opcode.name])
@@ -937,7 +936,7 @@ class State:
                 self.stack[str(len(self.stack))] = call_var
 
                 # NOTE: GAS
-                # FIXME: fix gas
+                # TODO: fix gas
                 gas = gas_table[opcode.name]
                 out_value = out_value.as_long() if isinstance(out_value, z3.z3.BitVecNumRef) else out_value
                 if isinstance(out_value, int) and out_value != 0:
@@ -965,7 +964,7 @@ class State:
                 result.add_path_constraint(Or(call_var == 1, call_var == 0))
                 variables.add_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', call_var))
                 self.stack[str(len(self.stack))] = call_var
-                # FIXME: fix gas
+                # TODO: fix gas
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')
@@ -982,7 +981,7 @@ class State:
                 result.add_path_constraint(Or(call_var == 1, call_var == 0))
                 variables.add_variable(Variable('Icall_%s' % opcode.pc, 'call success or not', call_var))
                 self.stack[str(len(self.stack))] = call_var
-                # FIXME: fix gas
+                # TODO: fix gas
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')

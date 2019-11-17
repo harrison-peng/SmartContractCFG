@@ -1,6 +1,5 @@
 from z3 import *
 from Node import Node
-from PathConstraint import PathConstraint
 
 class Path:
 
@@ -8,6 +7,7 @@ class Path:
         self.path = list()
         self.path_constraint = list()
         self.gas = 0
+        self.solver = Solver()
 
     def __str__(self) -> str:
         return '%s' % self.path
@@ -18,7 +18,7 @@ class Path:
     def add_node(self, node: Node):
         self.path.append(node)
 
-    def add_path_constraints(self, constraints: [PathConstraint]):
+    def add_path_constraints(self, constraints: list):
         self.path_constraint += constraints
 
     def count_specific_node_num(self, tag: int) -> int:
@@ -28,11 +28,25 @@ class Path:
         self.gas += gas
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
 
+    def is_constant_gas(self) -> bool:
+        self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
+        self.gas = int(self.gas.as_long) if isinstance(self.gas, BitVecNumRef) else self.gas
+        self.gas = int(self.gas) if isinstance(self.gas, float) else self.gas
+        return isinstance(self.gas, int)
+
     def solve(self):
-        solver = Solver()
         for contraint in self.path_constraint:
-            solver.add(contraint)
-        if solver.check() == sat:
-            print(solver.model())
-        else:
-            print("UNSAT")
+            self.solver.add(contraint)
+        return self.solver.check() == sat
+
+    def model(self):
+        return self.solver.model()
+
+    def solve_max_gas(self, gas: int) -> int:
+        self.solver.push()
+        self.solver.add(self.gas > gas)
+        while self.solver.check() == sat:
+            gas += 10000
+            self.solver.pop()
+            self.solver.push()
+            self.solver.add(self.gas > gas)

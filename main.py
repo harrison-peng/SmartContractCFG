@@ -89,6 +89,7 @@ def opcodes_analysis(contract_name):
             logging.info('Total instructions: %s' % cfg.ins_num())
 
             # NOTE: Analysis
+            logging.info('Symbolic simulation...')
             analyzer = Analyzer(cfg)
             analyzer.symbolic_execution(0, Path(), State())
             logging.info('CFG node count = %s' % cfg.node_num())
@@ -97,8 +98,23 @@ def opcodes_analysis(contract_name):
             cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
 
             # NOTE: Solve PATHS
-            # for path in PATHS:
-            #     path.solve()
+            logging.info('Solving all the paths...')
+            sat_constant_path = list()
+            sat_symbolic_path = list()
+            for path in PATHS:
+                if path.solve():
+                    if path.is_constant_gas():
+                        sat_constant_path.append(path)
+                    else:
+                        sat_symbolic_path.append(path)
+            logging.info('Satisfiability constant gas path: %s' % len(sat_constant_path))
+            logging.info('Satisfiability symbolic gas path: %s' % len(sat_symbolic_path))
+
+            if len(sat_symbolic_path) > 0:
+                for path in sat_symbolic_path:
+                    path.solve_max_gas(get_max_constant_gas(sat_constant_path))
+
+
 
             # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
             # graph.create_graph(nodes, edges, contract_name, file_name)
@@ -108,6 +124,10 @@ def opcodes_analysis(contract_name):
             logging.info('Analysis complete\n')
         else:
             logging.info('%s is empyty\n' % file_name)
+
+
+def get_max_constant_gas(paths) -> int:
+    return max([path.gas for path in paths])
 
 
 def conformation(nodes):
