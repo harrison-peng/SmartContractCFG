@@ -13,6 +13,6 @@ class Edge:
     def __eq__(self, other):
         return self.from_ == other.from_ and self.to_ == other.to_
 
-    def change_color(self, edge: Edge):
+    def change_color(self):
         # TODO: implement change color
         pass

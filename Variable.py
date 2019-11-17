@@ -7,16 +7,28 @@ class Variable:
         self.value = value
         self.z3_var = z3_var
 
+    def __str__(self) -> str:
+        return (self.name, self.value)
+
+    def __repr__(self) -> str:
+        return '<%s object> (%s, %s)' % (self.__class__.__name__, self.name, self.value)
+
 class Variables:
 
     def __init__(self):
-        self.varialbes = list()
+        self.variables = list()
 
-    def add_variable(self, variable: Varialbe):
-        self.varialbes.append(variable)
+    def __str__(self) -> str:
+        return self.variables
+
+    def __repr__(self) -> str:
+        return '<%s object> %s' % (self.__class__.__name__, self.variables)
+
+    def add_variable(self, variable: Variable):
+        self.variables.append(variable)
 
     def get_z3_var_by_value(self, value: str) -> BitVecRef:
-        z3_vars = [variable.z3_var for variable in Variables if Variable.value == value]
+        z3_vars = [variable.z3_var for variable in self.variables if variable.value == value]
         if len(z3_vars) == 0:
             return None
         else:

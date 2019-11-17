@@ -1,5 +1,7 @@
 import logging
-logging.basicConfig(format='[%(levelname)s]: %(message)s\n', level=logging.DEBUG)
+from Variable import Variables
+
+logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
 
 # NOTE: ANALYSIS OPTIONS
 
@@ -8,7 +10,7 @@ LOOP_DETECTION = False
 
 # NOTE: How many times to execute the loop if not detecting the loop
 LOOP_ITERATIONS = 3
-MAX_LOOP_ITERATIONS = 3
+MAX_LOOP_ITERATIONS = 2
 
 # NOTE: Execute the loop in attack synthesis
 ATTACK_SYNTHESIS_EXECUTE_LOOP = False
@@ -28,3 +30,7 @@ ADDRESS_BOUND_NUMBER = 2**160
 BYTE_BOUND_NUMBER = 32
 
 EDGE_COLOR = {'blue': 'green', 'green': 'purple', 'purple': 'red', 'red': 'black', 'black': 'black'}
+
+PATHS = list()
+
+VARIABLES = Variables()

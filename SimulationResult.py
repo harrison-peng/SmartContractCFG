@@ -16,3 +16,9 @@ class SimularionResult:
     def set_gas(self, gas):
         # FIXME: fix gas type
         self.gas = gas
+
+    def set_jump_tag(self, tag: int):
+        self.jump_tag = tag
+
+    def set_jump_condition(self, condition: PathConstraint):
+        self.jump_condition = condition
