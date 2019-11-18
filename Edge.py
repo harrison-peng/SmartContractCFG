@@ -21,3 +21,5 @@ class Edge:
 
     def set_path_constraint(self, constraint):
         self.path_constraint = constraint
+        if constraint == 'False':
+            self.color = 'black'

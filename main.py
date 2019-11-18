@@ -107,29 +107,37 @@ def opcodes_analysis(contract_name):
             # NOTE: Solve PATHS
             logging.info('Solving all the paths...')
             sat_constant_path = list()
-            sat_symbolic_path = list()
-            for path in PATHS:
+            sat_bound_path = list()
+            sat_unbound_path = list()
+            clear_path = remove_duplicate_path()
+            for path in clear_path:
                 if path.solve():
-                    if path.is_constant_gas():
+                    gas_type = path.gas_type()
+                    if gas_type == 'CONSTANT':
                         sat_constant_path.append(path)
+                    elif gas_type == 'BOUND':
+                        sat_bound_path.append(path)
                     else:
-                        sat_symbolic_path.append(path)
+                        sat_unbound_path.append(path)
             logging.info('Satisfiability constant gas path: %s' % len(sat_constant_path))
-            logging.info('Satisfiability symbolic gas path: %s' % len(sat_symbolic_path))
+            logging.info('Satisfiability bound gas path: %s' % len(sat_bound_path))
+            logging.info('Satisfiability unbound gas path: %s' % len(sat_unbound_path))
 
-            logging.info('Finding max gas consumption...')
-            if len(sat_symbolic_path) > 0:
+            if len(sat_unbound_path) > 0:
+                max_gas = sat_unbound_path[-1].gas
+            elif len(sat_bound_path) > 0:
+                logging.info('Finding max gas consumption...')
                 max_gas = 0
-                for path in sat_symbolic_path:
-                    path.solve_max_gas(get_max_constant_gas(sat_constant_path))
-                    path.assign_model()
-                    max_gas = path.model_gas if path.model_gas > max_gas else max_gas
+                for path in sat_bound_path:
+                    if path.solve_max_gas(get_max_constant_gas(sat_constant_path)):
+                        path.assign_model()
+                        max_gas = path.model_gas if path.model_gas > max_gas else max_gas
             else:
                 max_gas = get_max_constant_gas(sat_constant_path)
                     
             # NOTE: Output Result File
             logging.info('Writting analysis result into file...')
-            result = Result(cfg, max_gas, sat_constant_path, sat_symbolic_path, list())
+            result = Result(cfg, max_gas, sat_constant_path, sat_bound_path, sat_unbound_path)
             result.render(contract_name, file_name)
             logging.info('Analysis complete\n')
         else:
@@ -138,6 +146,39 @@ def opcodes_analysis(contract_name):
 
 def get_max_constant_gas(paths) -> int:
     return max([path.gas for path in paths])
+
+
+def remove_duplicate_path():    
+    tags_dict = dict()
+    clear_path = list()
+    for index, path in enumerate(PATHS):
+        tags = list()
+        for node in path.path:
+            tags.append(node.tag)
+        tags_dict[index] = set(tags)
+        # tags_list.append(set(tags))
+
+    while tags_dict:
+        find_loop_path = False
+        tags = tags_dict[list(tags_dict.keys())[0]]
+        same_index_list = [i for i, tag in tags_dict.items() if tag == tags]
+        if same_index_list == 1:
+            clear_path.append(PATHS[same_index_list[0]])
+        else:
+            for index in same_index_list:
+                if 'loop' in str(PATHS[index].gas):
+                    clear_path.append(PATHS[index])
+                    find_loop_path = True
+                    break
+            if not find_loop_path:
+                longest_index = (0,0)
+                for index in same_index_list:
+                    if len(PATHS[index].path) > longest_index[1]:
+                        longest_index = (index, len(PATHS[index].path))
+                clear_path.append(PATHS[longest_index[0]])
+        for index in same_index_list:
+            tags_dict.pop(index)
+    return clear_path
 
 
 def conformation(nodes):

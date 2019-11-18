@@ -4,7 +4,7 @@ class Variable:
 
     def __init__(self, name: str, value: str, z3_var: BitVecRef):
         self.name = name
-        self.value = value
+        self.value = value.replace('\n', '').replace(' ', '')
         self.z3_var = z3_var
 
     def __str__(self) -> str:

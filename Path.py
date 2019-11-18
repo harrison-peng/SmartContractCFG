@@ -1,4 +1,4 @@
-from settings import VARIABLES
+from settings import VARIABLES, logging, UNSIGNED_BOUND_NUMBER
 from z3 import *
 from Node import Node
 from State import State
@@ -33,9 +33,16 @@ class Path:
         self.gas += gas
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
 
+    def contain_node(self, tag: int) -> bool:
+        for node in self.path:
+            if node.tag == tag:
+                return True
+        return False
+
     def handle_loop(self, incoming_node: Node, pc: int):
         nodes = list()
         loop_var = VARIABLES.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
+        self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
         for node in self.path:
             if node.tag == incoming_node.tag:
                 nodes.append(node)
@@ -104,13 +111,25 @@ class Path:
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
         self.path = self.path[:index + 1]
 
-    def is_constant_gas(self) -> bool:
+    # def is_constant_gas(self) -> bool:
+    #     self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
+    #     self.gas = int(self.gas.as_long) if isinstance(self.gas, BitVecNumRef) else self.gas
+    #     self.gas = int(self.gas) if isinstance(self.gas, float) else self.gas
+    #     return isinstance(self.gas, int)
+
+    def gas_type(self) -> str:
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
         self.gas = int(self.gas.as_long) if isinstance(self.gas, BitVecNumRef) else self.gas
         self.gas = int(self.gas) if isinstance(self.gas, float) else self.gas
-        return isinstance(self.gas, int)
+        if isinstance(self.gas, int):
+            return 'CONSTANT'
+        elif 'loop' in str(self.gas):
+            return 'UNBOUND'
+        else:
+            return 'BOUND'
 
     def solve(self):
+        logging.debug('Solving the constraints...')
         for contraint in self.path_constraint:
             self.solver.add(contraint)
         if self.solver.check() == sat:
@@ -118,11 +137,14 @@ class Path:
             return True
         return False
 
-    def solve_max_gas(self, gas: int) -> int:
+    def solve_max_gas(self, gas: int) -> bool:
+        logging.debug('Finding max gas...')
         self.solver.push()
         self.solver.add(self.gas > gas)
+        is_sat = False
         while self.solver.check() == sat:
-            gas += 5000
+            is_sat = True
+            gas += 10000
             self.solver.pop()
             self.solver.push()
             self.solver.add(self.gas > gas)
@@ -131,13 +153,19 @@ class Path:
         self.solver.add(self.gas > gas - 10000)
         if self.solver.check() == sat:
             self.model = self.solver.model()
+            return True
         else:
-            raise Error('Solver Error')
+            if is_sat:
+                raise ValueError('Solver Error')
+            else:
+                return False
 
     def assign_model(self) -> int:
+        logging.debug('Assign model into cfg...')
         gas = 0
         state = State()
         for node in self.path:
+            logging.debug('Tag: %s' % node.tag)
             for opcode in node.opcodes:
                 gas += state.simulate_with_model(opcode, self.model)
         self.model_gas = gas
