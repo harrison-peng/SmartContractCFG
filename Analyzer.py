@@ -45,11 +45,14 @@ class Analyzer:
 
                 return self.symbolic_execution(result.jump_tag, self.path, self.state)
             elif opcode.name == 'JUMPI':
+                node.set_path_constraint(result.jump_condition)
                 # logging.debug('JUMPI condition: %s' % result.jump_condition)
                 # NOTE: Loop detection
                 if LOOP_DETECTION:
                     # TODO: implement loop detection
-                    pass
+                    if self.path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
+                        result.jump_condition = self.path.handle_loop(node, opcode.pc)
+                        return
                 else:
                     # logging.debug('%s: %s\n\n' % (tag, self.path))
                     if self.path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:

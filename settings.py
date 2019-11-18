@@ -11,7 +11,7 @@ BYTE_BOUND_NUMBER = 32
 
 # NOTE: Settings
 # Detect loop once and evaluate to n
-LOOP_DETECTION = False
+LOOP_DETECTION = True
 # How many times to execute the loop if not detecting the loop
 LOOP_ITERATIONS = 3
 MAX_LOOP_ITERATIONS = 2

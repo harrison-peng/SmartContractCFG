@@ -82,6 +82,12 @@ def opcodes_analysis(contract_name):
             # print('[INFO] CFG node count = ', nodes_size)
             # print('[INFO] CFG edge count = ', edges_size)
             # print('[INFO] Total instructions: ', ins_size, '\n')
+
+            # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
+            # graph.create_graph(nodes, edges, contract_name, file_name)
+            # max_gas = conformation(nodes)
+            # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
+            # FIXME: old cfg builder
             
             # NOTE: Build CFG
             cfg = Cfg()
@@ -125,12 +131,6 @@ def opcodes_analysis(contract_name):
             logging.info('Writting analysis result into file...')
             result = Result(cfg, max_gas, sat_constant_path, sat_symbolic_path, list())
             result.render(contract_name, file_name)
-
-            # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
-            # graph.create_graph(nodes, edges, contract_name, file_name)
-            # max_gas = conformation(nodes)
-            # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
-
             logging.info('Analysis complete\n')
         else:
             logging.info('%s is empyty\n' % file_name)
