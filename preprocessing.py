@@ -90,6 +90,8 @@ def bytecode_to_opcodes(file_name):
 def set_up_dir(contract_name):
     try:
         logging.info('Setup the opcodes_raw and opcodes directory.')
+        if not os.path.isdir('./opcodes'):
+            call(['mkdir', './opcodes'])
         call(['rm', '-rf', './opcodes_raw'])
         call(['rm', '-rf', './opcodes/%s' % contract_name])
         call(['mkdir', './opcodes_raw'])
