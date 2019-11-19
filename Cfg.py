@@ -32,9 +32,9 @@ class Cfg:
         
         self.__building_cfg(0, list(), list(), True)
 
-        for tag in self.__tag_index_dict:
-            if tag not in [node.tag for node in self.nodes]:
-                self.__building_cfg(tag, [0], list(), False)
+        for key in list(self.__tag_index_dict.keys()):
+            if key not in [node.tag for node in self.nodes]:
+                self.__building_cfg(key, [0], list(), False)
 
     def __building_cfg(self, tag, stack, path, exec_mode):
         # logging.debug('TAG: %s %s\n' % (tag, path))
@@ -99,6 +99,12 @@ class Cfg:
                             self.edges.append(edge)
                         if opcode.get_next_pc() not in path:
                             self.__building_cfg(opcode.get_next_pc(), list(stack), list(path), exec_mode)
+                    else:
+                        edge = Edge(int(tag), int(opcode.get_next_pc()))
+                        if edge not in self.edges:
+                            self.edges.append(edge)
+                        if not self.__node_exist(int(opcode.get_next_pc())):
+                            self.__building_cfg(int(opcode.get_next_pc()), [0], list(), False)
                     return
                 else:
                     content.append(opcode)
@@ -139,6 +145,12 @@ class Cfg:
 
     def ins_num(self) -> int:
         return sum([len(node.opcodes) for node in self.nodes])
+
+    def __node_exist(self, tag: int) -> bool:
+        for node in self.nodes:
+            if node.tag == tag:
+                return True
+        return False
 
     def get_node(self, tag: int) -> Node:
         return [node for node in self.nodes if tag == node.tag][0]

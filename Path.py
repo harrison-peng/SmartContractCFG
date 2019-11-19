@@ -39,7 +39,11 @@ class Path:
                 return True
         return False
 
+    def node_last_index(self, tag: int) -> int:
+        return [index for index, node in enumerate(self.path) if node.tag == tag][-1]
+
     def handle_loop(self, incoming_node: Node, pc: int):
+        logging.debug('Handling loop...')
         nodes = list()
         loop_var = VARIABLES.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
         self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
@@ -51,42 +55,86 @@ class Path:
         loop_formula = self.__handle_loop_constraint(nodes, loop_var)
         self.__handle_loop_gas(incoming_node.tag, loop_var)
         self.__fix_loop_path(incoming_node.tag)
+        # logging.debug('Find loop formula')
         return loop_formula
 
     def __unpack_z3_if(self, formula):
+        # logging.debug('Unpacking If...')
         formula = int(formula.as_long) if isinstance(formula, BitVecNumRef) else formula
         if is_expr(formula) and str(formula.decl()) == 'If':
+            # logging.debug('Next level...')
             return self.__unpack_z3_if(formula.arg(0)), (formula.arg(1), formula.arg(2))
         else:
+            # logging.debug('Formula: %s' % formula)
             return formula
 
     def __handle_loop_constraint(self, nodes: list, loop_var: BitVecRef) -> ArithRef:
+        # logging.debug('Handling constraints...')
         decl, arg_1, arg_2 = list(), list(), list()
-        for node in nodes:
-            for constraint in self.path_constraint:
-                if str(constraint) == str(node.path_constraint == 1) or str(constraint) == str(node.path_constraint == 0):
+        for i, node in enumerate(nodes):
+            for constraint in self.path_constraint[::-1]:
+                constraint_str = str(constraint).replace('\n', '').replace(' ', '')
+                node_constraint_true_str = str(node.path_constraint == 1).replace('\n', '').replace(' ', '')
+                node_constraint_false_str = str(node.path_constraint == 0).replace('\n', '').replace(' ', '')
+                if node_constraint_true_str == node_constraint_true_str or node_constraint_true_str == node_constraint_false_str:
                     self.path_constraint.remove(constraint)
                     break
             formula, if_pair = self.__unpack_z3_if(node.path_constraint)
+            # logging.debug('Find formula: %s/%s' % (i+1, len(nodes)))
             decl.append(formula.decl())
             arg_1.append(formula.arg(0))
             arg_2.append(formula.arg(1))
         if len(set(decl)) == 1:
-            if len(set(arg_1)) == 1 and len(set(arg_2)) > 1:
-                diff = simplify(arg_2[1] - arg_2[0])
-                loop_formula = If(decl[0](arg_1[0], arg_2[0] + diff*loop_var), if_pair[0], if_pair[1])
-            elif len(set(arg_1)) > 1 and len(set(arg_2)) == 1:
-                diff = simplify(arg_1[1] - arg_1[0])
-                loop_formula = If(decl[0](arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
-            else:
-                raise ValueError('Both side of formula are not fixed')
+            loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
+            if loop_formula is None:
+                arg_1.pop(0)
+                arg_2.pop(0)
+                loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
+                if loop_formula is None:
+                    logging.error('%s %s' % (len(set(arg_1)), len(set(arg_2))))
+                    for node in nodes:
+                        logging.error('PC: %s' % str(node.path_constraint).replace('\n', '').replace(' ', ''))
+                        logging.error('MEM: %s' % str(node.state.memory).replace('\n', '').replace(' ', ''))
+                        logging.error('STO: %s' % str(node.state.storage).replace('\n', '').replace(' ', ''))
+                    raise ValueError('Both side of formula are not fixed')
+            
+            # # logging.debug('Processing operator...')
+            # if len(set(arg_1)) == 1 and len(set(arg_2)) > 1:
+            #     # logging.debug('Processing condition 1...')
+            #     diff = simplify(arg_2[1] - arg_2[0])
+            #     loop_formula = If(decl[0](arg_1[0], arg_2[0] + diff*loop_var), if_pair[0], if_pair[1])
+            # elif len(set(arg_1)) > 1 and len(set(arg_2)) == 1:
+            #     # logging.debug('Processing condition 2...')
+            #     diff = simplify(arg_1[1] - arg_1[0])
+            #     loop_formula = If(decl[0](arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
+            # else:
+            #     arg_1.pop(0)
+            #     arg_2.pop(0)
+            #     logging.error('%s %s' % (len(set(arg_1)), len(set(arg_2))))
+            #     for node in nodes:
+            #         logging.error('PC: %s' % str(node.path_constraint).replace('\n', '').replace(' ', ''))
+            #         logging.error('MEM: %s' % str(node.state.memory).replace('\n', '').replace(' ', ''))
+            #         logging.error('STO: %s' % str(node.state.storage).replace('\n', '').replace(' ', ''))
+            #     raise ValueError('Both side of formula are not fixed')
         else:
             raise ValueError('Operators are not same')
 
         # for constraint in self.path_constraint
         return loop_formula
 
+    def __produce_loop_formula(self, loop_var: BitVecRef, if_pair: tuple, arg_1: list, arg_2: list, decl: FuncDeclRef) -> ArithRef:
+        if len(set(arg_1)) == 1 and len(set(arg_2)) > 1:
+            diff = simplify(arg_2[1] - arg_2[0])
+            loop_formula = If(decl(arg_1[0], arg_2[0] + diff*loop_var), if_pair[0], if_pair[1])
+        elif len(set(arg_1)) > 1 and len(set(arg_2)) == 1:
+            diff = simplify(arg_1[1] - arg_1[0])
+            loop_formula = If(decl(arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
+        else:
+            loop_formula = None
+        return loop_formula
+
     def __handle_loop_gas(self, tag: int, loop_var: BitVecRef) -> int:
+        # logging.debug('Handling gas...')
         gas = 0
         index = [index for index, node in enumerate(self.path) if node.tag == tag]
         if len(index) > 1:
@@ -110,12 +158,6 @@ class Path:
             self.gas -= node.gas
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
         self.path = self.path[:index + 1]
-
-    # def is_constant_gas(self) -> bool:
-    #     self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
-    #     self.gas = int(self.gas.as_long) if isinstance(self.gas, BitVecNumRef) else self.gas
-    #     self.gas = int(self.gas) if isinstance(self.gas, float) else self.gas
-    #     return isinstance(self.gas, int)
 
     def gas_type(self) -> str:
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)

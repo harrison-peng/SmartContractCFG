@@ -1,5 +1,6 @@
 from settings import logging, LOOP_DETECTION, MAX_LOOP_ITERATIONS, PATHS
 from z3 import *
+from typing import Any
 from copy import deepcopy
 from Cfg import Cfg
 from Opcode import Opcode
@@ -25,8 +26,11 @@ class Analyzer:
         for opcode in node.opcodes:
             # NOTE: state simulation
             result = self.state.simulate(opcode)
-            # if tag in [0, 13, 65, 76, 87, 98, 109, 120, 131, 142, 948, 960, 2961, 3053, 3107, 3260, 969]:
-            #     logging.debug('%s: %s %s\n' % (opcode.pc, opcode.name, self.state.stack))
+            # if tag in [4778, 4843, 4858, 4861,4870]:
+            #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
+            #     logging.debug('Stack: %s\n\n' % self.to_string(self.state.stack))
+                # logging.debug('MEM: %s' % self.to_string(self.state.memory))
+                # logging.debug('STO: %s\n' % self.to_string(self.state.storage))
             self.path.add_path_constraints(result.path_constraints)
             gas += result.gas
             gas = simplify(gas) if is_expr(gas) else gas
@@ -36,6 +40,7 @@ class Analyzer:
             if opcode.name == 'JUMP':
                 # NOTE: set gas to node
                 node.set_gas(gas)
+                node.set_state(deepcopy(state))
 
                 # NOTE: add tag to the path list
                 self.path.add_node(deepcopy(node))
@@ -50,7 +55,6 @@ class Analyzer:
                 # NOTE: Loop detection
                 detect_loop = False
                 if LOOP_DETECTION:
-                    # TODO: implement loop detection
                     if self.path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(result.jump_condition):
                         detect_loop = True
                         result.jump_condition = self.path.handle_loop(node, opcode.pc)
@@ -60,27 +64,39 @@ class Analyzer:
                     if self.path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
                         return
 
+                # NOTE: if edge is not in edges -> add edge into edges
+                self.__add_edge(Edge(node.tag, result.jump_tag))
+                self.__add_edge(Edge(node.tag, opcode.get_next_pc()))
                 edge_true = self.cfg.get_edge(node.tag, result.jump_tag)
                 edge_false = self.cfg.get_edge(node.tag, opcode.get_next_pc())
+
                 if detect_loop:
+                    logging.debug('DETECT LOOP: %s' % tag)
+                    # logging.debug('%s' % self.path)
                     edge_true.set_path_constraint(str(simplify(result.jump_condition==1)).replace('\n', '').replace('\t', '').replace(' ', ''))
                     edge_false.set_path_constraint(str(simplify(result.jump_condition==0)).replace('\n', '').replace('\t', '').replace(' ', ''))
-                    if self.path.contain_node(result.jump_tag):
-                        self.path.add_path_constraints([result.jump_condition==0])
-                        return self.symbolic_execution(opcode.get_next_pc(), deepcopy(self.path), deepcopy(self.state))
+                    
+                    if self.path.contain_node(result.jump_tag) and self.path.contain_node(opcode.get_next_pc()):
+                        logging.debug('LOOP STOP')
+                        return
                     else:
-                        self.path.add_path_constraints([result.jump_condition==1])
-                        return self.symbolic_execution(result.jump_tag, deepcopy(self.path), deepcopy(self.state))
+                        if self.path.contain_node(result.jump_tag):
+                            logging.debug('LOOP GO FALSE: [%s, %s]' % (result.jump_tag, opcode.get_next_pc()))
+                            # logging.debug('%s' % self.path)
+                            self.path.add_path_constraints([result.jump_condition==0])
+                            return self.symbolic_execution(opcode.get_next_pc(), deepcopy(self.path), deepcopy(self.state))
+                        else:
+                            logging.debug('LOOP GO TRUE: [%s, %s]' % (result.jump_tag, opcode.get_next_pc()))
+                            # logging.debug('%s' % self.path)
+                            self.path.add_path_constraints([result.jump_condition==1])
+                            return self.symbolic_execution(result.jump_tag, deepcopy(self.path), deepcopy(self.state))
                 else:
                     # NOTE: set gas to node
                     node.set_gas(gas)
+                    node.set_state(deepcopy(state))
 
                     # NOTE: add tag to the path list
                     self.path.add_node(deepcopy(node))
-
-                    # NOTE: if edge is not in edges -> add edge into edges
-                    self.__add_edge(Edge(node.tag, result.jump_tag))
-                    self.__add_edge(Edge(node.tag, opcode.get_next_pc()))
 
                     # NOTE: Jump to two path
                     if isinstance(result.jump_condition, int) and result.jump_condition == 1:
@@ -107,6 +123,7 @@ class Analyzer:
             elif opcode.name in ['STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
                 # NOTE: set gas to node
                 node.set_gas(gas)
+                node.set_state(deepcopy(state))
 
                 # NOTE: add tag to the path list
                 self.path.add_node(deepcopy(node))
@@ -135,15 +152,9 @@ class Analyzer:
         # NOTE: if edge is not in edges -> add edge into edges
         for e in self.cfg.edges:
             if e == edge:
-                # print('Exist:', e)
                 e.change_color()
                 return
-        # print('Not Exist:', edge)
         self.cfg.add_edge(edge)
-            
-
-        # if edge in self.cfg.edges:
-        #     edge = self.cfg.get_edge(edge.from_, edge.to_)
-        #     edge.change_color()
-        # else:
-        #     self.cfg.add_edge(edge)
+    
+    def to_string(self, input: Any) -> str:
+        return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")

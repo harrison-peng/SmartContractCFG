@@ -27,3 +27,6 @@ class Node:
     
     def set_path_constraint(self, constraint: ArithRef):
         self.path_constraint = constraint
+
+    def set_state(self, state: State):
+        self.state = state

@@ -50,7 +50,7 @@ def main():
             f_src = os.path.join(os.path.dirname(__file__), args.code)
             contract_name = os.path.basename(f_src).split('.')[0]
 
-            global_vars.set_gas_limit(int(args.gas))
+            # global_vars.set_gas_limit(int(args.gas))
 
             logging.info('Start Transforming contract %s source code to opcodes.' % contract_name)
             # NOTE: Compile source code to opcodes
@@ -139,6 +139,7 @@ def opcodes_analysis(contract_name):
             logging.info('Writting analysis result into file...')
             result = Result(cfg, max_gas, sat_constant_path, sat_bound_path, sat_unbound_path)
             result.render(contract_name, file_name)
+            del cfg, PATHS
             logging.info('Analysis complete\n')
         else:
             logging.info('%s is empyty\n' % file_name)
