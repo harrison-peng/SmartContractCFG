@@ -983,7 +983,7 @@ class State:
 
                 contract_var = variables.get_variable(Variable('Inewaccount_%s' % opcode.pc, 'selfdestruct(address(%s))' % address, BitVec('Inewaccount_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(contract_var==1, contract_var==0))
-                result.set_gas(5000 + BV2Int(If(contract_var, 25000, 0)))
+                result.set_gas(5000 + BV2Int(If(contract_var==1, BitVecVal(25000, 256), BitVecVal(0, 256))))
             else:
                 raise ValueError('STACK underflow')
         else:

@@ -63,6 +63,7 @@ def main():
 
 
 def opcodes_analysis(contract_name):
+    global PATHS
     for file in os.listdir('./opcodes/%s' % contract_name):
         init_path()
         init_variables()
@@ -101,58 +102,64 @@ def opcodes_analysis(contract_name):
             analyzer.symbolic_execution(0, Path(), State())
             logging.info('CFG node count = %s' % cfg.node_num())
             logging.info('CFG edge count = %s' % cfg.edge_num())
-            logging.info('Total path: %s' % len(PATHS))
+            logging.info('Total path: %s' % len(analyzer.paths))
             cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
 
             # NOTE: Solve PATHS
-            logging.info('Solving all the paths...')
-            sat_constant_path = list()
-            sat_bound_path = list()
-            sat_unbound_path = list()
-            clear_path = remove_duplicate_path()
-            for path in clear_path:
-                if path.solve():
-                    gas_type = path.gas_type()
-                    if gas_type == 'CONSTANT':
-                        sat_constant_path.append(path)
-                    elif gas_type == 'BOUND':
-                        sat_bound_path.append(path)
-                    else:
-                        sat_unbound_path.append(path)
-            logging.info('Satisfiability constant gas path: %s' % len(sat_constant_path))
-            logging.info('Satisfiability bound gas path: %s' % len(sat_bound_path))
-            logging.info('Satisfiability unbound gas path: %s' % len(sat_unbound_path))
-
-            if len(sat_unbound_path) > 0:
-                max_gas = sat_unbound_path[-1].gas
-            elif len(sat_bound_path) > 0:
-                logging.info('Finding max gas consumption...')
-                max_gas = 0
-                for path in sat_bound_path:
-                    if path.solve_max_gas(get_max_constant_gas(sat_constant_path)):
-                        path.assign_model()
-                        max_gas = path.model_gas if path.model_gas > max_gas else max_gas
-            else:
-                max_gas = get_max_constant_gas(sat_constant_path)
+            max_gas, sat_constant_path, sat_bound_path, sat_unbound_path = solve_path(analyzer.paths)
                     
             # NOTE: Output Result File
             logging.info('Writting analysis result into file...')
             result = Result(cfg, max_gas, sat_constant_path, sat_bound_path, sat_unbound_path)
             result.render(contract_name, file_name)
-            del cfg, PATHS
+            del cfg
             logging.info('Analysis complete\n')
         else:
             logging.info('%s is empyty\n' % file_name)
+
+
+def solve_path(paths: [Path]) -> (int, [Path], [Path], [Path]):
+    logging.info('Solving all the paths...')
+    sat_constant_path = list()
+    sat_bound_path = list()
+    sat_unbound_path = list()
+    clear_path = remove_duplicate_path(paths)
+    for path in clear_path:
+        if path.solve():
+            gas_type = path.gas_type()
+            if gas_type == 'CONSTANT':
+                sat_constant_path.append(path)
+            elif gas_type == 'BOUND':
+                sat_bound_path.append(path)
+            else:
+                sat_unbound_path.append(path)
+    logging.info('Satisfiability constant gas path: %s' % len(sat_constant_path))
+    logging.info('Satisfiability bound gas path: %s' % len(sat_bound_path))
+    logging.info('Satisfiability unbound gas path: %s' % len(sat_unbound_path))
+
+    if len(sat_unbound_path) > 0:
+        max_gas = sat_unbound_path[-1].gas
+    elif len(sat_bound_path) > 0:
+        logging.info('Finding max gas consumption...')
+        max_gas = 0
+        for path in sat_bound_path:
+            if path.solve_max_gas(get_max_constant_gas(sat_constant_path)):
+                path.assign_model()
+                max_gas = path.model_gas if path.model_gas > max_gas else max_gas
+    else:
+        max_gas = get_max_constant_gas(sat_constant_path)
+
+    return max_gas, sat_constant_path, sat_bound_path, sat_unbound_path
 
 
 def get_max_constant_gas(paths) -> int:
     return max([path.gas for path in paths])
 
 
-def remove_duplicate_path():    
+def remove_duplicate_path(paths: [Path]):    
     tags_dict = dict()
     clear_path = list()
-    for index, path in enumerate(PATHS):
+    for index, path in enumerate(paths):
         tags = list()
         for node in path.path:
             tags.append(node.tag)
@@ -164,19 +171,19 @@ def remove_duplicate_path():
         tags = tags_dict[list(tags_dict.keys())[0]]
         same_index_list = [i for i, tag in tags_dict.items() if tag == tags]
         if same_index_list == 1:
-            clear_path.append(PATHS[same_index_list[0]])
+            clear_path.append(paths[same_index_list[0]])
         else:
             for index in same_index_list:
-                if 'loop' in str(PATHS[index].gas):
-                    clear_path.append(PATHS[index])
+                if 'loop' in str(paths[index].gas):
+                    clear_path.append(paths[index])
                     find_loop_path = True
                     break
             if not find_loop_path:
                 longest_index = (0,0)
                 for index in same_index_list:
-                    if len(PATHS[index].path) > longest_index[1]:
-                        longest_index = (index, len(PATHS[index].path))
-                clear_path.append(PATHS[longest_index[0]])
+                    if len(paths[index].path) > longest_index[1]:
+                        longest_index = (index, len(paths[index].path))
+                clear_path.append(paths[longest_index[0]])
         for index in same_index_list:
             tags_dict.pop(index)
     return clear_path
