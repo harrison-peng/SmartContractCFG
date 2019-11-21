@@ -1348,3 +1348,8 @@ class State:
             if str(value) == variable:
                 return int(model[value].as_long())
         return self.__get_value_from_model(VARIABLES.variable_mapping[variable], model)
+
+    def init_with_var(self) -> None:
+        for i in range(3):
+            variable = VARIABLES.get_variable(Variable('Ivar_%s' % str(i+1), 'Init variable %s' % str(i+1), BitVec('Ivar_%s' % str(i+1), 256)))
+            self.stack.update({'%s' % str(i): variable})

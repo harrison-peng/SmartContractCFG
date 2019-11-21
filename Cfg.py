@@ -35,7 +35,10 @@ class Cfg:
         self.__building_cfg(0, list(), list())
         
         while self.check_list:
-            self.__building_cfg(list(self.__tag_index_dict.keys())[list(self.__tag_index_dict.values()).index(self.check_list.pop(0))], [0], list())
+            try:
+                self.__building_cfg(list(self.__tag_index_dict.keys())[list(self.__tag_index_dict.values()).index(self.check_list.pop(0))], [0], list())
+            except:
+                continue
 
         self.__building_cfg(0, list(), list())
 
@@ -123,6 +126,12 @@ class Cfg:
                 else:
                     content.append(opcode)
                     node = Node(int(tag), content)
+                    if s[0] == 'RETURN':
+                        node.set_color('green')
+                    elif s[0] == 'STOP':
+                        node.set_color('blue')
+                    else:
+                        node.set_color('red')
                     if node not in self.nodes:
                         self.nodes.append(node)
                     return
@@ -136,7 +145,7 @@ class Cfg:
     def render(self, file):
         self.graph = Digraph(format='svg', node_attr={'shape': 'box'})
         for node in self.nodes:
-            self.graph.node(str(node.tag), label=self.__node_to_graph_content(node))
+            self.graph.node(str(node.tag), label=self.__node_to_graph_content(node), color=node.color)
         for edge in self.edges:
             self.graph.edge(str(edge.from_), str(edge.to_), label=edge.path_constraint, color=edge.color)
         self.graph.render(file)

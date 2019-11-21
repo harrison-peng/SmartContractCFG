@@ -100,6 +100,7 @@ def opcodes_analysis(contract_name):
             logging.info('Symbolic simulation...')
             analyzer = Analyzer(cfg)
             analyzer.symbolic_execution(0, Path(), State())
+            # analyzer.symbolic_execution_from_node()
             logging.info('CFG node count = %s' % cfg.node_num())
             logging.info('CFG edge count = %s' % cfg.edge_num())
             logging.info('Total path: %s' % len(analyzer.paths))

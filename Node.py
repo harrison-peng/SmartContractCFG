@@ -10,6 +10,7 @@ class Node:
         self.state = State()
         self.gas = 0
         self.path_constraint = None
+        self.color = 'black'
         self.visited = False
     
     def __str__(self) -> str:
@@ -18,7 +19,7 @@ class Node:
     def __repr__(self) -> str:
         return '<%s object> %s' % (self.__class__.__name__, self.tag)
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Node') -> bool:
         return self.tag == other.tag
 
     def set_gas(self, gas: int) -> None:
@@ -31,6 +32,9 @@ class Node:
 
     def set_state(self, state: State) -> None:
         self.state = state
+
+    def set_color(self, color: str) -> None:
+        self.color = color
 
     def visite(self) -> None:
         self.visited = True

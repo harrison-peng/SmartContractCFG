@@ -125,8 +125,6 @@ class Analyzer:
 
                 # NOTE: add tag to the path list
                 path.add_node(deepcopy(node))
-
-                # TODO: implement analyzed path
                 self.paths.append(path)
                 # logging.debug(path)
                 return
@@ -146,8 +144,15 @@ class Analyzer:
 
         return self.symbolic_execution(opcode.get_next_pc(), path, state)
 
-    def symbolic_execution_from_node(self, tag: int):
-        self.symbolic_execution(tag, Path(), State())
+    def symbolic_execution_from_node(self):
+        from_list = [edge.from_ for edge in self.cfg.edges]
+        to_list = [edge.to_ for edge in self.cfg.edges]
+        node_list = [node for node in self.cfg.nodes if node.tag in from_list and node.tag not in to_list]
+        # logging.debug('NODE: %s' % len(node_list))
+        for node in node_list:
+            state = State()
+            state.init_with_var()
+            self.symbolic_execution(node.tag, Path(), state)
 
     def __add_edge(self, edge: Edge):
         # NOTE: if edge is not in edges -> add edge into edges
