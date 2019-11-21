@@ -64,9 +64,13 @@ class Cfg:
                         edge = Edge(int(tag), int(opcode.get_next_pc()))
                         if edge not in self.edges:
                             self.edges.append(edge)
-                        return self.__building_cfg(int(opcode.get_next_pc()), list(stack), path)
-                    else:
-                        return
+                            self.__building_cfg(int(opcode.get_next_pc()), list(), path)
+                        edge = Edge(int(tag), jump_tag)
+                        if edge not in self.edges:
+                            self.edges.append(edge)
+                            self.__building_cfg(jump_tag, list(), path)
+                    return
+                stack = list()
                 continue
 
             if s[0] == '':
