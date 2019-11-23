@@ -8,12 +8,14 @@ from Node import Node
 from Edge import Edge
 from State import State
 from Path import Path
+from Variable import Variables
 
 class Analyzer:
 
     def __init__(self, cfg: Cfg):
         self.cfg = cfg
         self.paths = list()
+        self.variables = Variables()
 
     def symbolic_execution(self, tag: int, path: Path, state: State):
         logging.debug('TAG: %s' % tag)
@@ -23,7 +25,7 @@ class Analyzer:
 
         for opcode in node.opcodes:
             # NOTE: state simulation
-            result = state.simulate(opcode)
+            result = state.simulate(opcode, self.variables)
             # if tag in [517, 1513, 1530, 2940, 2948, 1415, 1563, 3055]:
             #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
             #     logging.debug('Stack: %s\n\n' % self.to_string(state.stack))
@@ -55,7 +57,7 @@ class Analyzer:
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(result.jump_condition):
                         detect_loop = True
-                        result.jump_condition = path.handle_loop(node, opcode.pc)
+                        result.jump_condition = path.handle_loop(node, opcode.pc, self.variables)
 
                 else:
                     # logging.debug('%s: %s\n\n' % (tag, path))
@@ -144,7 +146,7 @@ class Analyzer:
 
         return self.symbolic_execution(opcode.get_next_pc(), path, state)
 
-    def symbolic_execution_from_node(self):
+    def symbolic_execution_from_other_head(self):
         from_list = [edge.from_ for edge in self.cfg.edges]
         to_list = [edge.to_ for edge in self.cfg.edges]
         node_list = [node for node in self.cfg.nodes if node.tag in from_list and node.tag not in to_list]

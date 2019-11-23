@@ -19,15 +19,20 @@ from Result import Result
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--sourcecode', help='input source code file', action='store_true')
-    parser.add_argument('-b', '--bytecode', help='input bytecode file', action='store_true')
-    parser.add_argument('-code', '--code', help='source code')
-    parser.add_argument('-gas', '--gas', help='gas limit')
+    parser.add_argument('-s', '--sourcecode',dest='sourcecode', help='input source code file', action='store_true')
+    parser.add_argument('-b', '--bytecode',dest='bytecode', help='input bytecode file', action='store_true')
+    parser.add_argument('-code', '--code',dest='code', help='source code')
+    parser.add_argument('-r', '--remove-node', dest='removenode', help='remove unreached node from cfg', action='store_true')
 
     args = parser.parse_args()
 
+    if args.removenode:
+        global REMOVE_UNREACHED_NODE
+        logging.debug('Set remove unreached node...')
+        REMOVE_UNREACHED_NODE = True
+
     if args.sourcecode:
-        if args.code == '' or args.gas == '':
+        if args.code == '':
             logging.error('Source code error')
             exit(0)
         else:
@@ -43,7 +48,7 @@ def main():
             # NOTE: Analyze the opcodes
             opcodes_analysis(contract_name)
     elif args.bytecode:
-        if args.code == '' or args.gas == '':
+        if args.code == '':
             logging.error('Byte code error')
             exit(0)
         else:
@@ -63,17 +68,14 @@ def main():
 
 
 def opcodes_analysis(contract_name):
-    global PATHS
     for file in os.listdir('./opcodes/%s' % contract_name):
-        init_path()
-        init_variables()
         file_name = file.split('.')[0]
         logging.info('Analyze contract %s - %s' % (contract_name, file_name))
         with open('./opcodes/%s/%s' % (contract_name, file), 'r') as f:
             opcodes = f.read()
 
         if opcodes != '':
-            global_vars.init()
+            # global_vars.init()
 
             # FIXME: old cfg builder
             # nodes, edges, nodes_obj, edges_obj = cfg_builder.cfg_construction(opcodes, file_name)
@@ -100,10 +102,14 @@ def opcodes_analysis(contract_name):
             logging.info('Symbolic simulation...')
             analyzer = Analyzer(cfg)
             analyzer.symbolic_execution(0, Path(), State())
-            # analyzer.symbolic_execution_from_node()
+            # analyzer.symbolic_execution_from_other_head()
             logging.info('CFG node count = %s' % cfg.node_num())
             logging.info('CFG edge count = %s' % cfg.edge_num())
             logging.info('Total path: %s' % len(analyzer.paths))
+
+            if REMOVE_UNREACHED_NODE:
+                cfg.remove_unreach_nodes()
+                logging.info('CFG reachable node = %s' % cfg.node_num())
             cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
 
             # NOTE: Solve PATHS
@@ -111,9 +117,9 @@ def opcodes_analysis(contract_name):
                     
             # NOTE: Output Result File
             logging.info('Writting analysis result into file...')
-            result = Result(cfg, max_gas, sat_constant_path, sat_bound_path, sat_unbound_path)
+            result = Result(analyzer, max_gas, sat_constant_path, sat_bound_path, sat_unbound_path)
             result.render(contract_name, file_name)
-            del cfg
+            del cfg, analyzer, result
             logging.info('Analysis complete\n')
         else:
             logging.info('%s is empyty\n' % file_name)

@@ -1,4 +1,4 @@
-from settings import VARIABLES, logging, UNSIGNED_BOUND_NUMBER
+from settings import logging, UNSIGNED_BOUND_NUMBER
 from z3 import *
 from Node import Node
 from State import State
@@ -42,10 +42,10 @@ class Path:
     def node_last_index(self, tag: int) -> int:
         return [index for index, node in enumerate(self.path) if node.tag == tag][-1]
 
-    def handle_loop(self, incoming_node: Node, pc: int):
+    def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
         logging.debug('Handling loop...')
         nodes = list()
-        loop_var = VARIABLES.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
+        loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
         self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
         for node in self.path:
             if node.tag == incoming_node.tag:

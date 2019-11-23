@@ -17,14 +17,5 @@ LOOP_DETECTION = True
 MAX_LOOP_ITERATIONS = 2
 # Set the model value ourselves instead he z3 model value
 SET_MODEL_VALUE = False
-
-
-# NOTE: Global Variable
-PATHS = list()
-VARIABLES = Variables()
-
-def init_path():
-    PATHS = list()
-
-def init_variables():
-    VARIABLES = Variables()
+# Remove Unreached node
+REMOVE_UNREACHED_NODE = False

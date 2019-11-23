@@ -4,7 +4,7 @@ from gas_price import gas_table
 from settings import *
 from Opcode import Opcode
 from SimulationResult import SimularionResult
-from Variable import Variable
+from Variable import Variable, Variables
 
 class State:
 
@@ -14,8 +14,7 @@ class State:
         self.storage = dict()
         self.solver = Solver()
 
-    def simulate(self, opcode: Opcode) -> SimularionResult:
-        variables = VARIABLES
+    def simulate(self, opcode: Opcode, variables: Variables) -> SimularionResult:
         result = SimularionResult()
 
         if opcode.name in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:

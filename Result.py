@@ -1,10 +1,9 @@
-from Cfg import Cfg
-from settings import PATHS, VARIABLES
+from Analyzer import Analyzer
 
 class Result:
 
-    def __init__(self, cfg: Cfg, max_gas: int, constant_path: list, bounded_path: list, unbounded_path: list):
-        self.cfg = cfg
+    def __init__(self, analyzer: Analyzer, max_gas: int, constant_path: list, bounded_path: list, unbounded_path: list):
+        self.analyzer = analyzer
         self.max_gas = max_gas
         self.constant_path = constant_path
         self.bounded_path = bounded_path
@@ -15,17 +14,17 @@ class Result:
         with open('./result/%s/%s_new.txt' % (directory, file_name), 'w') as f:
             line = '=' * ((90 - len(file_name) - 2)//2)
             f.write('%s %s %s\n' % (line, file_name, line))
-            f.write('Total Instruction: %s\n' % self.cfg.ins_num())
-            f.write('Total nodes: %s\n' % self.cfg.node_num())
-            f.write('Total edges: %s\n' % self.cfg.edge_num())
-            f.write('Total path: %s\n' % len(PATHS))
+            f.write('Total Instruction: %s\n' % self.analyzer.cfg.ins_num())
+            f.write('Total nodes: %s\n' % self.analyzer.cfg.node_num())
+            f.write('Total edges: %s\n' % self.analyzer.cfg.edge_num())
+            # f.write('Total path: %s\n' % len(PATHS))
             f.write('Constant Gas Path: %s\n' % len(self.constant_path))
             f.write('Bounded Gas Path: %s\n' % len(self.bounded_path))
             f.write('Unbounded Gas Path: %s\n' % len(self.unbounded_path))
             f.write('Max Gas Consumption: %s\n' % self.max_gas)
             f.write('\n%s\n\n' % sep_line)
             f.write('[SYMBOLIC VARIABLE TABLE]:\n\n')
-            for variable in VARIABLES.variables:
+            for variable in self.analyzer.variables.variables:
                 f.write('[%s]: %s\n' % (variable.name, variable.value))
             f.write('\n%s\n\n' % sep_line)
 

@@ -184,6 +184,13 @@ class Cfg:
     def get_edge(self, from_: int, to_: int) -> Edge:
         return [edge for edge in self.edges if edge.from_ == from_ and edge.to_ == to_][0]
 
+    def remove_unreach_nodes(self) -> None:
+        reached_list = [edge.from_ for edge in self.edges] + [edge.to_ for edge in self.edges]
+        for node in list(self.nodes):
+            if node.tag not in reached_list:
+                logging.debug('REMOVE: %s' % node)
+                self.nodes.remove(node)
+
     def __simulate_stack(self, stack: list(), opcode: Opcode) -> (list, int):
         jump_tag = None
 
