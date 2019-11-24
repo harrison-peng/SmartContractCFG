@@ -3,7 +3,7 @@ import os
 import argparse
 import preprocessing
 import settings
-from settings import logging
+from settings import logging, ROOT_PATH
 from Cfg import Cfg
 from Analyzer import Analyzer
 from Path import Path
@@ -35,7 +35,7 @@ def main():
             logging.error('Source code error')
             exit(0)
         else:
-            f_src = os.path.join(os.path.dirname(__file__), args.code)
+            f_src = os.path.abspath(args.code)
             contract_name = os.path.basename(f_src).split('.')[0]
 
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
@@ -49,7 +49,7 @@ def main():
             logging.error('Byte code error')
             exit(0)
         else:
-            f_src = os.path.join(os.path.dirname(__file__), args.code)
+            f_src = os.path.abspath(args.code)
             contract_name = os.path.basename(f_src).split('.')[0]
 
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
@@ -63,17 +63,19 @@ def main():
 
 
 def opcodes_analysis(contract_name):
-    for file in os.listdir('./opcodes/%s' % contract_name):
+    opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
+    for file in os.listdir('%s/%s' % (opcodes_path, contract_name)):
         file_name = file.split('.')[0]
         logging.info('Analyze contract %s - %s' % (contract_name, file_name))
-        with open('./opcodes/%s/%s' % (contract_name, file), 'r') as f:
+        with open('%s/%s/%s' % (opcodes_path, contract_name, file), 'r') as f:
             opcodes = f.read()
 
-        if opcodes != '':            
+        if opcodes != '':
+            result_path = os.path.join(ROOT_PATH, 'result') 
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
-            cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
+            cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name))
             logging.info('Total instructions: %s' % cfg.ins_num())
 
             # NOTE: Analysis
@@ -88,10 +90,10 @@ def opcodes_analysis(contract_name):
             if settings.REMOVE_UNREACHED_NODE:
                 cfg.remove_unreach_nodes()
                 logging.info('CFG reachable node = %s' % cfg.node_num())
-            cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))
+            cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name))
 
             # NOTE: Solve PATHS
-            max_gas, sat_constant_path, sat_bound_path, sat_unbound_path = solve_path(analyzer.paths)
+            max_gas, sat_constant_path, sat_bound_path, sat_unbound_path = solve_path(analyzer)
                     
             # NOTE: Output Result File
             logging.info('Writting analysis result into file...')
@@ -103,8 +105,9 @@ def opcodes_analysis(contract_name):
             logging.info('%s is empyty\n' % file_name)
 
 
-def solve_path(paths: [Path]) -> (int, [Path], [Path], [Path]):
+def solve_path(analyzer: Analyzer) -> (int, [Path], [Path], [Path]):
     logging.info('Solving all the paths...')
+    paths = analyzer.paths
     sat_constant_path = list()
     sat_bound_path = list()
     sat_unbound_path = list()
@@ -129,7 +132,7 @@ def solve_path(paths: [Path]) -> (int, [Path], [Path], [Path]):
         max_gas = 0
         for path in sat_bound_path:
             if path.solve_max_gas(get_max_constant_gas(sat_constant_path)):
-                path.assign_model()
+                path.assign_model(analyzer.variables)
                 max_gas = path.model_gas if path.model_gas > max_gas else max_gas
     else:
         max_gas = get_max_constant_gas(sat_constant_path)
@@ -138,7 +141,10 @@ def solve_path(paths: [Path]) -> (int, [Path], [Path], [Path]):
 
 
 def get_max_constant_gas(paths) -> int:
-    return max([path.gas for path in paths])
+    if len(paths) > 0:
+        return max([path.gas for path in paths])
+    else:
+        return 0
 
 
 def remove_duplicate_path(paths: [Path]):    

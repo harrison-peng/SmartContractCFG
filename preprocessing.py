@@ -1,6 +1,6 @@
 import os
 from subprocess import call
-from settings import logging
+from settings import logging, ROOT_PATH
 
 
 def source_code_to_opcodes(file_name):
@@ -8,13 +8,14 @@ def source_code_to_opcodes(file_name):
     set_up_dir(contract_name)
 
     try:
+        opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
         logging.info('Compiling source code to opcodes.')
-        call(['solc', '--opcodes', '-o', './opcodes_raw', '--overwrite', file_name])
+        call(['solc', '--opcodes', '-o', opcodes_raw_path, '--overwrite', file_name])
 
-        for file in os.listdir("./opcodes_raw"):
+        for file in os.listdir(opcodes_raw_path):
             code_after = ''
 
-            with open('./opcodes_raw/%s' % file, 'r') as f:
+            with open('%s/%s' % (opcodes_raw_path, file), 'r') as f:
                 code_before = f.read()
 
             i = code_before.find('PUSH1 0x80', 1)
@@ -52,10 +53,10 @@ def source_code_to_opcodes(file_name):
             # NOTE: remove last '\n'
             code_after = code_after[:-1] if code_after.endswith('\n') else code_after
 
-            with open('./opcodes/%s/%s' % (contract_name, file), 'w') as f:
+            with open('%s/%s/%s' % (os.path.join(ROOT_PATH, 'opcodes'), contract_name, file), 'w') as f:
                 f.write(code_after)
-    except Exception as e:
-        logging.error('Compile source code error: %s' % e)
+    except Exception as error:
+        logging.error('Compile source code error: %s' % error)
         exit(0)
 
 
@@ -64,11 +65,12 @@ def bytecode_to_opcodes(file_name):
     set_up_dir(contract_name)
 
     try:
-        print('\n[INFO] Compiling bytecode to opcodes.')
-        call(['evmasm', '-d', '-i', file_name, '-o', './opcodes_raw/%s.opcode' % contract_name])
+        logging.info('Compiling bytecode to opcodes.')
+        opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
+        call(['evmasm', '-d', '-i', file_name, '-o', '%s/%s.opcode' % (opcodes_raw_path, contract_name)])
 
         code_after = ''
-        with open('./opcodes_raw/%s.opcode' % contract_name, 'r') as f:
+        with open('%s/%s.opcode' % (opcodes_raw_path, contract_name), 'r') as f:
             for line in f:
                 pc = line.split(': ')[0]
                 ins = line.split(': ')[1]
@@ -79,22 +81,31 @@ def bytecode_to_opcodes(file_name):
         # NOTE: remove last '\n'
         code_after = code_after[:-1] if code_after.endswith('\n') else code_after
 
-        with open('./opcodes/%s/%s.opcode' % (contract_name, contract_name), 'w') as f:
+        with open('%s/%s/%s.opcode' % (os.path.join(ROOT_PATH, 'opcodes'), contract_name, contract_name), 'w') as f:
             f.write(code_after)
 
-    except Exception as ex:
-        logging.error('Decompile source code error: %s' % e)
+    except Exception as error:
+        logging.error('Decompile source code error: %s' % error)
         exit(0)
 
 
 def set_up_dir(contract_name):
     try:
         logging.info('Setup the opcodes_raw and opcodes directory.')
-        if not os.path.isdir('./opcodes'):
-            call(['mkdir', './opcodes'])
-        call(['rm', '-rf', './opcodes_raw'])
-        call(['rm', '-rf', './opcodes/%s' % contract_name])
-        call(['mkdir', './opcodes_raw'])
-        call(['mkdir', './opcodes/%s' % contract_name])
-    except Exception as ex:
-        print('Error: ', ex)
+        opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
+        opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
+        result_path = os.path.join(ROOT_PATH, 'result')
+        if not os.path.isdir(opcodes_path):
+            call(['mkdir', opcodes_path])
+        call(['rm', '-rf', opcodes_raw_path])
+        call(['rm', '-rf', '%s/%s' % (opcodes_path, contract_name)])
+        call(['mkdir', opcodes_raw_path])
+        call(['mkdir', '%s/%s' % (opcodes_path, contract_name)])
+        if not os.path.isdir(result_path):
+            call(['mkdir', result_path])
+        call(['rm', '-rf', os.path.join(result_path, contract_name)])
+        call(['mkdir', os.path.join(result_path, contract_name)])
+        call(['mkdir', os.path.join(result_path, contract_name, 'cfg')])
+
+    except Exception as error:
+        logging.error('Directory set up error: %s' % error)

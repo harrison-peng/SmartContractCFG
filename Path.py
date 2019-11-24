@@ -2,7 +2,7 @@ from settings import logging, UNSIGNED_BOUND_NUMBER
 from z3 import *
 from Node import Node
 from State import State
-from Variable import Variable
+from Variable import Variable, Variables
 
 class Path:
 
@@ -176,11 +176,11 @@ class Path:
             else:
                 return False
 
-    def assign_model(self) -> int:
+    def assign_model(self, variables: Variables) -> int:
         # logging.debug('Assign model into cfg...')
         gas = 0
         state = State()
         for node in self.path:
             for opcode in node.opcodes:
-                gas += state.simulate_with_model(opcode, self.model)
+                gas += state.simulate_with_model(opcode, self.model, variables)
         self.model_gas = gas

@@ -138,7 +138,7 @@ class Analyzer:
         node_list = [node for node in self.cfg.nodes if node.tag in from_list and node.tag not in to_list]
         for node in node_list:
             state = State()
-            state.init_with_var()
+            state.init_with_var(self.variables)
             self.symbolic_execution(node.tag, Path(), state)
 
     def __add_edge(self, edge: Edge):

@@ -77,14 +77,3 @@ def visitor(e, seen):
         for e in visitor(e.body(), seen):
             yield e
         return
-
-
-def get_solver_var(s):
-    vars_li = list()
-    seen = {}
-    for fml_imp in s.assertions():
-        fml = fml_imp.children()[1]
-        for e in visitor(fml, seen):
-            if is_const(e) and e.decl().kind() == Z3_OP_UNINTERPRETED:
-                vars_li.append(e)
-    return vars_li

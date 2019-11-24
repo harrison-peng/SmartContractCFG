@@ -631,6 +631,7 @@ class State:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CALLDATASIZE':
             ds_var = variables.get_variable(Variable('Id_size', 'msg.data.size', BitVec('Id_size', 256)))
+            result.add_path_constraint(ULT(ds_var, UNSIGNED_BOUND_NUMBER))
 
             self.stack[str(len(self.stack))] = ds_var
             result.set_gas(gas_table[opcode.name])
@@ -985,16 +986,22 @@ class State:
                 result.set_gas(5000 + BV2Int(If(contract_var==1, BitVecVal(25000, 256), BitVecVal(0, 256))))
             else:
                 raise ValueError('STACK underflow')
+        elif opcode.name == 'MSIZE':
+            size_var = variables.get_variable(Variable('Imemsize_%s' % opcode.pc, 'size of memory for this contract execution, in bytes', BitVec('Imemsize_%s' % opcode.pc, 256)))
+            result.add_path_constraint(ULT(size_var, UNSIGNED_BOUND_NUMBER))
+
+            self.stack[str(len(self.stack))] = size_var
+            result.set_gas(gas_table[opcode.name])
         else:
             raise Exception('UNKNOWN INSTRUCTION:', opcode)
         
         return result
 
-    def simulate_with_model(self, opcode: Opcode, model) -> int:
+    def simulate_with_model(self, opcode: Opcode, model: ModelRef, variables: Variables) -> int:
         if opcode.name in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
             gas = 0
         elif opcode.name == 'TIMESTAMP':
-            value = self.__get_value_from_model('It_%s' % opcode.pc, model)
+            value = self.__get_value_from_model(variables, 'It_%s' % opcode.pc, model)
             self.stack[str(len(self.stack))] = value
             gas = gas_table[opcode.name]
         elif opcode.name == 'ADD':
@@ -1162,57 +1169,57 @@ class State:
             self.stack[str(len(self.stack))] = computed
             gas = 30 + 6 * (length / 32)
         elif opcode.name == 'ADDRESS':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ia', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Ia', model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'BALANCE':
             address = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ibalance_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Ibalance_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'CALLER':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ia_caller', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Ia_caller', model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'ORIGIN':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Io_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Io_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'CALLVALUE':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Iv', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Iv', model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'CALLDATALOAD':
             position = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Id_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'CALLDATASIZE':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_size', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Id_size', model)
             gas = gas_table[opcode.name]
         elif opcode.name == "CALLDATACOPY":
             mem_p = self.stack.pop(str(len(self.stack) - 1))
             msg_p = self.stack.pop(str(len(self.stack) - 1))
             num_bytes = self.stack.pop(str(len(self.stack) - 1))
-            self.memory[str(mem_p)] = self.__get_value_from_model('Id_%s' % opcode.pc, model)
+            self.memory[str(mem_p)] = self.__get_value_from_model(variables, 'Id_%s' % opcode.pc, model)
             gas = 2 + 3 * (num_bytes / 32)
         elif opcode.name == 'CODESIZE':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_size', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Id_size', model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'CODECOPY':
             mem_p = self.stack.pop(str(len(self.stack) - 1))
             msg_p = self.stack.pop(str(len(self.stack) - 1))
             num_bytes = self.stack.pop(str(len(self.stack) - 1))
-            self.memory[str(mem_p)] = self.__get_value_from_model('Ic_%s' % opcode.pc, model)
+            self.memory[str(mem_p)] = self.__get_value_from_model(variables, 'Ic_%s' % opcode.pc, model)
             gas = 2 + 3 * (num_bytes / 32)
         elif opcode.name == 'GASPRICE':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ip_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Ip_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'RETURNDATACOPY':
             z = self.stack.pop(str(len(self.stack) - 1))
             y = self.stack.pop(str(len(self.stack) - 1))
             x = self.stack.pop(str(len(self.stack) - 1))
-            self.memory[str(z)] = self.__get_value_from_model('Id_%s'% opcode.pc, model)
+            self.memory[str(z)] = self.__get_value_from_model(variables, 'Id_%s'% opcode.pc, model)
             gas = 2 + 3 * (x / 32)
         elif opcode.name == 'RETURNDATASIZE':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Id_size', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Id_size', model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'NUMBER':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Iblocknum', model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Iblocknum', model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'POP':
             self.stack.pop(str(len(self.stack) - 1))
@@ -1255,11 +1262,11 @@ class State:
             jump_condition = self.stack.pop(str(len(self.stack) - 1))
             gas = gas_table[opcode.name]
         elif opcode.name == 'GAS':
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Igas_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Igas_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name.startswith('PUSH', 0):
             if opcode.name == 'PUSHDEPLOYADDRESS':
-                pushed_value = self.__get_value_from_model('Iaddr_%s' % opcode.pc, model)
+                pushed_value = self.__get_value_from_model(variables, 'Iaddr_%s' % opcode.pc, model)
             else:
                 pushed_value = int(str(opcode.value), 16)
             self.stack[str(len(self.stack))] = pushed_value
@@ -1293,7 +1300,7 @@ class State:
             in_length = self.stack.pop(str(len(self.stack) - 1))
             out_position = self.stack.pop(str(len(self.stack) - 1))
             out_length = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icall_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Icall_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
             if out_value != 0:
                 gas += 9000
@@ -1305,7 +1312,7 @@ class State:
             in_size = self.stack.pop(str(len(self.stack) - 1))
             out_value = self.stack.pop(str(len(self.stack) - 1))
             out_size = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icall_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Icall_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name in ['DELEGATECALL', 'STATICCALL']:
             out_gas = self.stack.pop(str(len(self.stack) - 1))
@@ -1314,7 +1321,7 @@ class State:
             in_size = self.stack.pop(str(len(self.stack) - 1))
             out_value = self.stack.pop(str(len(self.stack) - 1))
             out_size = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icall_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Icall_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'RETURN':
             self.stack.pop(str(len(self.stack) - 1))
@@ -1324,31 +1331,34 @@ class State:
             wei = self.stack.pop(str(len(self.stack) - 1))
             position = self.stack.pop(str(len(self.stack) - 1))
             length = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Iaddr_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Iaddr_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'EXTCODESIZE':
             address = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Icodesize_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Icodesize_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'BLOCKHASH':
             block_num = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = self.__get_value_from_model('Ih_%s' % opcode.pc, model)
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Ih_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
         elif opcode.name == 'SELFDESTRUCT':
             self.stack.pop(str(len(self.stack) - 1))
-            gas = 5000 if self.__get_value_from_model('Inewaccount_%s' % opcode.pc, model) <= 0 else 30000
+            gas = 5000 if self.__get_value_from_model(variables, 'Inewaccount_%s' % opcode.pc, model) <= 0 else 30000
+        elif opcode.name == 'MSIZE':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Imemsize_%s' % opcode.pc, model)
+            gas = gas_table[opcode.name]
         else:
             raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
         
         return int(gas)
 
-    def __get_value_from_model(self, variable, model) -> int:
+    def __get_value_from_model(self, variables, variable, model) -> int:
         for value in model.decls():
             if str(value) == variable:
                 return int(model[value].as_long())
-        return self.__get_value_from_model(VARIABLES.variable_mapping[variable], model)
+        return self.__get_value_from_model(variables, variables.variable_mapping[variable], model)
 
-    def init_with_var(self) -> None:
+    def init_with_var(self, variables: Variables) -> None:
         for i in range(3):
-            variable = VARIABLES.get_variable(Variable('Ivar_%s' % str(i+1), 'Init variable %s' % str(i+1), BitVec('Ivar_%s' % str(i+1), 256)))
+            variable = variables.get_variable(Variable('Ivar_%s' % str(i+1), 'Init variable %s' % str(i+1), BitVec('Ivar_%s' % str(i+1), 256)))
             self.stack.update({'%s' % str(i): variable})

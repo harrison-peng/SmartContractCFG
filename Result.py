@@ -1,4 +1,6 @@
+import os
 from Analyzer import Analyzer
+from settings import ROOT_PATH
 
 class Result:
 
@@ -11,7 +13,7 @@ class Result:
 
     def render(self, directory: str, file_name: str):
         sep_line = '-|-' * 30
-        with open('./result/%s/%s_new.txt' % (directory, file_name), 'w') as f:
+        with open('%s/%s/%s.txt' % (os.path.join(ROOT_PATH, 'result'), directory, file_name), 'w') as f:
             line = '=' * ((90 - len(file_name) - 2)//2)
             f.write('%s %s %s\n' % (line, file_name, line))
             f.write('Total Instruction: %s\n' % self.analyzer.cfg.ins_num())

@@ -1,3 +1,4 @@
+import os
 import logging
 from Variable import Variables
 
@@ -8,6 +9,7 @@ logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
 ADDRESS_BOUND_NUMBER = 2**160
 BYTE_BOUND_NUMBER = 32
+ROOT_PATH = os.path.dirname(__file__)
 
 
 # NOTE: Settings
