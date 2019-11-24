@@ -17,10 +17,8 @@ def source_code_to_opcodes(file_name):
             with open('./opcodes_raw/%s' % file, 'r') as f:
                 code_before = f.read()
 
-            # print(code_before)
             i = code_before.find('PUSH1 0x80', 1)
             code_before = code_before[i:]
-            # print(code_before)
 
             pc = 0
             code_list = code_before.strip().split(' ')
@@ -56,8 +54,9 @@ def source_code_to_opcodes(file_name):
 
             with open('./opcodes/%s/%s' % (contract_name, file), 'w') as f:
                 f.write(code_after)
-    except Exception as ex:
-        print('Error:', ex)
+    except Exception as e:
+        logging.error('Compile source code error: %s' % e)
+        exit(0)
 
 
 def bytecode_to_opcodes(file_name):
@@ -84,7 +83,8 @@ def bytecode_to_opcodes(file_name):
             f.write(code_after)
 
     except Exception as ex:
-        print('Error:', ex)
+        logging.error('Decompile source code error: %s' % e)
+        exit(0)
 
 
 def set_up_dir(contract_name):

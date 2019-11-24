@@ -17,7 +17,7 @@ def main():
     parser.add_argument('-b', '--bytecode',dest='bytecode', help='input bytecode file', action='store_true')
     parser.add_argument('-code', '--code',dest='code', help='source code')
     parser.add_argument('-r', '--remove-node', dest='removenode', help='remove unreached node from cfg', action='store_true')
-    parser.add_argument('-f', '--format', dest='format', help='format of the cfg file. option: svg, html (default)', default='html')
+    parser.add_argument('-f', '--format', dest='format', help='format of the cfg file. [options: svg, html(default)]', default='html')
 
     args = parser.parse_args()
 
@@ -27,7 +27,7 @@ def main():
     if args.format in ['html', 'svg']:
         settings.CFG_FORMAT = args.format
     else:
-        logging.error('Wrong cfg format. Accept option are html and svg.')
+        logging.error('Wrong cfg format. Accept option are "html" and "svg"')
         exit(0)
 
     if args.sourcecode:
@@ -38,9 +38,7 @@ def main():
             f_src = os.path.join(os.path.dirname(__file__), args.code)
             contract_name = os.path.basename(f_src).split('.')[0]
 
-            # global_vars.set_gas_limit(int(args.gas))
-
-            logging.info('Start Transforming contract %s source code to opcodes.' % contract_name)
+            logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
             preprocessing.source_code_to_opcodes(f_src)
 
@@ -54,9 +52,7 @@ def main():
             f_src = os.path.join(os.path.dirname(__file__), args.code)
             contract_name = os.path.basename(f_src).split('.')[0]
 
-            # global_vars.set_gas_limit(int(args.gas))
-
-            logging.info('Start Transforming contract %s source code to opcodes.' % contract_name)
+            logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
             preprocessing.bytecode_to_opcodes(f_src)
 
