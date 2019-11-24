@@ -43,7 +43,7 @@ class Path:
         return [index for index, node in enumerate(self.path) if node.tag == tag][-1]
 
     def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
-        logging.debug('Handling loop...')
+        # logging.debug('Handling loop...')
         nodes = list()
         loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
         self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
@@ -55,21 +55,16 @@ class Path:
         loop_formula = self.__handle_loop_constraint(nodes, loop_var)
         self.__handle_loop_gas(incoming_node.tag, loop_var)
         self.__fix_loop_path(incoming_node.tag)
-        # logging.debug('Find loop formula')
         return loop_formula
 
     def __unpack_z3_if(self, formula):
-        # logging.debug('Unpacking If...')
         formula = int(formula.as_long) if isinstance(formula, BitVecNumRef) else formula
         if is_expr(formula) and str(formula.decl()) == 'If':
-            # logging.debug('Next level...')
             return self.__unpack_z3_if(formula.arg(0)), (formula.arg(1), formula.arg(2))
         else:
-            # logging.debug('Formula: %s' % formula)
             return formula
 
     def __handle_loop_constraint(self, nodes: list, loop_var: BitVecRef) -> ArithRef:
-        # logging.debug('Handling constraints...')
         decl, arg_1, arg_2 = list(), list(), list()
         for i, node in enumerate(nodes):
             for constraint in self.path_constraint[::-1]:
@@ -80,7 +75,6 @@ class Path:
                     self.path_constraint.remove(constraint)
                     break
             formula, if_pair = self.__unpack_z3_if(node.path_constraint)
-            # logging.debug('Find formula: %s/%s' % (i+1, len(nodes)))
             decl.append(formula.decl())
             arg_1.append(formula.arg(0))
             arg_2.append(formula.arg(1))
@@ -97,25 +91,6 @@ class Path:
                         logging.error('MEM: %s' % str(node.state.memory).replace('\n', '').replace(' ', ''))
                         logging.error('STO: %s' % str(node.state.storage).replace('\n', '').replace(' ', ''))
                     raise ValueError('Both side of formula are not fixed')
-            
-            # # logging.debug('Processing operator...')
-            # if len(set(arg_1)) == 1 and len(set(arg_2)) > 1:
-            #     # logging.debug('Processing condition 1...')
-            #     diff = simplify(arg_2[1] - arg_2[0])
-            #     loop_formula = If(decl[0](arg_1[0], arg_2[0] + diff*loop_var), if_pair[0], if_pair[1])
-            # elif len(set(arg_1)) > 1 and len(set(arg_2)) == 1:
-            #     # logging.debug('Processing condition 2...')
-            #     diff = simplify(arg_1[1] - arg_1[0])
-            #     loop_formula = If(decl[0](arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
-            # else:
-            #     arg_1.pop(0)
-            #     arg_2.pop(0)
-            #     logging.error('%s %s' % (len(set(arg_1)), len(set(arg_2))))
-            #     for node in nodes:
-            #         logging.error('PC: %s' % str(node.path_constraint).replace('\n', '').replace(' ', ''))
-            #         logging.error('MEM: %s' % str(node.state.memory).replace('\n', '').replace(' ', ''))
-            #         logging.error('STO: %s' % str(node.state.storage).replace('\n', '').replace(' ', ''))
-            #     raise ValueError('Both side of formula are not fixed')
         else:
             raise ValueError('Operators are not same')
 
@@ -134,7 +109,6 @@ class Path:
         return loop_formula
 
     def __handle_loop_gas(self, tag: int, loop_var: BitVecRef) -> int:
-        # logging.debug('Handling gas...')
         gas = 0
         index = [index for index, node in enumerate(self.path) if node.tag == tag]
         if len(index) > 1:
@@ -171,7 +145,7 @@ class Path:
             return 'BOUND'
 
     def solve(self):
-        logging.debug('Solving the constraints...')
+        # logging.debug('Solving the constraints...')
         for contraint in self.path_constraint:
             self.solver.add(contraint)
         if self.solver.check() == sat:
@@ -180,7 +154,7 @@ class Path:
         return False
 
     def solve_max_gas(self, gas: int) -> bool:
-        logging.debug('Finding max gas...')
+        # logging.debug('Finding max gas...')
         self.solver.push()
         self.solver.add(self.gas > gas)
         is_sat = False
@@ -203,11 +177,10 @@ class Path:
                 return False
 
     def assign_model(self) -> int:
-        logging.debug('Assign model into cfg...')
+        # logging.debug('Assign model into cfg...')
         gas = 0
         state = State()
         for node in self.path:
-            logging.debug('Tag: %s' % node.tag)
             for opcode in node.opcodes:
                 gas += state.simulate_with_model(opcode, self.model)
         self.model_gas = gas

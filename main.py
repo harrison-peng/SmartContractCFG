@@ -1,12 +1,6 @@
 # -*- coding: UTF-8 -*-
-import cfg_builder
-import symbolic_simulation
-import argparse
 import os
-import global_vars
-import result_file
-import graph
-import attack_synthesis
+import argparse
 import preprocessing
 import settings
 from settings import logging
@@ -28,7 +22,6 @@ def main():
     args = parser.parse_args()
 
     if args.removenode:
-        logging.debug('Set remove unreached node...')
         settings.REMOVE_UNREACHED_NODE = True
 
     if args.format in ['html', 'svg']:
@@ -80,24 +73,7 @@ def opcodes_analysis(contract_name):
         with open('./opcodes/%s/%s' % (contract_name, file), 'r') as f:
             opcodes = f.read()
 
-        if opcodes != '':
-            # global_vars.init()
-
-            # FIXME: old cfg builder
-            # nodes, edges, nodes_obj, edges_obj = cfg_builder.cfg_construction(opcodes, file_name)
-            # graph.create_graph(nodes, edges, contract_name, file_name)
-
-            # nodes_size, edges_size, ins_size = graph.graph_detail(nodes, edges)
-            # print('[INFO] CFG node count = ', nodes_size)
-            # print('[INFO] CFG edge count = ', edges_size)
-            # print('[INFO] Total instructions: ', ins_size, '\n')
-
-            # nodes, edges = symbolic_simulation.symbolic_simulation(nodes, edges)
-            # graph.create_graph(nodes, edges, contract_name, file_name)
-            # max_gas = conformation(nodes)
-            # result_file.output_result(contract_name, file_name, nodes_size, edges_size, ins_size, max_gas)
-            # FIXME: old cfg builder
-            
+        if opcodes != '':            
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
@@ -200,31 +176,6 @@ def remove_duplicate_path(paths: [Path]):
         for index in same_index_list:
             tags_dict.pop(index)
     return clear_path
-
-
-def conformation(nodes):
-    global_vars.init_generator()
-    b_paths = global_vars.get_bounded_pc_gas()
-    u_paths = global_vars.get_unbounded_pc_gas()
-    gas_list = list()
-    for path in b_paths:
-        model = path['model']
-        tags = path['path']
-        gas = attack_synthesis.attack_synthesis(tags, nodes, model)
-        path['real gas'] = gas
-        gas_list.append(gas)
-
-    for path in u_paths:
-        model = path['model']
-        tags = path['path']
-        gas = attack_synthesis.attack_synthesis(tags, nodes, model)
-        path['real gas'] = gas
-        gas_list.append(gas)
-
-    if gas_list:
-        return max(gas_list)
-    else:
-        return 0
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ class Analyzer:
         self.variables = Variables()
 
     def symbolic_execution(self, tag: int, path: Path, state: State):
-        logging.debug('TAG: %s' % tag)
+        # logging.debug('TAG: %s' % tag)
         node = self.cfg.get_node(tag)
         node.visite()
         gas = 0
@@ -51,16 +51,13 @@ class Analyzer:
                 return self.symbolic_execution(result.jump_tag, path, state)
             elif opcode.name == 'JUMPI':
                 node.set_path_constraint(result.jump_condition)
-                # logging.debug('JUMPI condition: %s' % result.jump_condition)
                 # NOTE: Loop detection
                 detect_loop = False
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(result.jump_condition):
                         detect_loop = True
                         result.jump_condition = path.handle_loop(node, opcode.pc, self.variables)
-
                 else:
-                    # logging.debug('%s: %s\n\n' % (tag, path))
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
                         return
 
@@ -71,23 +68,16 @@ class Analyzer:
                 edge_false = self.cfg.get_edge(node.tag, opcode.get_next_pc())
 
                 if detect_loop:
-                    logging.debug('DETECT LOOP: %s' % tag)
-                    # logging.debug('%s' % path)
                     edge_true.set_path_constraint(str(simplify(result.jump_condition==1)).replace('\n', '').replace('\t', '').replace(' ', ''))
                     edge_false.set_path_constraint(str(simplify(result.jump_condition==0)).replace('\n', '').replace('\t', '').replace(' ', ''))
                     
                     if path.contain_node(result.jump_tag) and path.contain_node(opcode.get_next_pc()):
-                        logging.debug('LOOP STOP')
                         return
                     else:
                         if path.contain_node(result.jump_tag):
-                            logging.debug('LOOP GO FALSE: [%s, %s]' % (result.jump_tag, opcode.get_next_pc()))
-                            # logging.debug('%s' % path)
                             path.add_path_constraints([result.jump_condition==0])
                             return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
                         else:
-                            logging.debug('LOOP GO TRUE: [%s, %s]' % (result.jump_tag, opcode.get_next_pc()))
-                            # logging.debug('%s' % path)
                             path.add_path_constraints([result.jump_condition==1])
                             return self.symbolic_execution(result.jump_tag, deepcopy(path), deepcopy(state))
                 else:
@@ -100,17 +90,14 @@ class Analyzer:
 
                     # NOTE: Jump to two path
                     if isinstance(result.jump_condition, int) and result.jump_condition == 1:
-                        # logging.debug('Tag: %s Go True' % tag)
                         edge_true.set_path_constraint('True')
                         edge_false.set_path_constraint('False')
                         return self.symbolic_execution(result.jump_tag, deepcopy(path), deepcopy(state))
                     elif isinstance(result.jump_condition, int) and result.jump_condition == 0:
-                        # logging.debug('Tag: %s Go False' % tag)
                         edge_true.set_path_constraint('False')
                         edge_false.set_path_constraint('True')
                         return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
                     else:
-                        # logging.debug('Tag: %s Go Both' % tag)
                         edge_true.set_path_constraint(str(simplify(result.jump_condition==1)).replace('\n', '').replace('\t', '').replace(' ', ''))
                         edge_false.set_path_constraint(str(simplify(result.jump_condition==0)).replace('\n', '').replace('\t', '').replace(' ', ''))
                         true_path, false_path = deepcopy(path), deepcopy(path)
@@ -128,7 +115,6 @@ class Analyzer:
                 # NOTE: add tag to the path list
                 path.add_node(deepcopy(node))
                 self.paths.append(path)
-                # logging.debug(path)
                 return
         
         """
@@ -150,7 +136,6 @@ class Analyzer:
         from_list = [edge.from_ for edge in self.cfg.edges]
         to_list = [edge.to_ for edge in self.cfg.edges]
         node_list = [node for node in self.cfg.nodes if node.tag in from_list and node.tag not in to_list]
-        # logging.debug('NODE: %s' % len(node_list))
         for node in node_list:
             state = State()
             state.init_with_var()

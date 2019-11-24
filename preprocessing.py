@@ -1,6 +1,6 @@
 import os
 from subprocess import call
-from global_constants import logging
+from settings import logging
 
 
 def source_code_to_opcodes(file_name):

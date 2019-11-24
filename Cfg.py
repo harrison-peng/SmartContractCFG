@@ -202,7 +202,6 @@ class Cfg:
         reached_list = [edge.from_ for edge in self.edges] + [edge.to_ for edge in self.edges]
         for node in list(self.nodes):
             if node.tag not in reached_list:
-                logging.debug('REMOVE: %s' % node)
                 self.nodes.remove(node)
 
     def __simulate_stack(self, stack: list(), opcode: Opcode) -> (list, int):
