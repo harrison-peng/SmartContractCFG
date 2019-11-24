@@ -19,3 +19,5 @@ MAX_LOOP_ITERATIONS = 2
 SET_MODEL_VALUE = False
 # Remove Unreached node
 REMOVE_UNREACHED_NODE = False
+# CFG format
+CFG_FORMAT = None

@@ -8,7 +8,7 @@ import result_file
 import graph
 import attack_synthesis
 import preprocessing
-from settings import *
+import settings
 from settings import logging
 from Cfg import Cfg
 from Analyzer import Analyzer
@@ -23,13 +23,19 @@ def main():
     parser.add_argument('-b', '--bytecode',dest='bytecode', help='input bytecode file', action='store_true')
     parser.add_argument('-code', '--code',dest='code', help='source code')
     parser.add_argument('-r', '--remove-node', dest='removenode', help='remove unreached node from cfg', action='store_true')
+    parser.add_argument('-f', '--format', dest='format', help='format of the cfg file. option: svg, html (default)', default='html')
 
     args = parser.parse_args()
 
     if args.removenode:
-        global REMOVE_UNREACHED_NODE
         logging.debug('Set remove unreached node...')
-        REMOVE_UNREACHED_NODE = True
+        settings.REMOVE_UNREACHED_NODE = True
+
+    if args.format in ['html', 'svg']:
+        settings.CFG_FORMAT = args.format
+    else:
+        logging.error('Wrong cfg format. Accept option are html and svg.')
+        exit(0)
 
     if args.sourcecode:
         if args.code == '':
@@ -107,7 +113,7 @@ def opcodes_analysis(contract_name):
             logging.info('CFG edge count = %s' % cfg.edge_num())
             logging.info('Total path: %s' % len(analyzer.paths))
 
-            if REMOVE_UNREACHED_NODE:
+            if settings.REMOVE_UNREACHED_NODE:
                 cfg.remove_unreach_nodes()
                 logging.info('CFG reachable node = %s' % cfg.node_num())
             cfg.render('./result/%s/cfg/%s' % (contract_name, file_name))

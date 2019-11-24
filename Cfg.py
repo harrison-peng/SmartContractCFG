@@ -1,7 +1,7 @@
-import functools
+import settings
+import networkx as nx
 from z3 import simplify
 from settings import logging
-from graphviz import Digraph
 from Node import Node
 from Edge import Edge
 from Opcode import Opcode
@@ -142,14 +142,28 @@ class Cfg:
                     path.append(opcode.pc)
                 content.append(opcode)
 
-    def render(self, file):
-        self.graph = Digraph(format='svg', node_attr={'shape': 'box'})
-        for node in self.nodes:
-            self.graph.node(str(node.tag), label=self.__node_to_graph_content(node), color=node.color)
-        for edge in self.edges:
-            self.graph.edge(str(edge.from_), str(edge.to_), label=edge.path_constraint, color=edge.color)
-        self.graph.render(file)
-        call(['rm', file])
+    def render(self, file) -> None:
+        G = nx.DiGraph()
+        if settings.CFG_FORMAT == 'html':
+            for node in self.nodes:
+                G.add_node(node.tag, id=node.tag, color=node.color, tooltip=self.__node_to_graph_content(node))
+            for edge in self.edges:
+                label = '[Path Constraint]\n\n%s' % edge.path_constraint
+                G.add_edge(edge.from_, edge.to_, tooltip=label, color=edge.color)
+
+            with open('%s.html' % file, 'w') as f:
+                f.write(self.svg_to_html(nx.nx_pydot.to_pydot(G).create_svg().decode("utf-8")))
+        elif settings.CFG_FORMAT == 'svg':
+            for node in self.nodes:
+                G.add_node(node.tag, id=node.tag, color=node.color, shape='box', label=self.__node_to_graph_content(node))
+            for edge in self.edges:
+                G.add_edge(edge.from_, edge.to_, label=edge.path_constraint if edge.path_constraint else '', color=edge.color)
+
+            with open('%s.svg' % file, 'wb') as f:
+                f.write(nx.nx_pydot.to_pydot(G).create_svg())
+        else:
+            logging.error('CFG format error')
+
 
     def __node_to_graph_content(self, node: Node) -> str:
         content = '[ADDRESS: %s]\n\n' % str(node.tag)
@@ -421,3 +435,143 @@ class Cfg:
             return stack, jump_tag
         except Exception as e:
             return 'Error', jump_tag
+
+    def svg_to_html(self, svg: str, function_extractor = None) -> str:
+        """
+        Produces an interactive html page from an svg image of a CFG.
+
+        Args:
+            svg: the string of the SVG to process
+            function_extractor: a FunctionExtractor object containing functions
+                                to annotate the graph with.
+
+        Returns:
+            HTML string of interactive web page source for the given CFG.
+        """
+
+        lines = svg.split("\n")
+        page = []
+
+        page.append("""
+<html>
+<body>
+<style>
+.node
+{
+    transition: all 0.05s ease-out;
+}
+.node:hover
+{
+    stroke-width: 1.5;
+    cursor:pointer
+}
+.node:hover
+ellipse
+{
+    fill: #EEE;
+}
+textarea#infobox {
+    position: fixed;
+    display: block;
+    top: 0;
+    right: 0;
+}
+
+.edge
+{
+    transition: all 0.05s ease-out;
+}
+.edge:hover
+{
+    stroke-width: 2;
+    cursor:pointer
+}
+
+.dropbutton {
+    padding: 10px;
+    border: none;
+}
+.dropbutton:hover, .dropbutton:focus {
+    background-color: #777777;
+}
+.dropdown {
+    margin-right: 5px;
+    position: fixed;
+    top: 5px;
+    right: 0px;
+}
+.dropdown-content {
+    background-color: white;
+    display: none;
+    position: absolute;
+    width: 70px;
+    box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+.dropdown-content a {
+    color: black;
+    padding: 8px 10px;
+    text-decoration: none;
+    font-size: 10px;
+    display: block;
+}
+
+.dropdown-content a:hover { background-color: #f1f1f1; }
+
+.show { display:block; }
+</style>
+                """)
+
+        for line in lines[3:]:
+            page.append(line)
+
+        page.append("""<textarea id="infobox" disabled=true rows=40 cols=50></textarea>""")
+
+        # Create a dropdown list of functions if there are any.
+        if function_extractor is not None:
+            page.append("""<div class="dropdown">
+                <button onclick="showDropdown()" class="dropbutton">Functions</button>
+                <div id="func-list" class="dropdown-content">""")
+
+            for i, f in enumerate(function_extractor.functions):
+                if f.is_private:
+                    page.append('<a id=f_{0} href="javascript:highlightFunction({0})">private #{0}</a>'.format(i))
+                else:
+                    if f.signature:
+                        page.append(
+                            '<a id=f_{0} href="javascript:highlightFunction({0})">public {1}</a>'.format(i, f.signature))
+                    else:
+                        page.append('<a id=f_{0} href="javascript:highlightFunction({0})">fallback</a>'.format(i))
+            page.append("</div></div>")
+
+        page.append("""<script>""")
+
+        if function_extractor is not None:
+            func_map = {i: [b.ident() for b in f.body]
+                        for i, f in enumerate(function_extractor.functions)}
+            page.append("var func_map = {};".format(func_map))
+            page.append("var highlight = new Array({}).fill(0);".format(len(func_map)))
+
+        page.append("""
+// Set info textbox contents to the title of the given element, with line endings replaced suitably.
+function setInfoContents(element){
+    document.getElementById('infobox').value = element.getAttribute('xlink:title').replace(/\\\\n/g, '\\n');
+}
+
+// Make all node anchor tags in the svg clickable.
+for (var el of Array.from(document.querySelectorAll(".node a"))) {
+    el.setAttribute("onclick", "setInfoContents(this);");
+}
+
+// Make all edge anchor tags in the svg clickable.
+for (var el of Array.from(document.querySelectorAll(".edge a"))) {
+    console.log(el)
+    el.setAttribute("onclick", "setInfoContents(this);");
+}
+
+</script>
+</html>
+</body>
+                """)
+
+        return "\n".join(page)
