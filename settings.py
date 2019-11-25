@@ -23,3 +23,5 @@ SET_MODEL_VALUE = False
 REMOVE_UNREACHED_NODE = False
 # CFG format
 CFG_FORMAT = None
+# contain state information in CFG
+CFG_STATE = False

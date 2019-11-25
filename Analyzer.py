@@ -68,8 +68,8 @@ class Analyzer:
                 edge_false = self.cfg.get_edge(node.tag, opcode.get_next_pc())
 
                 if detect_loop:
-                    edge_true.set_path_constraint(str(simplify(result.jump_condition==1)).replace('\n', '').replace('\t', '').replace(' ', ''))
-                    edge_false.set_path_constraint(str(simplify(result.jump_condition==0)).replace('\n', '').replace('\t', '').replace(' ', ''))
+                    edge_true.set_path_constraint(self.to_string(simplify(result.jump_condition==1)))
+                    edge_false.set_path_constraint(self.to_string(simplify(result.jump_condition==0)))
                     
                     if path.contain_node(result.jump_tag) and path.contain_node(opcode.get_next_pc()):
                         return
@@ -98,8 +98,8 @@ class Analyzer:
                         edge_false.set_path_constraint('True')
                         return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
                     else:
-                        edge_true.set_path_constraint(str(simplify(result.jump_condition==1)).replace('\n', '').replace('\t', '').replace(' ', ''))
-                        edge_false.set_path_constraint(str(simplify(result.jump_condition==0)).replace('\n', '').replace('\t', '').replace(' ', ''))
+                        edge_true.set_path_constraint(self.to_string(simplify(result.jump_condition==1)))
+                        edge_false.set_path_constraint(self.to_string(simplify(result.jump_condition==0)))
                         true_path, false_path = deepcopy(path), deepcopy(path)
                         true_state, false_state = deepcopy(state), deepcopy(state)
                         true_path.add_path_constraints([result.jump_condition==1])

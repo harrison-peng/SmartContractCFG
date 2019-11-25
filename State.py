@@ -1,4 +1,5 @@
 import sha3
+from typing import Any
 from z3_func import *
 from gas_price import gas_table
 from settings import *
@@ -289,7 +290,7 @@ class State:
                     # NOTE: GAS
                     gas = 10 if computed == 0 else 10 + 10 * (1 + math.log(computed, 256))
                 else:
-                    computed = variables.get_variable(Variable('Iexp_%s', 'EXP(%s, %s)' % (base, exponent), BitVec('Iexp_%s' % opcode.pc, 256)))
+                    computed = variables.get_variable(Variable('Iexp_%s', 'EXP(%s, %s)' % (self.to_string(base), self.to_string(exponent)), BitVec('Iexp_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(computed, UNSIGNED_BOUND_NUMBER))
 
                     # NOTE: GAS
@@ -299,7 +300,7 @@ class State:
                         if isinstance(base, int) and base == 256:
                             gas = simplify(10 + (10 * (1 + BV2Int(exponent)))) if is_bv(exponent) else simplify(10 + (10 * (1 + exponent)))
                         else:
-                            gas_var = variables.get_variable(Variable('log_%s' % opcode.pc, 'log256(%s)' % computed, BitVec('log_%s' % opcode.pc, 256)))
+                            gas_var = variables.get_variable(Variable('log_%s' % opcode.pc, 'log256(%s)' % self.to_string(computed), BitVec('log_%s' % opcode.pc, 256)))
                             gas = simplify(10 + (10 * (1 + BV2Int(gas_var))))
                             result.add_path_constraint(ULT(gas_var, UNSIGNED_BOUND_NUMBER))
 
@@ -548,18 +549,18 @@ class State:
                                 data += self.memory[position + 32 * i]
                                 data = simplify(data) if is_expr(data) else data
                         else:
-                            mem_var = variables.get_variable(Variable('Imem_%s' % opcode.pc, 'memory[%s:%s+32]' % (i, i), BitVec('Imem_%s' % opcode.pc, 256)))
+                            mem_var = variables.get_variable(Variable('Imem_%s' % opcode.pc, 'memory[%s:%s+32]' % (self.to_string(i), self.to_string(i)), BitVec('Imem_%s' % opcode.pc, 256)))
                             data = data + mem_var
                             result.add_path_constraint(ULT(mem_var, UNSIGNED_BOUND_NUMBER))
                             result.add_path_constraint(ULT(data, UNSIGNED_BOUND_NUMBER))
                 else:
-                    data = variables.get_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(memory[%s:%s])' % (position, position + length), BitVec('Isha3_%s' % opcode.pc, 256)))
+                    data = variables.get_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(memory[%s:%s])' % (self.to_string(position), self.to_string(position + length)), BitVec('Isha3_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(data, UNSIGNED_BOUND_NUMBER))
 
                 if isinstance(data, int):
                     computed = int(sha3.sha3_224(str(data).encode('utf-8')).hexdigest(), 16)
                 else:
-                    computed = variables.get_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(%s)' % data, BitVec('Isha3_%s' % opcode.pc, 256)))
+                    computed = variables.get_variable(Variable('Isha3_%s' % opcode.pc, 'SHA3(%s)' % self.to_string(data), BitVec('Isha3_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(computed, UNSIGNED_BOUND_NUMBER))
                 # data = simplify(data) if is_expr(data) else data
 
@@ -572,7 +573,7 @@ class State:
                     if str(data) == 'Ia_caller':
                         gas = 150
                     else:
-                        size_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % data, BitVec('Isize_%s' % opcode.pc, 256)))
+                        size_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % self.to_string(data), BitVec('Isize_%s' % opcode.pc, 256)))
                         result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
                         gas = simplify(30 + 6 * BV2Int(size_var))
 
@@ -589,7 +590,7 @@ class State:
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
-                banlance_var = variables.get_variable(Variable('Ibalance_%s' % opcode.pc, 'address(%s).balance' % address, BitVec('Ibalance_%s' % opcode.pc, 256)))
+                banlance_var = variables.get_variable(Variable('Ibalance_%s' % opcode.pc, 'address(%s).balance' % self.to_string(address), BitVec('Ibalance_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(banlance_var, UNSIGNED_BOUND_NUMBER))
 
                 self.stack[str(len(self.stack))] = banlance_var
@@ -620,9 +621,9 @@ class State:
 
                 # NOTE: Check if the sym var of msg.data is already created or not
                 if isinstance(position, int):
-                    data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (position, position + 32), BitVec('Id_%s' % opcode.pc, 256)))
+                    data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (self.to_string(position), self.to_string(position + 32)), BitVec('Id_%s' % opcode.pc, 256)))
                 else:
-                    data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (position, simplify(position+32)), BitVec('Id_%s' % opcode.pc, 256)))
+                    data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s]' % (self.to_string(position), self.to_string(simplify(position+32))), BitVec('Id_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
 
                 self.stack[str(len(self.stack))] = data_var
@@ -649,7 +650,7 @@ class State:
                 if is_real(num_bytes):
                     gas = 2 + 3 * (num_bytes / 32)
                 else:
-                    ws_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % num_bytes, BitVec('Isize_%s' % opcode.pc, 256)))
+                    ws_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The word size of %s' % self.to_string(num_bytes), BitVec('Isize_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(ws_var, BYTE_BOUND_NUMBER))
                     gas = simplify(2 + 3 * BV2Int(ws_var))
                 result.set_gas(gas)
@@ -667,7 +668,7 @@ class State:
                 msg_p = self.stack.pop(str(len(self.stack) - 1))
                 num_bytes = self.stack.pop(str(len(self.stack) - 1))
 
-                code_var = variables.get_variable(Variable('Ic_%s' % opcode.pc, 'address(this).code[%s:%s+%s]' % (mem_p, msg_p, num_bytes), BitVec('Ic_%s' % opcode.pc, 256)))
+                code_var = variables.get_variable(Variable('Ic_%s' % opcode.pc, 'address(this).code[%s:%s]' % (self.to_string(mem_p), self.to_string(msg_p+num_bytes)), BitVec('Ic_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(code_var, UNSIGNED_BOUND_NUMBER))
                 self.memory[mem_p] = code_var
 
@@ -675,7 +676,7 @@ class State:
                 if is_real(num_bytes):
                     gas = 2 + 3 * (num_bytes / 32)
                 else:
-                    size_var = variables.get_variable(Variable('Isize_%s' % str(num_bytes).split('_')[1], 'The word size of %s' % num_bytes, BitVec('Isize_%s' % str(num_bytes).split('_')[1], 256)))
+                    size_var = variables.get_variable(Variable('Isize_%s' % str(num_bytes).split('_')[1], 'The word size of %s' % self.to_string(num_bytes), BitVec('Isize_%s' % str(num_bytes).split('_')[1], 256)))
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
 
                     gas = simplify(30 + 6 * BV2Int(size_var))
@@ -694,7 +695,7 @@ class State:
                 y = self.stack.pop(str(len(self.stack) - 1))
                 x = self.stack.pop(str(len(self.stack) - 1))
 
-                data_var = variables.get_variable(Variable('Id_%s'% opcode.pc, 'RETURNDATA[%s:%s+%s]' % (y, y, x), BitVec('Id_%s'% opcode.pc, 256)))
+                data_var = variables.get_variable(Variable('Id_%s'% opcode.pc, 'RETURNDATA[%s:%s]' % (self.to_string(y), self.to_string(y+x)), BitVec('Id_%s'% opcode.pc, 256)))
                 result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
                 self.memory[z] = data_var
 
@@ -702,7 +703,7 @@ class State:
                 if is_real(x):
                     gas = 2 + 3 * (x / 32)
                 else:
-                    size_var = variables.get_variable(Variable('Isize_%s' % str(x).split('_')[1], 'The word size of %s' % x, BitVec('Isize_%s' % str(x).split('_')[1], 256)))
+                    size_var = variables.get_variable(Variable('Isize_%s' % str(x).split('_')[1], 'The word size of %s' % self.to_string(x), BitVec('Isize_%s' % str(x).split('_')[1], 256)))
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
                     gas = simplify(30 + 6 * BV2Int(size_var))
                 result.set_gas(gas)
@@ -869,7 +870,7 @@ class State:
                 if isinstance(word, int):
                     gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (word / 32))
                 else:
-                    size_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The bytes of %s' % word, BitVec('Isize_%s' % opcode.pc, 256)))
+                    size_var = variables.get_variable(Variable('Isize_%s' % opcode.pc, 'The bytes of %s' % self.to_string(word), BitVec('Isize_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
                     gas = (int(opcode.name[3:]) + 1) * 375 + (8 * BV2Int(size_var))
                 result.set_gas(gas)
@@ -948,7 +949,7 @@ class State:
                 offset = self.stack.pop(str(len(self.stack) - 1))
                 length = self.stack.pop(str(len(self.stack) - 1))
 
-                addr_var = variables.get_variable(Variable('Iaddr_%s' % opcode.pc, 'memory[%s:%s].value(%s)' % (offset, offset + length, value), BitVec('Iaddr_%s' % opcode.pc, 256)))
+                addr_var = variables.get_variable(Variable('Iaddr_%s' % opcode.pc, 'memory[%s:%s].value(%s)' % (self.to_string(offset), self.to_string(offset + length), self.to_string(value)), BitVec('Iaddr_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(addr_var, ADDRESS_BOUND_NUMBER))
 
                 self.stack[str(len(self.stack))] = addr_var
@@ -959,7 +960,7 @@ class State:
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
-                code_var = variables.get_variable(Variable('Icodesize_%s' % opcode.pc, 'address(%s).code.size' % address, BitVec('Icodesize_%s' % opcode.pc, 256)))
+                code_var = variables.get_variable(Variable('Icodesize_%s' % opcode.pc, 'address(%s).code.size' % self.to_string(address), BitVec('Icodesize_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(code_var, ADDRESS_BOUND_NUMBER))
 
                 self.stack[str(len(self.stack))] = code_var
@@ -970,7 +971,7 @@ class State:
             if len(self.stack) > 0:
                 block_num = self.stack.pop(str(len(self.stack) - 1))
 
-                hash_var = variables.get_variable(Variable('Ih_%s' % opcode.pc, 'block.blockHash(%s)' % block_num, BitVec('Ih_%s' % opcode.pc, 256)))
+                hash_var = variables.get_variable(Variable('Ih_%s' % opcode.pc, 'block.blockHash(%s)' % self.to_string(block_num), BitVec('Ih_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(hash_var, ADDRESS_BOUND_NUMBER))
 
                 self.stack[str(len(self.stack))] = hash_var
@@ -981,7 +982,7 @@ class State:
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
-                contract_var = variables.get_variable(Variable('Inewaccount_%s' % opcode.pc, 'selfdestruct(address(%s))' % address, BitVec('Inewaccount_%s' % opcode.pc, 256)))
+                contract_var = variables.get_variable(Variable('Inewaccount_%s' % opcode.pc, 'selfdestruct(address(%s))' % self.to_string(address), BitVec('Inewaccount_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(contract_var==1, contract_var==0))
                 result.set_gas(5000 + BV2Int(If(contract_var==1, BitVecVal(25000, 256), BitVecVal(0, 256))))
             else:
@@ -1362,3 +1363,6 @@ class State:
         for i in range(3):
             variable = variables.get_variable(Variable('Ivar_%s' % str(i+1), 'Init variable %s' % str(i+1), BitVec('Ivar_%s' % str(i+1), 256)))
             self.stack.update({'%s' % str(i): variable})
+    
+    def to_string(self, input: Any) -> str:
+        return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")

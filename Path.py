@@ -1,3 +1,4 @@
+from typing import Any
 from settings import logging, UNSIGNED_BOUND_NUMBER
 from z3 import *
 from Node import Node
@@ -72,9 +73,9 @@ class Path:
         decl, arg_1, arg_2 = list(), list(), list()
         for i, node in enumerate(nodes):
             for constraint in self.path_constraint[::-1]:
-                constraint_str = str(constraint).replace('\n', '').replace(' ', '')
-                node_constraint_true_str = str(node.path_constraint == 1).replace('\n', '').replace(' ', '')
-                node_constraint_false_str = str(node.path_constraint == 0).replace('\n', '').replace(' ', '')
+                constraint_str = self.to_string(constraint)
+                node_constraint_true_str = self.to_string(node.path_constraint == 1)
+                node_constraint_false_str = self.to_string(node.path_constraint == 0)
                 if node_constraint_true_str == node_constraint_true_str or node_constraint_true_str == node_constraint_false_str:
                     self.path_constraint.remove(constraint)
                     break
@@ -91,15 +92,18 @@ class Path:
                 if loop_formula is None:
                     logging.error('%s %s' % (len(set(arg_1)), len(set(arg_2))))
                     for node in nodes:
-                        logging.error('PC: %s' % str(node.path_constraint).replace('\n', '').replace(' ', ''))
-                        logging.error('MEM: %s' % str(node.state.memory).replace('\n', '').replace(' ', ''))
-                        logging.error('STO: %s' % str(node.state.storage).replace('\n', '').replace(' ', ''))
+                        logging.error('PC: %s' % self.to_string(node.path_constraint))
+                        logging.error('MEM: %s' % self.to_string(node.state.memory))
+                        logging.error('STO: %s' % self.to_string(node.state.storage))
                     raise ValueError('Both side of formula are not fixed')
         else:
             raise ValueError('Operators are not same')
 
         # for constraint in self.path_constraint
         return loop_formula
+
+    def to_string(self, input: Any) -> str:
+        return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")
 
     def __produce_loop_formula(self, loop_var: BitVecRef, if_pair: tuple, arg_1: list, arg_2: list, decl: FuncDeclRef) -> ArithRef:
         if len(set(arg_1)) == 1 and len(set(arg_2)) > 1:

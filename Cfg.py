@@ -2,7 +2,7 @@ import settings
 from typing import Any
 import networkx as nx
 from z3 import simplify
-from settings import logging
+from settings import logging, CFG_STATE
 from Node import Node
 from Edge import Edge
 from Opcode import Opcode
@@ -147,7 +147,7 @@ class Cfg:
     def render(self, file: str, paths: list = None) -> None:
         G = nx.DiGraph()
         nodes_dict = None
-        if paths:
+        if paths and CFG_STATE:
             nodes_dict = self.__get_all_node_of_paths(paths)
         if settings.CFG_FORMAT == 'html':
             for node in self.nodes:
@@ -181,8 +181,8 @@ class Cfg:
         for opcode in opcdoes:
             content += '%s: %s %s\n' % (opcode.pc, opcode.name, opcode.value if opcode.value else '')
         if not (isinstance(node.gas, int) and node.gas == 0):
-            content += '\n[GAS]: %s' % str(node.gas).replace('\n', '').replace('\t', '').replace(' ', '')
-        if node_list:
+            content += '\n[GAS]: %s' % self.to_string(node.gas)
+        if node_list and CFG_STATE:
             for path_id, state in node_list:
                 logging.debug('Add node to result: %s' % path_id)
                 content += '[Path: %s]\n\n' % path_id
@@ -193,6 +193,7 @@ class Cfg:
         return content
 
     def to_string(self, input: Any) -> str:
+        # return str(input)
         return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'").replace('{', '{\n').replace('}', '\n}')
 
     def __get_all_node_of_paths(self, paths: [Path]) -> dict:
