@@ -83,6 +83,7 @@ def opcodes_analysis(contract_name):
             analyzer = Analyzer(cfg)
             analyzer.symbolic_execution(0, Path(), State())
             # analyzer.symbolic_execution_from_other_head()
+            analyzer.set_paths_id()
             logging.info('CFG node count = %s' % cfg.node_num())
             logging.info('CFG edge count = %s' % cfg.edge_num())
             logging.info('Total path: %s' % len(analyzer.paths))
@@ -90,7 +91,7 @@ def opcodes_analysis(contract_name):
             if settings.REMOVE_UNREACHED_NODE:
                 cfg.remove_unreach_nodes()
                 logging.info('CFG reachable node = %s' % cfg.node_num())
-            cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name))
+            cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name), analyzer.paths)
 
             # NOTE: Solve PATHS
             max_gas, sat_constant_path, sat_bound_path, sat_unbound_path = solve_path(analyzer)

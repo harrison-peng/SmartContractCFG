@@ -1,4 +1,5 @@
 import settings
+from typing import Any
 import networkx as nx
 from z3 import simplify
 from settings import logging
@@ -6,6 +7,7 @@ from Node import Node
 from Edge import Edge
 from Opcode import Opcode
 from subprocess import call
+from Path import Path
 
 class Cfg:
 
@@ -142,11 +144,17 @@ class Cfg:
                     path.append(opcode.pc)
                 content.append(opcode)
 
-    def render(self, file) -> None:
+    def render(self, file: str, paths: list = None) -> None:
         G = nx.DiGraph()
+        nodes_dict = None
+        if paths:
+            nodes_dict = self.__get_all_node_of_paths(paths)
         if settings.CFG_FORMAT == 'html':
             for node in self.nodes:
-                G.add_node(node.tag, id=node.tag, color=node.color, tooltip=self.__node_to_graph_content(node))
+                if nodes_dict:
+                    G.add_node(node.tag, id=node.tag, color=node.color, tooltip=self.__node_to_graph_content(node, nodes_dict.get(node.tag, None)))
+                else:
+                    G.add_node(node.tag, id=node.tag, color=node.color, tooltip=self.__node_to_graph_content(node))
             for edge in self.edges:
                 label = '[Path Constraint]\n\n%s' % edge.path_constraint
                 G.add_edge(edge.from_, edge.to_, tooltip=label, color=edge.color)
@@ -165,14 +173,39 @@ class Cfg:
             logging.error('CFG format error')
 
 
-    def __node_to_graph_content(self, node: Node) -> str:
+    def __node_to_graph_content(self, node: Node, node_list: list = None) -> str:
+        seg = '-+-+' * 12
+        sub_seg = '-' * 60
         content = '[ADDRESS: %s]\n\n' % str(node.tag)
         opcdoes = node.opcodes
         for opcode in opcdoes:
             content += '%s: %s %s\n' % (opcode.pc, opcode.name, opcode.value if opcode.value else '')
         if not (isinstance(node.gas, int) and node.gas == 0):
             content += '\n[GAS]: %s' % str(node.gas).replace('\n', '').replace('\t', '').replace(' ', '')
+        if node_list:
+            for path_id, state in node_list:
+                logging.debug('Add node to result: %s' % path_id)
+                content += '[Path: %s]\n\n' % path_id
+                content += 'Stack: %s\n\n' % self.to_string(state.stack)
+                content += 'Memory: %s\n\n' % self.to_string(state.memory)
+                content += 'Storage: %s\n' % self.to_string(state.storage)
+                content += '%s\n\n' % sub_seg
         return content
+
+    def to_string(self, input: Any) -> str:
+        return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'").replace('{', '{\n').replace('}', '\n}')
+
+    def __get_all_node_of_paths(self, paths: [Path]) -> dict:
+        result = dict()
+        for path in paths:
+            for node in path.path:
+                logging.debug('NodeTag: %s' % node)
+                n = result.get(node.tag, None)
+                if n:
+                    n.append((path.id, node.state))
+                else:
+                    result[node.tag] = [(path.id, node.state)]
+        return result
 
     def node_num(self) -> int:
         return len(self.nodes)
@@ -568,9 +601,103 @@ for (var el of Array.from(document.querySelectorAll(".edge a"))) {
     el.setAttribute("onclick", "setInfoContents(this);");
 }
 
+const svg = document.querySelector('svg')
+const NS = "http://www.w3.org/2000/svg";
+const defs = document.createElementNS( NS, "defs" );
+
+// IIFE add filter to svg to allow shadows to be added to nodes within it
+(function(){
+    defs.innerHTML = makeShadowFilter()
+    svg.insertBefore(defs,svg.children[0])
+})()
+
+function colorToID(color){
+    return color.replace(/[^a-zA-Z0-9]/g,'_')
+}
+
+function makeShadowFilter({color = 'black',x = 0,y = 0, blur = 3} = {}){
+    return `
+    <filter id="filter_${colorToID(color)}" x="-40%" y="-40%" width="250%" height="250%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="${blur}"/>
+    <feOffset dx="${x}" dy="${y}" result="offsetblur"/>
+    <feFlood flood-color="${color}"/>
+    <feComposite in2="offsetblur" operator="in"/>
+    <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+    </filter>
+    `
+}
+
+// Shadow toggle functions, with filter caching
+function addShadow(el, {color = 'black', x = 0, y = 0, blur = 3}){
+    const id = colorToID(color);
+    if(!defs.querySelector(`#filter_${id}`)){
+    const d = document.createElementNS(NS, 'div');
+    d.innerHTML = makeShadowFilter({color, x, y, blur});
+    defs.appendChild(d.children[0]);
+    }
+    el.style.filter = `url(#filter_${id})`
+}
+
+function removeShadow(el){
+    el.style.filter = ''
+}
+
+function hash(n) {
+    var str = n + "rainbows" + n + "please" + n;
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) {
+    hash = (((hash << 5) - hash) + str.charCodeAt(i)) | 0;
+    }
+    return hash > 0 ? hash : -hash;
+};
+
+function getColor(n, sat="80%", light="50%") {
+    const hue = hash(n) % 360;
+    return `hsl(${hue}, ${sat}, ${light})`;
+}
+
+// Add shadows to function body nodes, and highlight functions in the dropdown list
+function highlightFunction(i) {
+    for (var n of Array.from(document.querySelectorAll(".node ellipse"))) {
+    removeShadow(n);
+    }
+
+    highlight[i] = !highlight[i];
+    const entry = document.querySelector(`.dropdown-content a[id='f_${i}']`)
+    if (entry.style.backgroundColor) {
+    entry.style.backgroundColor = null;
+    } else {
+    entry.style.backgroundColor = getColor(i, "60%", "90%");
+    }
+
+    for (var j = 0; j < highlight.length; j++) {
+    if (highlight[j]) {
+        const col = getColor(j);
+        for (var id of func_map[j]) {
+        var n = document.querySelector(`.node[id='${id}'] ellipse`);
+        addShadow(n, {color:`${col}`});
+        }
+    }
+    }
+}
+
+// Show the dropdown elements when it's clicked.
+function showDropdown() {
+    document.getElementById("func-list").classList.toggle("show");
+}
+window.onclick = function(event) {
+    if (!event.target.matches('.dropbutton')) {
+    var items = Array.from(document.getElementsByClassName("dropdown-content"));
+    for (var item of items) {
+        item.classList.remove('show');
+    }
+    }
+}
 </script>
 </html>
 </body>
                 """)
-
         return "\n".join(page)

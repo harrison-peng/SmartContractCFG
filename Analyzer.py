@@ -17,8 +17,8 @@ class Analyzer:
         self.paths = list()
         self.variables = Variables()
 
-    def symbolic_execution(self, tag: int, path: Path, state: State):
-        # logging.debug('TAG: %s' % tag)
+    def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
+        logging.debug('TAG: %s' % tag)
         node = self.cfg.get_node(tag)
         node.visite()
         gas = 0
@@ -132,7 +132,7 @@ class Analyzer:
 
         return self.symbolic_execution(opcode.get_next_pc(), path, state)
 
-    def symbolic_execution_from_other_head(self):
+    def symbolic_execution_from_other_head(self) -> None:
         from_list = [edge.from_ for edge in self.cfg.edges]
         to_list = [edge.to_ for edge in self.cfg.edges]
         node_list = [node for node in self.cfg.nodes if node.tag in from_list and node.tag not in to_list]
@@ -141,7 +141,7 @@ class Analyzer:
             state.init_with_var(self.variables)
             self.symbolic_execution(node.tag, Path(), state)
 
-    def __add_edge(self, edge: Edge):
+    def __add_edge(self, edge: Edge) -> None:
         # NOTE: if edge is not in edges -> add edge into edges
         for e in self.cfg.edges:
             if e == edge:
@@ -151,3 +151,9 @@ class Analyzer:
     
     def to_string(self, input: Any) -> str:
         return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")
+
+    def set_paths_id(self) -> None:
+        count_id = 1
+        for path in self.paths:
+            path.set_id(count_id)
+            count_id += 1

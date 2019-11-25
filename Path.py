@@ -7,6 +7,7 @@ from Variable import Variable, Variables
 class Path:
 
     def __init__(self):
+        self.id = None
         self.path = list()
         self.path_constraint = list()
         self.gas = 0
@@ -15,21 +16,24 @@ class Path:
         self.model_gas = None
 
     def __str__(self) -> str:
-        return '%s' % self.path
+        return '[%s]: %s' % (self.id, self.path)
 
     def __repr__(self) -> str:
-        return '<%s object> %s' % (self.__class__.__name__, self.path)
+        return '<%s object>[%s]: %s' % (self.__class__.__name__, self.id, self.path)
 
-    def add_node(self, node: Node):
+    def set_id(self, id: int) -> None:
+        self.id = id
+
+    def add_node(self, node: Node) -> None:
         self.path.append(node)
 
-    def add_path_constraints(self, constraints: list):
+    def add_path_constraints(self, constraints: list) -> None:
         self.path_constraint += constraints
 
     def count_specific_node_num(self, tag: int) -> int:
         return len([node for node in self.path if node.tag == tag])
 
-    def add_gas(self, gas):
+    def add_gas(self, gas: int) -> None:
         self.gas += gas
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
 
@@ -57,7 +61,7 @@ class Path:
         self.__fix_loop_path(incoming_node.tag)
         return loop_formula
 
-    def __unpack_z3_if(self, formula):
+    def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
         formula = int(formula.as_long) if isinstance(formula, BitVecNumRef) else formula
         if is_expr(formula) and str(formula.decl()) == 'If':
             return self.__unpack_z3_if(formula.arg(0)), (formula.arg(1), formula.arg(2))
@@ -120,7 +124,7 @@ class Path:
         gas = simplify(gas) if is_expr(gas) else int(gas)
         self.add_gas(gas)
 
-    def __fix_loop_path(self, tag: int):
+    def __fix_loop_path(self, tag: int) -> None:
         count_loop_node = 0
         for index, node in enumerate(self.path):
             if node.tag == tag:
@@ -144,7 +148,7 @@ class Path:
         else:
             return 'BOUND'
 
-    def solve(self):
+    def solve(self) -> bool:
         # logging.debug('Solving the constraints...')
         for contraint in self.path_constraint:
             self.solver.add(contraint)
