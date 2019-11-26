@@ -25,3 +25,5 @@ REMOVE_UNREACHED_NODE = False
 CFG_FORMAT = None
 # contain state information in CFG
 CFG_STATE = False
+# Solver Timeout (millisecond)
+TIMEOUT = 2000

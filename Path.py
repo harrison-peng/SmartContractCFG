@@ -1,5 +1,5 @@
 from typing import Any
-from settings import logging, UNSIGNED_BOUND_NUMBER
+from settings import logging, UNSIGNED_BOUND_NUMBER, TIMEOUT
 from z3 import *
 from Node import Node
 from State import State
@@ -153,28 +153,30 @@ class Path:
             return 'BOUND'
 
     def solve(self) -> bool:
-        # logging.debug('Solving the constraints...')
         for contraint in self.path_constraint:
             self.solver.add(contraint)
+        self.solver.set(timeout=TIMEOUT)
         if self.solver.check() == sat:
             self.model = self.solver.model()
             return True
         return False
 
     def solve_max_gas(self, gas: int) -> bool:
-        # logging.debug('Finding max gas...')
         self.solver.push()
         self.solver.add(self.gas > gas)
         is_sat = False
+        self.solver.set(timeout=TIMEOUT)
         while self.solver.check() == sat:
             is_sat = True
             gas += 10000
             self.solver.pop()
             self.solver.push()
             self.solver.add(self.gas > gas)
+            self.solver.set(timeout=TIMEOUT)
         self.solver.pop()
         self.solver.push()
         self.solver.add(self.gas > gas - 10000)
+        self.solver.set(timeout=TIMEOUT)
         if self.solver.check() == sat:
             self.model = self.solver.model()
             return True
@@ -185,7 +187,7 @@ class Path:
                 return False
 
     def assign_model(self, variables: Variables) -> int:
-        # logging.debug('Assign model into cfg...')
+        logging.debug('Assign model into cfg...')
         gas = 0
         state = State()
         for node in self.path:

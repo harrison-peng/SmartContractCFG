@@ -133,7 +133,10 @@ gas_table = {
     'tag': 0,
     'EXP': 10,
     'LOG': 375,
-    'RETURNDATACOPY': 2
+    'RETURNDATACOPY': 2,
+    'SHL': 3,
+    'SHR': 3,
+    'SAR': 3
 }
 
 

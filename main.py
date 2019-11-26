@@ -9,6 +9,7 @@ from Analyzer import Analyzer
 from Path import Path
 from State import State
 from Result import Result
+from Variable import Variables
 
 
 def main():
@@ -40,7 +41,8 @@ def main():
 
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
-            preprocessing.source_code_to_opcodes(f_src)
+            preprocessing.copy_file(f_src)
+            preprocessing.source_code_to_opcodes(contract_name)
 
             # NOTE: Analyze the opcodes
             opcodes_analysis(contract_name)
@@ -92,13 +94,29 @@ def opcodes_analysis(contract_name):
                 cfg.remove_unreach_nodes()
                 logging.info('CFG reachable node = %s' % cfg.node_num())
             cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name), analyzer.paths)
+            logging.info('Writting analysis result into file[1]...')
+            result = Result(analyzer)
+            # result.render(contract_name, file_name)
 
             # NOTE: Solve PATHS
-            max_gas, sat_constant_path, sat_bound_path, sat_unbound_path = solve_path(analyzer)
-                    
+            constant_path, bound_path, unbound_path = classify_path(analyzer)
+            result.set_constant_path(constant_path)
+            result.set_bound_path(bound_path)
+            result.set_unbound_path(unbound_path)
+            logging.info('Satisfiability constant gas path: %s' % len(constant_path))
+            logging.info('Satisfiability bound gas path: %s' % len(bound_path))
+            logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
+            if len(unbound_path) > 0:
+                max_gas = unbound_path[-1].gas
+            elif len(bound_path) > 0:
+                max_gas = solve_path(analyzer.variables, bound_path, get_max_constant_gas(constant_path))
+            else:
+                max_gas = get_max_constant_gas(constant_path)
+            logging.debug('Path max gas: %s' % max_gas)
+            result.set_max_gas(max_gas)
+
             # NOTE: Output Result File
-            logging.info('Writting analysis result into file...')
-            result = Result(analyzer, max_gas, sat_constant_path, sat_bound_path, sat_unbound_path)
+            logging.info('Writting analysis result into file[2]...')
             result.render(contract_name, file_name)
             del cfg, analyzer, result
             logging.info('Analysis complete\n')
@@ -106,39 +124,36 @@ def opcodes_analysis(contract_name):
             logging.info('%s is empyty\n' % file_name)
 
 
-def solve_path(analyzer: Analyzer) -> (int, [Path], [Path], [Path]):
-    logging.info('Solving all the paths...')
+def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
     paths = analyzer.paths
-    sat_constant_path = list()
-    sat_bound_path = list()
-    sat_unbound_path = list()
+    constant_path = list()
+    bound_path = list()
+    unbound_path = list()
     clear_path = remove_duplicate_path(paths)
-    for path in clear_path:
+    logging.info('Unique path: %s' % len(clear_path))
+    for id, path in enumerate(clear_path):
+        logging.debug('Solving the constraints...[%s/%s]' % (id + 1, len(clear_path)))
         if path.solve():
             gas_type = path.gas_type()
             if gas_type == 'CONSTANT':
-                sat_constant_path.append(path)
+                constant_path.append(path)
             elif gas_type == 'BOUND':
-                sat_bound_path.append(path)
+                bound_path.append(path)
             else:
-                sat_unbound_path.append(path)
-    logging.info('Satisfiability constant gas path: %s' % len(sat_constant_path))
-    logging.info('Satisfiability bound gas path: %s' % len(sat_bound_path))
-    logging.info('Satisfiability unbound gas path: %s' % len(sat_unbound_path))
+                unbound_path.append(path)
+    return constant_path, bound_path, unbound_path
 
-    if len(sat_unbound_path) > 0:
-        max_gas = sat_unbound_path[-1].gas
-    elif len(sat_bound_path) > 0:
-        logging.info('Finding max gas consumption...')
-        max_gas = 0
-        for path in sat_bound_path:
-            if path.solve_max_gas(get_max_constant_gas(sat_constant_path)):
-                path.assign_model(analyzer.variables)
-                max_gas = path.model_gas if path.model_gas > max_gas else max_gas
-    else:
-        max_gas = get_max_constant_gas(sat_constant_path)
 
-    return max_gas, sat_constant_path, sat_bound_path, sat_unbound_path
+def solve_path(variables: Variables, bound_path: [Path], gas_limit: int) -> int:
+    logging.info('Solving bound paths...')
+    max_gas = 0
+    for id, path in enumerate(bound_path):
+        logging.debug('Finding max gas...[%s/%s]' % (id + 1, len(bound_path)))
+        if path.solve_max_gas(gas_limit):
+            path.assign_model(variables)
+            max_gas = path.model_gas if path.model_gas > max_gas else max_gas
+    logging.debug('Bound max gas: %s' % max_gas)
+    return max_gas
 
 
 def get_max_constant_gas(paths) -> int:

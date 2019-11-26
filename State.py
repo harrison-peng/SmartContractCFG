@@ -607,7 +607,7 @@ class State:
             origin_var = variables.get_variable(Variable('Io_%s' % opcode.pc, 'tx.origin (transaction origin address)', BitVec('Io_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(origin_var, UNSIGNED_BOUND_NUMBER))
 
-            self.stack[str(len(self.stack))] = caller_var
+            self.stack[str(len(self.stack))] = origin_var
             result.set_gas(gas_table[opcode.name])
         elif opcode.name == 'CALLVALUE':
             value_var = variables.get_variable(Variable('Iv', 'tx.origin (transaction origin address)', BitVec('Iv', 256)))
@@ -759,26 +759,31 @@ class State:
                 address = self.stack.pop(str(len(self.stack) - 1))
 
                 if len(self.storage) == 0:
-                    value = 0
+                    # value = 0
+                    value = variables.get_variable(Variable('Isto_%s' % opcode.pc, 'storage[%s]' % self.to_string(address), BitVec('Isto_%s' % opcode.pc, 256)))
+                    result.add_path_constraint(ULT(value, UNSIGNED_BOUND_NUMBER))
                 else:
                     value = self.storage.get(str(address), None)
 
                     if value is None:
-                        value = If(address == list(self.storage.keys())[0], self.storage[list(self.storage.keys())[0]], BitVecVal(0, 256))
-                        if len(self.storage) > 1:
-                            tem_val = value
-                            for key, val in self.storage.items():
-                                cond = address == key
-                                if cond == True:
-                                    value = val
-                                    tem_val = value
-                                elif cond == False:
-                                    continue
-                                else:
-                                    value = If(address == key, val, tem_val)
-                                    tem_val = value
-                        value_s = simplify(value) if is_expr(value) else value
-                        value = value_s.as_long() if isinstance(value_s, BitVecNumRef) else value
+                        value = variables.get_variable(Variable('Isto_%s' % opcode.pc, 'storage[%s]' % self.to_string(address), BitVec('Isto_%s' % opcode.pc, 256)))
+                        result.add_path_constraint(ULT(value, UNSIGNED_BOUND_NUMBER))
+                        
+                        # value = If(address == list(self.storage.keys())[0], self.storage[list(self.storage.keys())[0]], BitVecVal(0, 256))
+                        # if len(self.storage) > 1:
+                        #     tem_val = value
+                        #     for key, val in self.storage.items():
+                        #         cond = address == key
+                        #         if cond == True:
+                        #             value = val
+                        #             tem_val = value
+                        #         elif cond == False:
+                        #             continue
+                        #         else:
+                        #             value = If(address == key, val, tem_val)
+                        #             tem_val = value
+                        # value_s = simplify(value) if is_expr(value) else value
+                        # value = value_s.as_long() if isinstance(value_s, BitVecNumRef) else value
 
                 self.stack[str(len(self.stack))] = value
                 result.set_gas(gas_table[opcode.name])
@@ -992,6 +997,56 @@ class State:
             result.add_path_constraint(ULT(size_var, UNSIGNED_BOUND_NUMBER))
 
             self.stack[str(len(self.stack))] = size_var
+            result.set_gas(gas_table[opcode.name])
+        elif opcode.name == 'SHL':
+            if len(self.stack) > 1:
+                shift = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+
+                if isinstance(shift, int) and isinstance(value, int):
+                    shift_value = value << shift
+                else:
+                    shift_value = variables.get_variable(Variable('Ishl_%s' % opcode.pc, '%s << %s' % (self.to_string(value), self.to_string(shift)), BitVec('Ishl_%s' % opcode.pc, 256)))
+                    result.add_path_constraint(ULT(shift_value, UNSIGNED_BOUND_NUMBER))
+                
+                self.stack[str(len(self.stack))] = shift_value
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
+        elif opcode.name == 'SHR':
+            if len(self.stack) > 1:
+                shift = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+
+                if isinstance(shift, int) and isinstance(value, int):
+                    shift_value = value >> shift
+                else:
+                    shift_value = variables.get_variable(Variable('Ishr_%s' % opcode.pc, '%s >> %s' % (self.to_string(value), self.to_string(shift)), BitVec('Ishr_%s' % opcode.pc, 256)))
+                    result.add_path_constraint(ULT(shift_value, UNSIGNED_BOUND_NUMBER))
+                
+                self.stack[str(len(self.stack))] = shift_value
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
+        elif opcode.name == 'SAR':
+            if len(self.stack) > 1:
+                shift = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+
+                if isinstance(shift, int) and isinstance(value, int):
+                    shift_value = value >> shift
+                else:
+                    shift_value = variables.get_variable(Variable('Isar_%s' % opcode.pc, '%s >> %s' % (self.to_string(value), self.to_string(shift)), BitVec('Isar_%s' % opcode.pc, 256)))
+                    result.add_path_constraint(ULT(shift_value, UNSIGNED_BOUND_NUMBER))
+                
+                self.stack[str(len(self.stack))] = shift_value
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
+        elif opcode.name == 'DIFFICULTY':
+            diff_var = variables.get_variable(Variable('Idiff', 'block.difficulty', BitVec('Idiff', 256)))
+            result.add_path_constraint(ULT(diff_var, UNSIGNED_BOUND_NUMBER))
+            self.stack[str(len(self.stack))] = diff_var
             result.set_gas(gas_table[opcode.name])
         else:
             raise Exception('UNKNOWN INSTRUCTION:', opcode)
@@ -1243,7 +1298,8 @@ class State:
             if str(address) in self.storage:
                 value = self.storage[str(address)]
             else:
-                value = 0
+                # value = 0
+                value = self.__get_value_from_model(variables, 'Isto_%s' % opcode.pc, model)
             self.stack[str(len(self.stack))] = value
             gas = gas_table[opcode.name]
         elif opcode.name == 'SSTORE':
@@ -1348,6 +1404,33 @@ class State:
         elif opcode.name == 'MSIZE':
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Imemsize_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
+        elif opcode.name == 'SHL':
+            if len(self.stack) > 1:
+                shift = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+                self.stack[str(len(self.stack))] = value << shift
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
+        elif opcode.name == 'SHR':
+            if len(self.stack) > 1:
+                shift = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+                self.stack[str(len(self.stack))] = value >> shift
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
+        elif opcode.name == 'SAR':
+            if len(self.stack) > 1:
+                shift = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+                self.stack[str(len(self.stack))] = value >> shift
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
+        elif opcode.name == 'DIFFICULTY':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Idiff', model)
+            result.set_gas(gas_table[opcode.name])
         else:
             raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
         

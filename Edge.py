@@ -16,10 +16,8 @@ class Edge:
         return self.from_ == other.from_ and self.to_ == other.to_
 
     def change_color(self):
-        color = {'black': 'blue', 'blue': 'green', 'green': 'purple', 'purple': 'red', 'red': 'red'}
+        color = {'black': 'red', 'red': 'orange', 'orange': 'green', 'green': 'blue', 'blue': 'purple', 'purple': 'purple'}
         self.color = color[self.color]
 
     def set_path_constraint(self, constraint):
         self.path_constraint = constraint
-        if constraint == 'False':
-            self.color = 'black'
