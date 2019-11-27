@@ -1,28 +1,29 @@
 import os
+from typing import Any
 from Analyzer import Analyzer
 from settings import ROOT_PATH
 from Path import Path
 
 class Result:
 
-    def __init__(self, analyzer: Analyzer):
+    def __init__(self, analyzer: Analyzer, max_gas: int, constant_path: [Path], bound_path: [Path], unbound_path: [Path]):
         self.analyzer = analyzer
-        self.max_gas = None
-        self.constant_path = None
-        self.bound_path = None
-        self.unbound_path = None
+        self.max_gas = max_gas
+        self.constant_path = constant_path
+        self.bound_path = bound_path
+        self.unbound_path = unbound_path
 
-    def set_max_gas(self, gas: int) -> None:
-        self.max_gas = gas
+    # def set_max_gas(self, gas: int) -> None:
+    #     self.max_gas = gas
 
-    def set_constant_path(self, path: [Path]) -> None:
-        self.constant_path = path
+    # def set_constant_path(self, path: [Path]) -> None:
+    #     self.constant_path = path
     
-    def set_bound_path(self, path: [Path]) -> None:
-        self.bound_path = path
+    # def set_bound_path(self, path: [Path]) -> None:
+    #     self.bound_path = path
 
-    def set_unbound_path(self, path: [Path]) -> None:
-        self.unbound_path = path
+    # def set_unbound_path(self, path: [Path]) -> None:
+    #     self.unbound_path = path
 
     def render(self, directory: str, file_name: str):
         sep_line = '-|-' * 30
@@ -33,16 +34,15 @@ class Result:
             f.write('Total nodes: %s\n' % self.analyzer.cfg.node_num())
             f.write('Total edges: %s\n' % self.analyzer.cfg.edge_num())
             # f.write('Total path: %s\n' % len(PATHS))
-            if self.constant_path and self.bound_path and self.unbound_path:
-                f.write('Constant Gas Path: %s\n' % len(self.constant_path))
-                f.write('Bounded Gas Path: %s\n' % len(self.bound_path))
-                f.write('Unbounded Gas Path: %s\n' % len(self.unbound_path))
-                f.write('Max Gas Consumption: %s\n' % self.max_gas)
-                f.write('\n%s\n\n' % sep_line)
-                f.write('[SYMBOLIC VARIABLE TABLE]:\n\n')
-                for variable in self.analyzer.variables.variables:
-                    f.write('[%s]: %s\n' % (variable.name, variable.value))
-                f.write('\n%s\n\n' % sep_line)
+            f.write('Constant Gas Path: %s\n' % len(self.constant_path))
+            f.write('Bounded Gas Path: %s\n' % len(self.bound_path))
+            f.write('Unbounded Gas Path: %s\n' % len(self.unbound_path))
+            f.write('Max Gas Consumption: %s\n' % self.to_string(self.max_gas))
+            f.write('\n%s\n\n' % sep_line)
+            f.write('[SYMBOLIC VARIABLE TABLE]:\n\n')
+            for variable in self.analyzer.variables.variables:
+                f.write('[%s]: %s\n' % (variable.name, variable.value))
+            f.write('\n%s\n\n' % sep_line)
 
             # NOTE: Write Constant Path
             if self.constant_path:
@@ -72,3 +72,6 @@ class Result:
             content += '\n[Gas]: %s\n%s\n\n' % (gas, sub_sep_line)
         content = content[:-92] + '\n%s\n\n' % sep_line
         return content
+
+    def to_string(self, input: Any) -> str:
+        return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")

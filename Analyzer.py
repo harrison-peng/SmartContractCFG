@@ -26,7 +26,7 @@ class Analyzer:
         for opcode in node.opcodes:
             # NOTE: state simulation
             result = state.simulate(opcode, self.variables)
-            # if tag in [517, 1513, 1530, 2940, 2948, 1415, 1563, 3055]:
+            # if tag in [102]:
             #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
             #     logging.debug('Stack: %s\n\n' % self.to_string(state.stack))
             #     logging.debug('MEM: %s' % self.to_string(state.memory))
@@ -97,6 +97,8 @@ class Analyzer:
                         edge_true.set_path_constraint('False')
                         edge_false.set_path_constraint('True')
                         return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
+                    elif isinstance(result.jump_condition, int):
+                        return
                     else:
                         edge_true.set_path_constraint(self.to_string(simplify(result.jump_condition==1)))
                         edge_false.set_path_constraint(self.to_string(simplify(result.jump_condition==0)))

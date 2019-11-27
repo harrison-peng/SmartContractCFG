@@ -1409,7 +1409,7 @@ class State:
                 shift = self.stack.pop(str(len(self.stack) - 1))
                 value = self.stack.pop(str(len(self.stack) - 1))
                 self.stack[str(len(self.stack))] = value << shift
-                result.set_gas(gas_table[opcode.name])
+                gas = gas_table[opcode.name]
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'SHR':
@@ -1417,7 +1417,7 @@ class State:
                 shift = self.stack.pop(str(len(self.stack) - 1))
                 value = self.stack.pop(str(len(self.stack) - 1))
                 self.stack[str(len(self.stack))] = value >> shift
-                result.set_gas(gas_table[opcode.name])
+                gas = gas_table[opcode.name]
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'SAR':
@@ -1425,12 +1425,12 @@ class State:
                 shift = self.stack.pop(str(len(self.stack) - 1))
                 value = self.stack.pop(str(len(self.stack) - 1))
                 self.stack[str(len(self.stack))] = value >> shift
-                result.set_gas(gas_table[opcode.name])
+                gas = gas_table[opcode.name]
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'DIFFICULTY':
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Idiff', model)
-            result.set_gas(gas_table[opcode.name])
+            gas = gas_table[opcode.name]
         else:
             raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
         

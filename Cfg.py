@@ -174,8 +174,8 @@ class Cfg:
 
 
     def __node_to_graph_content(self, node: Node, node_list: list = None) -> str:
-        seg = '-+-+' * 12
-        sub_seg = '-' * 60
+        seg = '-+-+' * 10
+        sub_seg = '-' * 50
         content = '[ADDRESS: %s]\n\n' % str(node.tag)
         opcdoes = node.opcodes
         for opcode in opcdoes:
@@ -183,6 +183,7 @@ class Cfg:
         if not (isinstance(node.gas, int) and node.gas == 0):
             content += '\n[GAS]: %s' % self.to_string(node.gas)
         if node_list and CFG_STATE:
+            content += '\n%s\n\n' % seg
             for path_id, state in node_list:
                 logging.debug('Add node to result: %s' % path_id)
                 content += '[Path: %s]\n\n' % path_id

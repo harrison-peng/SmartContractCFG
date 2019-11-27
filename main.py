@@ -94,15 +94,9 @@ def opcodes_analysis(contract_name):
                 cfg.remove_unreach_nodes()
                 logging.info('CFG reachable node = %s' % cfg.node_num())
             cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name), analyzer.paths)
-            logging.info('Writting analysis result into file[1]...')
-            result = Result(analyzer)
-            # result.render(contract_name, file_name)
 
             # NOTE: Solve PATHS
             constant_path, bound_path, unbound_path = classify_path(analyzer)
-            result.set_constant_path(constant_path)
-            result.set_bound_path(bound_path)
-            result.set_unbound_path(unbound_path)
             logging.info('Satisfiability constant gas path: %s' % len(constant_path))
             logging.info('Satisfiability bound gas path: %s' % len(bound_path))
             logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
@@ -112,11 +106,10 @@ def opcodes_analysis(contract_name):
                 max_gas = solve_path(analyzer.variables, bound_path, get_max_constant_gas(constant_path))
             else:
                 max_gas = get_max_constant_gas(constant_path)
-            logging.debug('Path max gas: %s' % max_gas)
-            result.set_max_gas(max_gas)
 
             # NOTE: Output Result File
-            logging.info('Writting analysis result into file[2]...')
+            logging.info('Writting analysis result into file...')
+            result = Result(analyzer, max_gas, constant_path, bound_path, unbound_path)
             result.render(contract_name, file_name)
             del cfg, analyzer, result
             logging.info('Analysis complete\n')
@@ -152,7 +145,6 @@ def solve_path(variables: Variables, bound_path: [Path], gas_limit: int) -> int:
         if path.solve_max_gas(gas_limit):
             path.assign_model(variables)
             max_gas = path.model_gas if path.model_gas > max_gas else max_gas
-    logging.debug('Bound max gas: %s' % max_gas)
     return max_gas
 
 
