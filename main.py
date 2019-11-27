@@ -19,6 +19,7 @@ def main():
     parser.add_argument('-code', '--code',dest='code', help='source code')
     parser.add_argument('-r', '--remove-node', dest='removenode', help='remove unreached node from cfg', action='store_true')
     parser.add_argument('-f', '--format', dest='format', help='format of the cfg file. [options: svg, html(default)]', default='html')
+    parser.add_argument('-o', '--output', dest='output', help='the output path')
 
     args = parser.parse_args()
 
@@ -30,6 +31,10 @@ def main():
     else:
         logging.error('Wrong cfg format. Accept option are "html" and "svg"')
         exit(0)
+
+    if args.output:
+        logging.debug('Output path: %s' % args.output)
+        settings.OUTPUT_PATH = args.output
 
     if args.sourcecode:
         if args.code == '':
@@ -77,7 +82,7 @@ def opcodes_analysis(contract_name):
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
-            cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name))
+            cfg.render('%s/%s/cfg/%s' % (settings.OUTPUT_PATH, contract_name, file_name))
             logging.info('Total instructions: %s' % cfg.ins_num())
 
             # NOTE: Analysis
@@ -93,7 +98,7 @@ def opcodes_analysis(contract_name):
             if settings.REMOVE_UNREACHED_NODE:
                 cfg.remove_unreach_nodes()
                 logging.info('CFG reachable node = %s' % cfg.node_num())
-            cfg.render('%s/%s/cfg/%s' % (result_path, contract_name, file_name), analyzer.paths)
+            cfg.render('%s/%s/cfg/%s' % (settings.OUTPUT_PATH, contract_name, file_name), analyzer.paths)
 
             # NOTE: Solve PATHS
             constant_path, bound_path, unbound_path = classify_path(analyzer)

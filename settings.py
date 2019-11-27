@@ -27,3 +27,5 @@ CFG_FORMAT = None
 CFG_STATE = False
 # Solver Timeout (millisecond)
 TIMEOUT = 2000
+# Output Path
+OUTPUT_PATH = os.path.join(ROOT_PATH, 'result')

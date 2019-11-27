@@ -1,4 +1,5 @@
 import os
+import settings
 from subprocess import call
 from settings import logging, ROOT_PATH
 
@@ -14,7 +15,6 @@ def copy_file(file):
 
 
 def source_code_to_opcodes(contract_name):
-    # contract_name = os.path.basename(file_name).split('.')[0]
     file_name = os.path.join(ROOT_PATH, 'contracts/%s.sol' % contract_name)
     set_up_dir(contract_name)
 
@@ -25,7 +25,7 @@ def source_code_to_opcodes(contract_name):
         with open(file_name, 'r') as f:
             source_code = f.read()
         
-        if '^0.4' in source_code[:200]:
+        if '0.4' in source_code[:200]:
             call(['solc', '--opcodes', '-o', opcodes_raw_path, '--overwrite', file_name])
         else:
             call(['docker', 'run', '--rm', '-v', '%s:/SmartContractCFG' % ROOT_PATH, 'ethereum/solc:stable', '--opcodes', 'SmartContractCFG/contracts/%s.sol' % contract_name, '-o', 'SmartContractCFG/opcodes_raw'])
@@ -112,7 +112,7 @@ def set_up_dir(contract_name):
         logging.info('Setup the opcodes_raw and opcodes directory.')
         opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
         opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
-        result_path = os.path.join(ROOT_PATH, 'result')
+        result_path = settings.OUTPUT_PATH
         if not os.path.isdir(opcodes_path):
             call(['mkdir', opcodes_path])
         call(['rm', '-rf', opcodes_raw_path])
