@@ -113,7 +113,10 @@ class Path:
             diff = simplify(arg_1[1] - arg_1[0])
             loop_formula = If(decl(arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
         else:
-            loop_formula = None
+            if len(arg_1) == 3 and len(arg_2) == 3 and arg_1[0] == arg_1[2] and arg_2[0] == arg_2[2]:
+                loop_formula = If(Or(decl(arg_1[0], arg_2[0]), decl(arg_1[1], arg_2[1])), if_pair[0], if_pair[1])
+            else:
+                loop_formula = None
         return loop_formula
 
     def __handle_loop_gas(self, tag: int, loop_var: BitVecRef) -> int:
