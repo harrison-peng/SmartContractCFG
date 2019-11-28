@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
+import sys
 import os
 import argparse
+sys.path.append('src')
 import preprocessing
 import settings
 from settings import logging, ROOT_PATH
