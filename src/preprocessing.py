@@ -14,21 +14,27 @@ def copy_file(file):
         raise('Copy file error: %s' % e)
 
 
-def source_code_to_opcodes(contract_name):
-    file_name = os.path.join(ROOT_PATH, 'contracts/%s.sol' % contract_name)
+def source_code_to_opcodes(code_src):
+    # file_name = os.path.join(ROOT_PATH, 'contracts/%s.sol' % contract_name)
+    code_path = os.path.abspath(os.path.dirname(code_src))
+    contract_name = os.path.basename(code_src).split('.')[0]
     set_up_dir(contract_name)
 
     try:
         opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
         logging.info('Compiling source code to opcodes.')
         
-        with open(file_name, 'r') as f:
+        with open(code_src, 'r') as f:
             source_code = f.read()
-        
-        if '0.4' in source_code[:200]:
-            call(['solc', '--opcodes', '-o', opcodes_raw_path, '--overwrite', file_name])
+        print(opcodes_raw_path)
+        print(code_src)
+        print(ROOT_PATH)
+        if '0.4' in source_code[:500]:
+            call(['solc', '--opcodes', '-o', opcodes_raw_path, '--overwrite', code_src])
         else:
-            call(['docker', 'run', '--rm', '-v', '%s:/SmartContractCFG' % ROOT_PATH, 'ethereum/solc:stable', '--opcodes', 'SmartContractCFG/contracts/%s.sol' % contract_name, '-o', 'SmartContractCFG/opcodes_raw'])
+            call(['docker', 'run', '--rm', '-v', '%s:/SmartContractCFG' % code_path, 'ethereum/solc:stable', '--opcodes', 'SmartContractCFG/%s.sol' % contract_name, '-o', 'SmartContractCFG/opcodes_raw'])
+            call(['cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
+            call(['rm', '-rf', '%s/opcodes_raw' % code_path])
 
         for file in os.listdir(opcodes_raw_path):
             code_after = ''

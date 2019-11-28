@@ -9,7 +9,7 @@ logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
 ADDRESS_BOUND_NUMBER = 2**160
 BYTE_BOUND_NUMBER = 32
-ROOT_PATH = os.path.join(os.path.dirname(__file__), os.pardir)
+ROOT_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), os.pardir)
 
 
 # NOTE: Settings

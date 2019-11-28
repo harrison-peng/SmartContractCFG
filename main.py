@@ -43,13 +43,13 @@ def main():
             logging.error('Source code error')
             exit(0)
         else:
-            f_src = os.path.abspath(args.code)
-            contract_name = os.path.basename(f_src).split('.')[0]
+            code_src = os.path.abspath(args.code)
+            contract_name = os.path.basename(code_src).split('.')[0]
 
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
-            preprocessing.copy_file(f_src)
-            preprocessing.source_code_to_opcodes(contract_name)
+            # preprocessing.copy_file(code_src)
+            preprocessing.source_code_to_opcodes(code_src)
 
             # NOTE: Analyze the opcodes
             opcodes_analysis(contract_name)
