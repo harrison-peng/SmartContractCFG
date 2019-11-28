@@ -1,3 +1,4 @@
+import settings
 from settings import logging, LOOP_DETECTION, MAX_LOOP_ITERATIONS
 from z3 import *
 from typing import Any
@@ -19,6 +20,10 @@ class Analyzer:
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
         logging.debug('TAG: %s' % tag)
+
+        if settings.DETECT_LOOP:
+            return 
+
         node = self.cfg.get_node(tag)
         node.visite()
         gas = 0
@@ -55,6 +60,9 @@ class Analyzer:
                 detect_loop = False
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(result.jump_condition):
+                        settings.DETECT_LOOP = True
+                        logging.info('Detect loop')
+                        return
                         detect_loop = True
                         result.jump_condition = path.handle_loop(node, opcode.pc, self.variables)
                 else:

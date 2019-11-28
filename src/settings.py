@@ -29,3 +29,5 @@ CFG_STATE = False
 TIMEOUT = 2000
 # Output Path
 OUTPUT_PATH = os.path.join(ROOT_PATH, 'result')
+# LOOP DETECTION
+DETECT_LOOP = False
