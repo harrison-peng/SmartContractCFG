@@ -101,10 +101,11 @@ class Cfg:
                     if node not in self.nodes:
                         self.nodes.append(node)
 
-                    edge = Edge(int(tag), int(jump_tag))
-                    if edge not in self.edges:
-                        self.edges.append(edge)
-                    self.__building_cfg(jump_tag, list(stack), path)
+                    if int(jump_tag) != 0:
+                        edge = Edge(int(tag), int(jump_tag))
+                        if edge not in self.edges:
+                            self.edges.append(edge)
+                        self.__building_cfg(jump_tag, list(stack), path)
                     return
                 elif s[0] == 'JUMPI':
                     self.__tag_index_dict[opcode.get_next_pc()] = index + 1
