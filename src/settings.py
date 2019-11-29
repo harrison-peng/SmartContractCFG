@@ -26,7 +26,7 @@ CFG_FORMAT = None
 # contain state information in CFG
 CFG_STATE = False
 # Solver Timeout (millisecond)
-TIMEOUT = 2000
+TIMEOUT = 10000
 # Output Path
 OUTPUT_PATH = os.path.join(ROOT_PATH, 'result')
 # LOOP DETECTION

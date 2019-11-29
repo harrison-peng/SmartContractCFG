@@ -74,6 +74,7 @@ def main():
 def opcodes_analysis(contract_name):
     opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
     for file in os.listdir('%s/%s' % (opcodes_path, contract_name)):
+        settings.DETECT_LOOP = False
         file_name = file.split('.')[0]
         logging.info('Analyze contract %s - %s' % (contract_name, file_name))
         with open('%s/%s/%s' % (opcodes_path, contract_name, file), 'r') as f:
@@ -129,10 +130,10 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
     constant_path = list()
     bound_path = list()
     unbound_path = list()
-    clear_path = remove_duplicate_path(paths)
-    logging.info('Unique path: %s' % len(clear_path))
-    for id, path in enumerate(clear_path):
-        logging.debug('Solving the constraints...[%s/%s]' % (id + 1, len(clear_path)))
+    # clear_path = remove_duplicate_path(paths)
+    # logging.info('Unique path: %s' % len(clear_path))
+    for id, path in enumerate(paths):
+        logging.debug('Solving the constraints...[%s/%s]' % (id + 1, len(paths)))
         if path.solve():
             gas_type = path.gas_type()
             if gas_type == 'CONSTANT':
@@ -176,7 +177,7 @@ def remove_duplicate_path(paths: [Path]):
         find_loop_path = False
         tags = tags_dict[list(tags_dict.keys())[0]]
         same_index_list = [i for i, tag in tags_dict.items() if tag == tags]
-        if same_index_list == 1:
+        if len(same_index_list) == 1:
             clear_path.append(paths[same_index_list[0]])
         else:
             for index in same_index_list:
