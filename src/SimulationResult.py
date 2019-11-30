@@ -1,4 +1,4 @@
-from Variable import Variable
+from src.Variable import Variable
 
 class SimularionResult:
 

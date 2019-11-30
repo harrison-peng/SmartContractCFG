@@ -1,11 +1,11 @@
 import sha3
 from typing import Any
-from z3_func import *
-from gas_price import gas_table
-from settings import *
-from Opcode import Opcode
-from SimulationResult import SimularionResult
-from Variable import Variable, Variables
+from src.z3_func import *
+from src.gas_price import gas_table
+from src.settings import *
+from src.Opcode import Opcode
+from src.SimulationResult import SimularionResult
+from src.Variable import Variable, Variables
 
 class State:
 

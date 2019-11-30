@@ -1,6 +1,6 @@
 from z3 import *
-from Opcode import Opcode
-from State import State
+from src.Opcode import Opcode
+from src.State import State
 
 class Node:
 

@@ -1,7 +1,7 @@
 import os
-import settings
+import src.settings as settings
 from subprocess import call
-from settings import logging, ROOT_PATH
+from src.settings import logging, ROOT_PATH
 
 
 def copy_file(file):
@@ -26,9 +26,7 @@ def source_code_to_opcodes(code_src):
         
         with open(code_src, 'r') as f:
             source_code = f.read()
-        print(opcodes_raw_path)
-        print(code_src)
-        print(ROOT_PATH)
+            
         if '0.4' in source_code[:500]:
             call(['solc', '--opcodes', '-o', opcodes_raw_path, '--overwrite', code_src])
         else:

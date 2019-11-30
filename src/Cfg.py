@@ -1,13 +1,13 @@
-import settings
+import src.settings as settings
 from typing import Any
 import networkx as nx
 from z3 import simplify
-from settings import logging, CFG_STATE
-from Node import Node
-from Edge import Edge
-from Opcode import Opcode
 from subprocess import call
-from Path import Path
+from src.settings import logging, CFG_STATE
+from src.Node import Node
+from src.Edge import Edge
+from src.Opcode import Opcode
+from src.Path import Path
 
 class Cfg:
 
@@ -17,6 +17,7 @@ class Cfg:
         self.nodes = list()
         self.edges = list()
         self.graph = None
+        self.count = 0
 
     def build_cfg(self, opcode_data: str) -> None:
         logging.info('Constructing CFG...')
@@ -37,6 +38,7 @@ class Cfg:
         self.__building_cfg(0, list(), list())
         
         while self.check_list:
+            print(len(self.check_list))
             try:
                 self.__building_cfg(list(self.__tag_index_dict.keys())[list(self.__tag_index_dict.values()).index(self.check_list.pop(0))], [0], list())
             except:
@@ -44,7 +46,11 @@ class Cfg:
 
         self.__building_cfg(0, list(), list())
 
-    def __building_cfg(self, tag: int, stack: list, path: list) -> None:
+    def __building_cfg(self, tag: int, stack: list, path: list) -> None:        
+        self.count += 1
+        if self.count >= 1000:
+            return
+
         # logging.debug('TAG: %s %s\n' % (tag, path))
         content = list()
         

@@ -1,9 +1,9 @@
 import os
-import settings
+import src.settings as settings
 from typing import Any
-from Analyzer import Analyzer
-from settings import ROOT_PATH
-from Path import Path
+from src.Analyzer import Analyzer
+from src.settings import ROOT_PATH
+from src.Path import Path
 
 class Result:
 

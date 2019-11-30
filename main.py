@@ -2,16 +2,15 @@
 import sys
 import os
 import argparse
-sys.path.append('src')
-import preprocessing
-import settings
-from settings import logging, ROOT_PATH
-from Cfg import Cfg
-from Analyzer import Analyzer
-from Path import Path
-from State import State
-from Result import Result
-from Variable import Variables
+import src.preprocessing as preprocessing
+import src.settings as settings
+from src.settings import logging, ROOT_PATH
+from src.Cfg import Cfg
+from src.Analyzer import Analyzer
+from src.Path import Path
+from src.State import State
+from src.Result import Result
+from src.Variable import Variables
 
 
 def main():

@@ -1,15 +1,15 @@
-import settings
-from settings import logging, LOOP_DETECTION, MAX_LOOP_ITERATIONS
+import src.settings as settings
+from src.settings import logging, LOOP_DETECTION, MAX_LOOP_ITERATIONS
 from z3 import *
 from typing import Any
 from copy import deepcopy
-from Cfg import Cfg
-from Opcode import Opcode
-from Node import Node
-from Edge import Edge
-from State import State
-from Path import Path
-from Variable import Variables
+from src.Cfg import Cfg
+from src.Opcode import Opcode
+from src.Node import Node
+from src.Edge import Edge
+from src.State import State
+from src.Path import Path
+from src.Variable import Variables
 
 class Analyzer:
 
@@ -115,6 +115,7 @@ class Analyzer:
                         self.symbolic_execution(opcode.get_next_pc(), false_path, false_state)
                         return
             elif opcode.name in ['STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
+                logging.debug('Finish one path')
                 # NOTE: set gas to node
                 node.set_gas(gas)
                 node.set_state(deepcopy(state))

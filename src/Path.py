@@ -1,9 +1,9 @@
 from typing import Any
-from settings import logging, UNSIGNED_BOUND_NUMBER, TIMEOUT
+from src.settings import logging, UNSIGNED_BOUND_NUMBER, TIMEOUT
 from z3 import *
-from Node import Node
-from State import State
-from Variable import Variable, Variables
+from src.Node import Node
+from src.State import State
+from src.Variable import Variable, Variables
 
 class Path:
 
