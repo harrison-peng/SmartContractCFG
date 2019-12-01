@@ -1,21 +1,11 @@
 import os
+import re
 import src.settings as settings
 from subprocess import call
 from src.settings import logging, ROOT_PATH
 
 
-def copy_file(file):
-    try:
-        contracts_path = os.path.join(ROOT_PATH, 'contracts')
-        call(['rm', '-rf', contracts_path])
-        call(['mkdir', contracts_path])
-        call(['cp', file, contracts_path])
-    except Exception as e:
-        raise('Copy file error: %s' % e)
-
-
-def source_code_to_opcodes(code_src):
-    # file_name = os.path.join(ROOT_PATH, 'contracts/%s.sol' % contract_name)
+def source_code_to_opcodes(code_src: str) -> None:
     code_path = os.path.abspath(os.path.dirname(code_src))
     contract_name = os.path.basename(code_src).split('.')[0]
     set_up_dir(contract_name)
@@ -26,14 +16,15 @@ def source_code_to_opcodes(code_src):
         
         with open(code_src, 'r') as f:
             source_code = f.read()
-            
-        if '0.4' in source_code[:500]:
-            call(['solc', '--opcodes', '-o', opcodes_raw_path, '--overwrite', code_src])
+        
+        version = get_solc_version(source_code)
+        if version:
+            call(['docker', 'run', '--rm', '-v', '%s:/contracts' % code_path, 'ethereum/solc:%s' % version, '--opcodes', '/contracts/%s.sol' % contract_name, '-o', '/contracts/opcodes_raw', '--overwrite'])
         else:
-            call(['docker', 'run', '--rm', '-v', '%s:/SmartContractCFG' % code_path, 'ethereum/solc:stable', '--opcodes', 'SmartContractCFG/%s.sol' % contract_name, '-o', 'SmartContractCFG/opcodes_raw'])
-            call(['cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
-            call(['rm', '-rf', '%s/opcodes_raw' % code_path])
-
+            call(['docker', 'run', '--rm', '-v', '%s:/contracts' % code_path, 'ethereum/solc:0.4.25', '--opcodes', 'contracts/%s.sol' % contract_name, '-o', '/contracts/opcodes_raw', '--overwrite'])
+        call(['cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
+        call(['rm', '-rf', '%s/opcodes_raw' % code_path])
+            
         for file in os.listdir(opcodes_raw_path):
             code_after = ''
 
@@ -82,7 +73,7 @@ def source_code_to_opcodes(code_src):
         exit(0)
 
 
-def bytecode_to_opcodes(file_name):
+def bytecode_to_opcodes(file_name: str) -> None:
     contract_name = os.path.basename(file_name).split('.')[0]
     set_up_dir(contract_name)
 
@@ -111,16 +102,18 @@ def bytecode_to_opcodes(file_name):
         exit(0)
 
 
-def set_up_dir(contract_name):
+def set_up_dir(contract_name: str) -> None:
     try:
         logging.info('Setup the opcodes_raw and opcodes directory.')
         opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
         opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
         result_path = settings.OUTPUT_PATH
-        if not os.path.isdir(opcodes_path):
-            call(['mkdir', opcodes_path])
+        # if not os.path.isdir(opcodes_path):
+        #     call(['mkdir', opcodes_path])
         call(['rm', '-rf', opcodes_raw_path])
-        call(['rm', '-rf', '%s/%s' % (opcodes_path, contract_name)])
+        call(['rm', '-rf', opcodes_path])
+        call(['mkdir', opcodes_path])
+        # call(['rm', '-rf', '%s/%s' % (opcodes_path, contract_name)])
         call(['mkdir', opcodes_raw_path])
         call(['mkdir', '%s/%s' % (opcodes_path, contract_name)])
         if not os.path.isdir(result_path):
@@ -131,3 +124,12 @@ def set_up_dir(contract_name):
 
     except Exception as error:
         logging.error('Directory set up error: %s' % error)
+
+def get_solc_version(code: str) -> str:
+    index = code.find('solidity')
+    if index == -1:
+        return None
+    else:
+        version_part = code[index:index+200]
+        version = re.findall('\d+\.\d+\.\d+', version_part)[0]
+        return version

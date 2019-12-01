@@ -47,7 +47,6 @@ def main():
 
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
-            # preprocessing.copy_file(code_src)
             preprocessing.source_code_to_opcodes(code_src)
 
             # NOTE: Analyze the opcodes
