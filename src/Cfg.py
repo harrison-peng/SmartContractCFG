@@ -38,7 +38,6 @@ class Cfg:
         self.__building_cfg(0, list(), list())
         
         while self.check_list:
-            print(len(self.check_list))
             try:
                 self.__building_cfg(list(self.__tag_index_dict.keys())[list(self.__tag_index_dict.values()).index(self.check_list.pop(0))], [0], list())
             except:
@@ -46,9 +45,12 @@ class Cfg:
 
         self.__building_cfg(0, list(), list())
 
-    def __building_cfg(self, tag: int, stack: list, path: list) -> None:        
+    def __building_cfg(self, tag: int, stack: list, path: list) -> None:   
         self.count += 1
-        if self.count >= 1000:
+        if self.count % 1000 == 0:
+            logging.debug('CFG node visit: %s' % self.count)
+        if self.count >= 60000:
+            logging.debug('CFG node EXCEED: %s' % self.count)
             return
 
         # logging.debug('TAG: %s %s\n' % (tag, path))
@@ -232,7 +234,11 @@ class Cfg:
         return False
 
     def get_node(self, tag: int) -> Node:
-        return [node for node in self.nodes if tag == node.tag][0]
+        try:
+            return [node for node in self.nodes if tag == node.tag][0]
+        except Exception as e:
+            logging.error('Cannot find the node [%s]: %s' % (tag, e))
+            return
 
     def add_edge(self, edge: Edge) -> None:
         self.edges.append(edge)

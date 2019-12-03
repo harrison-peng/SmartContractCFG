@@ -47,10 +47,7 @@ def main():
 
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
-            preprocessing.source_code_to_opcodes(code_src)
-
-            # NOTE: Analyze the opcodes
-            opcodes_analysis(contract_name)
+            preprocessing.source_code_to_opcodes(code_src)           
     elif args.bytecode:
         if args.code == '':
             logging.error('Byte code error')
@@ -62,11 +59,11 @@ def main():
             logging.info('Transforming contract %s source code to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
             preprocessing.bytecode_to_opcodes(f_src)
-
-            # NOTE: Analyze the opcodes
-            opcodes_analysis(contract_name)
     else:
         logging.error('Must use an argument, -s for individual source code')
+    
+    # NOTE: Analyze the opcodes
+    opcodes_analysis(contract_name)
 
 
 def opcodes_analysis(contract_name):

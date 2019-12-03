@@ -36,5 +36,5 @@ class Node:
     def set_color(self, color: str) -> None:
         self.color = color
 
-    def visite(self) -> None:
+    def visit(self) -> None:
         self.visited = True

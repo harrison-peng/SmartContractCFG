@@ -14,19 +14,15 @@ class Result:
         self.bound_path = bound_path
         self.unbound_path = unbound_path
 
-    # def set_max_gas(self, gas: int) -> None:
-    #     self.max_gas = gas
-
-    # def set_constant_path(self, path: [Path]) -> None:
-    #     self.constant_path = path
-    
-    # def set_bound_path(self, path: [Path]) -> None:
-    #     self.bound_path = path
-
-    # def set_unbound_path(self, path: [Path]) -> None:
-    #     self.unbound_path = path
-
     def render(self, directory: str, file_name: str):
+        with open('%s/%s/gas_type.txt' % (settings.OUTPUT_PATH, directory), 'w') as f:
+            if len(self.unbound_path) > 0:
+                f.write('unbound')
+            elif len(self.bound_path):
+                f.write('bound')
+            else:
+                f.write('constent')
+
         sep_line = '-|-' * 30
         with open('%s/%s/%s.txt' % (settings.OUTPUT_PATH, directory, file_name), 'w') as f:
             line = '=' * ((90 - len(file_name) - 2)//2)

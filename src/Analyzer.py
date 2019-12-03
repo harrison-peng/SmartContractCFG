@@ -17,6 +17,7 @@ class Analyzer:
         self.cfg = cfg
         self.paths = list()
         self.variables = Variables()
+        self.count_path = 0
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
         logging.debug('TAG: %s' % tag)
@@ -25,7 +26,9 @@ class Analyzer:
             return 
 
         node = self.cfg.get_node(tag)
-        node.visite()
+        if not node:
+            return
+        node.visit()
         gas = 0
 
         for opcode in node.opcodes:
@@ -115,7 +118,8 @@ class Analyzer:
                         self.symbolic_execution(opcode.get_next_pc(), false_path, false_state)
                         return
             elif opcode.name in ['STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
-                logging.debug('Finish one path')
+                self.count_path += 1
+                logging.debug('Finish one path...[%s]' % self.count_path)
                 # NOTE: set gas to node
                 node.set_gas(gas)
                 node.set_state(deepcopy(state))
