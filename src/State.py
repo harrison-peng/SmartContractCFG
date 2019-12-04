@@ -760,7 +760,7 @@ class State:
                 value = self.stack.pop(str(len(self.stack) - 1))
 
                 if isinstance(value, int):
-                    self.memory[address] = value
+                    self.memory[address] = value & 0xFF
                 else:
                     memory_var = variables.get_variable(Variable('Imem_%s' % opcode.pc, '%s & 0xFF', BitVec('Imem_%s' % opcode.pc, 256)))
                     result.add_path_constraint(ULT(memory_var, 255))
@@ -1307,6 +1307,11 @@ class State:
             address = self.stack.pop(str(len(self.stack) - 1))
             value = self.stack.pop(str(len(self.stack) - 1))
             self.memory[str(address)] = value
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'MSTORE8':
+            address = self.stack.pop(str(len(self.stack) - 1))
+            value = self.stack.pop(str(len(self.stack) - 1))
+            self.memory[str(address)] = value & 0xFF
             gas = gas_table[opcode.name]
         elif opcode.name == 'SLOAD':
             address = self.stack.pop(str(len(self.stack) - 1))
