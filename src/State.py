@@ -754,6 +754,21 @@ class State:
                 result.set_gas(gas_table[opcode.name])
             else:
                 raise ValueError('STACK underflow')
+        elif opcode.name == 'MSTORE8':
+            if len(self.stack) > 1:
+                address = self.stack.pop(str(len(self.stack) - 1))
+                value = self.stack.pop(str(len(self.stack) - 1))
+
+                if isinstance(value, int):
+                    self.memory[address] = value
+                else:
+                    memory_var = variables.get_variable(Variable('Imem_%s' % opcode.pc, '%s & 0xFF', BitVec('Imem_%s' % opcode.pc, 256)))
+                    result.add_path_constraint(ULT(memory_var, 255))
+                    self.memory[address] = memory_var
+                
+                result.set_gas(gas_table[opcode.name])
+            else:
+                raise ValueError('STACK underflow')
         elif opcode.name == 'SLOAD':
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
