@@ -95,8 +95,12 @@ class Path:
                         logging.error('PC: %s' % self.to_string(node.path_constraint))
                         logging.error('MEM: %s' % self.to_string(node.state.memory))
                         logging.error('STO: %s' % self.to_string(node.state.storage))
+                    result = Result()
+                    result.log_error(settings.ADDRESS, 'Both side of formula are not fixed')
                     raise ValueError('Both side of formula are not fixed')
         else:
+            result = Result()
+            result.log_error(settings.ADDRESS, 'Operators are not same')
             raise ValueError('Operators are not same')
 
         # for constraint in self.path_constraint
@@ -126,6 +130,8 @@ class Path:
             for node in self.path[index[0]:index[1]]:
                 gas += node.gas
         else:
+            result = Result()
+            result.log_error(settings.ADDRESS, 'Only one node in the loop path')
             raise ValueError('Only one node in the loop path')
         gas = gas * BV2Int(loop_var)
         gas = simplify(gas) if is_expr(gas) else int(gas)
@@ -185,6 +191,8 @@ class Path:
             return True
         else:
             if is_sat:
+                result = Result()
+                result.log_error(settings.ADDRESS, 'Solver Error')
                 raise ValueError('Solver Error')
             else:
                 return False

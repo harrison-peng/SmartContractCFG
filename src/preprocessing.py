@@ -68,9 +68,10 @@ def source_code_to_opcodes(code_src: str) -> None:
 
             with open('%s/%s/%s' % (os.path.join(ROOT_PATH, 'opcodes'), contract_name, file), 'w') as f:
                 f.write(code_after)
-    except Exception as error:
-        logging.error('Compile source code error: %s' % error)
-        exit(0)
+    except Exception as e:
+        result = Result()
+        result.log_error(settings.ADDRESS, 'Compile source code error: %s' % e)
+        raise ValueError('Compile source code error: %s' % e)
 
 
 def bytecode_to_opcodes(file_name: str) -> None:
@@ -97,9 +98,10 @@ def bytecode_to_opcodes(file_name: str) -> None:
         with open('%s/%s/%s.opcode' % (os.path.join(ROOT_PATH, 'opcodes'), contract_name, contract_name), 'w') as f:
             f.write(code_after)
 
-    except Exception as error:
-        logging.error('Decompile source code error: %s' % error)
-        exit(0)
+    except Exception as e:
+        result = Result()
+        result.log_error(settings.ADDRESS, 'Decompile source code error: %s' % e)
+        raise ValueError('Decompile source code error: %s' % e)
 
 
 def set_up_dir(contract_name: str) -> None:
@@ -122,8 +124,10 @@ def set_up_dir(contract_name: str) -> None:
         call(['mkdir', os.path.join(result_path, contract_name)])
         call(['mkdir', os.path.join(result_path, contract_name, 'cfg')])
 
-    except Exception as error:
-        logging.error('Directory set up error: %s' % error)
+    except Exception as e:
+        result = Result()
+        result.log_error(settings.ADDRESS, 'Directory set up error: %s' % e)
+        raise ValueError('Directory set up error: %s' % e)
 
 def get_solc_version(code: str) -> str:
     index = code.find('solidity')

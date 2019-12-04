@@ -1064,6 +1064,8 @@ class State:
             self.stack[str(len(self.stack))] = diff_var
             result.set_gas(gas_table[opcode.name])
         else:
+            result = Result()
+            result.log_error(settings.ADDRESS, 'UNKNOWN INSTRUCTION: %s' % opcode)
             raise Exception('UNKNOWN INSTRUCTION:', opcode)
         
         return result
@@ -1452,6 +1454,7 @@ class State:
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Idiff', model)
             gas = gas_table[opcode.name]
         else:
+
             raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
         
         return int(gas)

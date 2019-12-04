@@ -67,6 +67,7 @@ def main():
 
 
 def opcodes_analysis(contract_name):
+    settings.ADDRESS = contract_name
     opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
     for file in os.listdir('%s/%s' % (opcodes_path, contract_name)):
         settings.DETECT_LOOP = False
@@ -118,6 +119,8 @@ def opcodes_analysis(contract_name):
             logging.info('Analysis complete\n')
         else:
             logging.info('%s is empyty\n' % file_name)
+            result = Result()
+            result.log_error(contract_name, 'empty')
 
 
 def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):

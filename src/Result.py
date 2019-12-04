@@ -14,14 +14,19 @@ class Result:
         self.bound_path = bound_path
         self.unbound_path = unbound_path
 
-    def render(self, directory: str, file_name: str):
+    def render(self, directory: str, file_name: str) -> None:
+        # NOTE: This file is for Etherscan Analysis
         with open('%s/%s/gas_type.txt' % (settings.OUTPUT_PATH, directory), 'w') as f:
             if len(self.unbound_path) > 0:
-                f.write('unbound')
+                f.write('unbound\n')
             elif len(self.bound_path):
-                f.write('bound')
+                f.write('bound\n')
             else:
-                f.write('constent')
+                f.write('constent\n')
+            f.write('%s\n' % self.to_string(self.max_gas))
+            f.write('%s\n' % self.analyzer.cfg.ins_num())
+            f.write('%s\n' % self.analyzer.cfg.node_num())
+            f.write('%s\n' % self.analyzer.cfg.edge_num())
 
         sep_line = '-|-' * 30
         with open('%s/%s/%s.txt' % (settings.OUTPUT_PATH, directory, file_name), 'w') as f:
@@ -50,6 +55,18 @@ class Result:
 
             if self.unbound_path:
                 f.write('[UNBOUNDED PATH]\n\n%s' % self.__add_path_content(self.unbound_path))
+
+    def log_error(self, directory: str, log: str) -> None:
+        if log == 'empty':
+            with open('%s/%s/gas_type.txt' % (settings.OUTPUT_PATH, directory), 'w') as f:
+                f.write('%s\n' % log)
+                f.write('%s\n' % '')
+                f.write('%s\n' % '')
+                f.write('%s\n' % '')
+                f.write('%s\n' % '')
+        else:
+            with open('%s/%s/error.txt' % (settings.OUTPUT_PATH, directory), 'w') as f:
+                f.write(log)
 
     def __add_path_content(self, paths: list) -> str:
         sep_line = '-|-' * 30

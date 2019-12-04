@@ -203,7 +203,6 @@ class Cfg:
         return content
 
     def to_string(self, input: Any) -> str:
-        # return str(input)
         return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'").replace('{', '{\n').replace('}', '\n}')
 
     def __get_all_node_of_paths(self, paths: [Path]) -> dict:
@@ -234,11 +233,13 @@ class Cfg:
         return False
 
     def get_node(self, tag: int) -> Node:
+        from src.Result import Result
         try:
             return [node for node in self.nodes if tag == node.tag][0]
         except Exception as e:
-            logging.error('Cannot find the node [%s]: %s' % (tag, e))
-            return
+            result = Result()
+            result.log_error(settings.ADDRESS, 'Cannot find the node [%s]: %s' % (tag, e))
+            raise ValueError('Cannot find the node [%s]: %s' % (tag, e))
 
     def add_edge(self, edge: Edge) -> None:
         self.edges.append(edge)
@@ -253,6 +254,7 @@ class Cfg:
                 self.nodes.remove(node)
 
     def __simulate_stack(self, stack: list(), opcode: Opcode) -> (list, int):
+        from src.Result import Result
         jump_tag = None
 
         try:
@@ -476,6 +478,8 @@ class Cfg:
             elif opcode.name == 'SELFDESTRUCT':
                 first = stack.pop()
             else:
+                result = Result()
+                result.log_error(settings.ADDRESS, 'UNKNOWN INSTRUCTION: %s' % opcode)
                 raise Exception('UNKNOWN INSTRUCTION:', opcode.name, opcode.pc)
             if jump_tag and not isinstance(jump_tag, int):
                 raise ValueError('ERROR TAG:', opcode.pc, jump_tag, stack)

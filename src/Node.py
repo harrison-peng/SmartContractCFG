@@ -12,6 +12,7 @@ class Node:
         self.path_constraint = None
         self.color = 'black'
         self.visited = False
+        self.count = 0
     
     def __str__(self) -> str:
         return '%s' % self.tag
@@ -38,3 +39,4 @@ class Node:
 
     def visit(self) -> None:
         self.visited = True
+        self.count += 1

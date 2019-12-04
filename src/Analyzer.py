@@ -1,5 +1,5 @@
 import src.settings as settings
-from src.settings import logging, LOOP_DETECTION, MAX_LOOP_ITERATIONS
+from src.settings import logging, LOOP_DETECTION, MAX_LOOP_ITERATIONS, ENABLE_MAX_NODE_VISITED_TIMES, MAX_NODE_VISITED_TIMES
 from z3 import *
 from typing import Any
 from copy import deepcopy
@@ -30,6 +30,11 @@ class Analyzer:
             return
         node.visit()
         gas = 0
+
+        if node.count % 10 == 0:
+            logging.debug('%s visit %s times' % (tag, node.count))
+        if ENABLE_MAX_NODE_VISITED_TIMES and node.count > MAX_NODE_VISITED_TIMES:
+            return
 
         for opcode in node.opcodes:
             # NOTE: state simulation
