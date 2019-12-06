@@ -7,7 +7,7 @@ from src.Path import Path
 
 class Result:
 
-    def __init__(self, analyzer: Analyzer, max_gas: int, constant_path: [Path], bound_path: [Path], unbound_path: [Path]):
+    def __init__(self, analyzer: Analyzer = None, max_gas: int = None, constant_path: [Path] = None, bound_path: [Path] = None, unbound_path: [Path] = None):
         self.analyzer = analyzer
         self.max_gas = max_gas
         self.constant_path = constant_path
