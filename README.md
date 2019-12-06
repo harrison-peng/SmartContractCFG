@@ -6,20 +6,20 @@ SmartContractCFG consists of a series of analysis to detect the gas vulnerabilit
 
 Install with docker as follows:
 
-```
-$ docker build -t smart_contract_cfg .
+```bash
+docker build -t smart_contract_cfg .
 ```
 
 Analyze the example contract:
 
-```
-$ python main.py -s -code Example/SIXcontracts/Bank.sol -gas 5000
+```bash
+python main.py -s -code Example/SIXcontracts/Bank.sol
 ```
 
 Output control flow graph is in `cfg` directory, result is in `result` directory.
 
 Further invocation options are detailed when the `--help` flag is supplied:
 
-```
+```bash
 python main.py --help
 ```
