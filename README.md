@@ -16,7 +16,7 @@ Analyze the example contract:
 python main.py -s -code Example/SIXcontracts/Bank.sol
 ```
 
-Output control flow graph is in `cfg` directory, result is in `result` directory.
+Output control flow graph and result are in `result` directory if the output directory is not specified. The ourput directory can be specified with `-o` command.
 
 Further invocation options are detailed when the `--help` flag is supplied:
 
