@@ -1,3 +1,4 @@
+import src.settings as settings
 from typing import Any
 from src.settings import logging, UNSIGNED_BOUND_NUMBER, TIMEOUT
 from z3 import *
@@ -70,6 +71,7 @@ class Path:
             return formula
 
     def __handle_loop_constraint(self, nodes: list, loop_var: BitVecRef) -> ArithRef:
+        from src.Result import Result
         decl, arg_1, arg_2 = list(), list(), list()
         for i, node in enumerate(nodes):
             for constraint in self.path_constraint[::-1]:
@@ -124,6 +126,7 @@ class Path:
         return loop_formula
 
     def __handle_loop_gas(self, tag: int, loop_var: BitVecRef) -> int:
+        from src.Result import Result
         gas = 0
         index = [index for index, node in enumerate(self.path) if node.tag == tag]
         if len(index) > 1:
