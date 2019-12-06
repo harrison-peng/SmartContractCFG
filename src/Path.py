@@ -64,11 +64,17 @@ class Path:
         return loop_formula
 
     def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
-        formula = int(formula.as_long) if isinstance(formula, BitVecNumRef) else formula
-        if is_expr(formula) and str(formula.decl()) == 'If':
-            return self.__unpack_z3_if(formula.arg(0)), (formula.arg(1), formula.arg(2))
-        else:
-            return formula
+        from src.Result import Result
+        try:
+            formula = int(formula.as_long) if isinstance(formula, BitVecNumRef) else formula
+            if is_expr(formula) and str(formula.decl()) == 'If':
+                return self.__unpack_z3_if(formula.arg(0)), (formula.arg(1), formula.arg(2))
+            else:
+                return formula
+        except Exception as e:
+            result = Result()
+            result.log_error(settings.ADDRESS, 'Cannot unpack z3 if')
+            raise ValueError('Cannot unpack z3 if: %s' % e)
 
     def __handle_loop_constraint(self, nodes: list, loop_var: BitVecRef) -> ArithRef:
         from src.Result import Result
