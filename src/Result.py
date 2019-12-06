@@ -22,7 +22,7 @@ class Result:
             elif len(self.bound_path):
                 f.write('bound\n')
             else:
-                f.write('constent\n')
+                f.write('constant\n')
             f.write('%s\n' % self.to_string(self.max_gas))
             f.write('%s\n' % self.analyzer.cfg.ins_num())
             f.write('%s\n' % self.analyzer.cfg.node_num())
