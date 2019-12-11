@@ -1,9 +1,0 @@
-
-======= Owned.sol:Owned =======
-Gas estimation:
-construction:
-   20443 + 129600 = 150043
-external:
-   isOwner(address):	557
-   owner():	486
-   transfer(address):	20823

@@ -11,6 +11,7 @@
 // Multiply your ETH Now!
 //
 ///:::::::::::::::::::::::::::::::::::::::::::::::::::::::Start
+pragma solidity ^0.4.25;
 
 contract MultiplyX10 {
 

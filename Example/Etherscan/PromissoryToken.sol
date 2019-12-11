@@ -1,4 +1,4 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.4.25;
 
 //This contract is backed by the constitution of superDAO deployed at : .
 //The constitution of the superDAO is the social contract, terms, founding principles and definitions of the vision,

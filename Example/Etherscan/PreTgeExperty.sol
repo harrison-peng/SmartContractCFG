@@ -1,4 +1,4 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.25;
 
 // kovan:   0x722475921ebc15078d4d6c93b4cff43eadf099c2
 // mainnet: 0x942ffef843d37805c59f30fabb99b46aad135288

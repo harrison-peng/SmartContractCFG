@@ -1,3 +1,5 @@
+pragma solidity ^0.4.25;
+
 contract NoFeePonzi {
 
   uint public constant MIN_VALUE = 1 ether;

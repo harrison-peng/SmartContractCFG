@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.25;
 
 contract MoonCatRescue {
   enum Modes { Inactive, Disabled, Test, Live }

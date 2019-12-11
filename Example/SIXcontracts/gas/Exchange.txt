@@ -1,9 +1,0 @@
-
-======= Exchange.sol:Exchange =======
-Gas estimation:
-construction:
-   251 + 210800 = 211051
-external:
-   exchange(address,uint256,address):	infinite
-   exchangeRate(address,address):	674
-   setExchangeRate(address,address,uint256):	20531
