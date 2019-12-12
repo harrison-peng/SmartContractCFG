@@ -22,7 +22,7 @@ Output control flow graph and result are in `result` directory if the result dir
 Further invocation options are detailed when the `--help` flag is supplied:
 
 ```bash
-python main.py --help
+python3 main.py --help
 ```
 
 NOTE: Docker only supports solidity^0.4.25
