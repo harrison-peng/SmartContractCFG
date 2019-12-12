@@ -25,4 +25,4 @@ Further invocation options are detailed when the `--help` flag is supplied:
 python3 main.py --help
 ```
 
-NOTE: Docker only supports solidity^0.4.25
+NOTE: Docker only supports solidity^0.4.25. For other version of solidity, you can modify in Dockerfile.
