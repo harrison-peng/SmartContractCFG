@@ -10,6 +10,7 @@ RUN python3 -m pip install pip --upgrade
 
 RUN add-apt-repository -y ppa:ethereum/ethereum
 RUN add-apt-repository -y ppa:ethereum/ethereum-dev
+RUN apt-get update
 RUN apt-get install -y ethereum curl graphviz
 
 RUN curl -o /usr/bin/solc -fL https://github.com/ethereum/solidity/releases/download/v0.4.25/solc-static-linux \

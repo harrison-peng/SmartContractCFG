@@ -3,7 +3,7 @@ import logging
 from src.Variable import Variables
 
 # NOTE: Log Setting
-logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
 
 # NOTE: Global Constants
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
