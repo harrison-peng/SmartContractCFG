@@ -18,10 +18,10 @@ def source_code_to_opcodes(code_src: str) -> None:
             source_code = f.read()
         
         version = get_solc_version(source_code)
-        if version:
+        if version and version != '0.4.25':
             call(['docker', 'run', '--rm', '-v', '%s:/contracts' % code_path, 'ethereum/solc:%s' % version, '--opcodes', '/contracts/%s.sol' % contract_name, '-o', '/contracts/opcodes_raw', '--overwrite'])
         else:
-            call(['docker', 'run', '--rm', '-v', '%s:/contracts' % code_path, 'ethereum/solc:0.4.25', '--opcodes', 'contracts/%s.sol' % contract_name, '-o', '/contracts/opcodes_raw', '--overwrite'])
+            call(['solc', '--opcodes', '%s/%s.sol' % (code_path, contract_name), '-o', '%s/opcodes_raw' % code_path, '--overwrite'])
         call(['cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
         call(['rm', '-rf', '%s/opcodes_raw' % code_path])
             
