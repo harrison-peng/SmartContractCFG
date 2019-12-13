@@ -1,5 +1,7 @@
 FROM ubuntu:18.04
 
+LABEL name=SmartContractCFG
+LABEL src="https://github.com/hichyen1207/SmartContractCFG"
 LABEL maintainer="Harrison <hichyen1207@gmail.com>"
 
 RUN apt-get update
