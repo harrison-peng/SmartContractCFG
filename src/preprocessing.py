@@ -110,12 +110,10 @@ def set_up_dir(contract_name: str) -> None:
         opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
         opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
         result_path = settings.OUTPUT_PATH
-        # if not os.path.isdir(opcodes_path):
-        #     call(['mkdir', opcodes_path])
+
         call(['rm', '-rf', opcodes_raw_path])
         call(['rm', '-rf', opcodes_path])
         call(['mkdir', opcodes_path])
-        # call(['rm', '-rf', '%s/%s' % (opcodes_path, contract_name)])
         call(['mkdir', opcodes_raw_path])
         call(['mkdir', '%s/%s' % (opcodes_path, contract_name)])
         if not os.path.isdir(result_path):

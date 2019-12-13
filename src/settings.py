@@ -1,6 +1,5 @@
 import os
 import logging
-from src.Variable import Variables
 
 # NOTE: Log Setting
 logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)

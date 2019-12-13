@@ -1,7 +1,6 @@
 import src.settings as settings
 from typing import Any
 import networkx as nx
-from z3 import simplify
 from subprocess import call
 from src.settings import logging, CFG_STATE
 from src.Node import Node
