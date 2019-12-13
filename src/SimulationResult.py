@@ -4,6 +4,7 @@ class SimularionResult:
 
     def __init__(self):
         self.gas = 0
+        self.memory_gas = 0
         self.path_constraints = list()
         self.jump_condition = None
         self.jump_tag = None
@@ -13,6 +14,9 @@ class SimularionResult:
     
     def set_gas(self, gas: int):
         self.gas = gas
+
+    def set_memory_gas(self, gas: int):
+        self.memory_gas = gas
 
     def set_jump_tag(self, tag: int):
         self.jump_tag = tag

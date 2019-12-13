@@ -2,7 +2,7 @@ import os
 import logging
 
 # NOTE: Log Setting
-logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
+logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
 
 # NOTE: Global Constants
 UNSIGNED_BOUND_NUMBER = 2**256 - 1

@@ -13,6 +13,7 @@ class Path:
         self.path = list()
         self.path_constraint = list()
         self.gas = 0
+        self.memory_gas = 0
         self.solver = Solver()
         self.model = None
         self.model_gas = None
@@ -38,6 +39,10 @@ class Path:
     def add_gas(self, gas: int) -> None:
         self.gas += gas
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
+
+    def add_memory_gas(self, gas: int) -> None:
+        self.memory_gas += gas
+        self.memory_gas = simplify(self.memory_gas) if is_expr(self.memory_gas) else int(self.memory_gas)
 
     def contain_node(self, tag: int) -> bool:
         for node in self.path:

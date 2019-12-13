@@ -48,6 +48,7 @@ class Analyzer:
             gas += result.gas
             gas = simplify(gas) if is_expr(gas) else gas
             path.add_gas(result.gas)
+            path.add_memory_gas(result.memory_gas)
             
 
             if opcode.name == 'JUMP':

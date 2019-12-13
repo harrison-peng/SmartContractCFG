@@ -14,6 +14,7 @@ class State:
         self.memory = dict()
         self.storage = dict()
         self.solver = Solver()
+        self.msize = 0
 
     def simulate(self, opcode: Opcode, variables: Variables) -> SimularionResult:
         result = SimularionResult()
@@ -645,6 +646,14 @@ class State:
                 data_var = variables.get_variable(Variable('Id_%s' % opcode.pc, 'msg.data[%s:%s+%s]' % (msg_p, msg_p, num_bytes), BitVec('Id_%s' % opcode.pc, 256)))
                 result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
                 self.memory[mem_p] = data_var
+                
+                if isinstance(self.msize, int) and isinstance(mem_p, int):
+                    old_msize = self.msize
+                    self.msize = mem_p if mem_p > self.msize else self.msize
+                else:
+                    old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
+                    mem_p = BV2Int(mem_p) if isinstance(mem_p, BitVecRef) else mem_p
+                    self.msize = If(mem_p > self.msize, mem_p, self.msize)
 
                 # NOTE: GAS
                 if is_real(num_bytes):
@@ -654,6 +663,7 @@ class State:
                     result.add_path_constraint(ULT(ws_var, BYTE_BOUND_NUMBER))
                     gas = simplify(2 + 3 * BV2Int(ws_var))
                 result.set_gas(gas)
+                result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CODESIZE':
@@ -672,6 +682,14 @@ class State:
                 result.add_path_constraint(ULT(code_var, UNSIGNED_BOUND_NUMBER))
                 self.memory[mem_p] = code_var
 
+                if isinstance(self.msize, int) and isinstance(mem_p, int):
+                    old_msize = self.msize
+                    self.msize = mem_p if mem_p > self.msize else self.msize
+                else:
+                    old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
+                    mem_p = BV2Int(mem_p) if isinstance(mem_p, BitVecRef) else mem_p
+                    self.msize = If(mem_p > self.msize, mem_p, self.msize)
+
                 # NOTE: GAS
                 if is_real(num_bytes):
                     gas = 2 + 3 * (num_bytes / 32)
@@ -681,6 +699,7 @@ class State:
 
                     gas = simplify(30 + 6 * BV2Int(size_var))
                 result.set_gas(gas)
+                result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'GASPRICE':
@@ -699,6 +718,14 @@ class State:
                 result.add_path_constraint(ULT(data_var, UNSIGNED_BOUND_NUMBER))
                 self.memory[z] = data_var
 
+                if isinstance(self.msize, int) and isinstance(z, int):
+                    old_msize = self.msize
+                    self.msize = z if z > self.msize else self.msize
+                else:
+                    old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
+                    z = BV2Int(z) if isinstance(z, BitVecRef) else z
+                    self.msize = If(z > self.msize, z, self.msize)
+
                 # NOTE: GAS
                 if is_real(x):
                     gas = 2 + 3 * (x / 32)
@@ -707,6 +734,7 @@ class State:
                     result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
                     gas = simplify(30 + 6 * BV2Int(size_var))
                 result.set_gas(gas)
+                result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'RETURNDATASIZE':
@@ -751,7 +779,17 @@ class State:
                 address = self.stack.pop(str(len(self.stack) - 1))
                 value = self.stack.pop(str(len(self.stack) - 1))
                 self.memory[address] = value
+
+                if isinstance(self.msize, int) and isinstance(address, int):
+                    old_msize = self.msize
+                    self.msize = address if address > self.msize else self.msize
+                else:
+                    old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
+                    address = BV2Int(address) if isinstance(address, BitVecRef) else address
+                    self.msize = If(address > self.msize, address, self.msize)
+
                 result.set_gas(gas_table[opcode.name])
+                result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'MSTORE8':
@@ -766,7 +804,16 @@ class State:
                     result.add_path_constraint(ULT(memory_var, 255))
                     self.memory[address] = memory_var
                 
+                if isinstance(self.msize, int) and isinstance(address, int):
+                    old_msize = self.msize
+                    self.msize = address if address > self.msize else self.msize
+                else:
+                    old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
+                    address = BV2Int(address) if isinstance(address, BitVecRef) else address
+                    self.msize = If(address > self.msize, address, self.msize)
+
                 result.set_gas(gas_table[opcode.name])
+                result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'SLOAD':
@@ -783,22 +830,6 @@ class State:
                     if value is None:
                         value = variables.get_variable(Variable('Isto_%s' % opcode.pc, 'storage[%s]' % self.to_string(address), BitVec('Isto_%s' % opcode.pc, 256)))
                         result.add_path_constraint(ULT(value, UNSIGNED_BOUND_NUMBER))
-                        
-                        # value = If(address == list(self.storage.keys())[0], self.storage[list(self.storage.keys())[0]], BitVecVal(0, 256))
-                        # if len(self.storage) > 1:
-                        #     tem_val = value
-                        #     for key, val in self.storage.items():
-                        #         cond = address == key
-                        #         if cond == True:
-                        #             value = val
-                        #             tem_val = value
-                        #         elif cond == False:
-                        #             continue
-                        #         else:
-                        #             value = If(address == key, val, tem_val)
-                        #             tem_val = value
-                        # value_s = simplify(value) if is_expr(value) else value
-                        # value = value_s.as_long() if isinstance(value_s, BitVecNumRef) else value
 
                 self.stack[str(len(self.stack))] = value
                 result.set_gas(gas_table[opcode.name])
