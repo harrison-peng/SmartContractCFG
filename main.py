@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import sys
 import os
+import time
 import argparse
 import src.preprocessing as preprocessing
 import src.settings as settings
@@ -37,6 +38,7 @@ def main():
         logging.debug('Output path: %s' % args.output)
         settings.OUTPUT_PATH = args.output
 
+    start_time = time.time()
     if args.sourcecode:
         if args.code == '':
             logging.error('Source code error')
@@ -64,6 +66,9 @@ def main():
     
     # NOTE: Analyze the opcodes
     opcodes_analysis(contract_name)
+    end_time = time.time()
+    logging.debug('Analysis time: %ss' % (end_time - start_time))
+    logging.info('Analysis complete')
 
 
 def opcodes_analysis(contract_name):
@@ -116,7 +121,7 @@ def opcodes_analysis(contract_name):
             result = Result(analyzer, max_gas, constant_path, bound_path, unbound_path)
             result.render(contract_name, file_name)
             del cfg, analyzer, result
-            logging.info('Analysis complete\n')
+            logging.info('%s finished\n' % file_name)
         else:
             logging.info('%s is empyty\n' % file_name)
             result = Result()
