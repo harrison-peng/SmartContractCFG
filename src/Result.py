@@ -2,7 +2,6 @@ import os
 import src.settings as settings
 from typing import Any
 from src.Analyzer import Analyzer
-# from src.settings import ROOT_PATH
 from src.Path import Path
 
 class Result:
