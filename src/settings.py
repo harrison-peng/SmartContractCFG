@@ -15,7 +15,7 @@ ROOT_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), os.pardir)
 # Detect loop once and evaluate to n
 LOOP_DETECTION = True
 # How many times to execute the loop if not detecting the loop
-MAX_LOOP_ITERATIONS = 2
+MAX_LOOP_ITERATIONS = 5
 # Set the model value ourselves instead he z3 model value
 SET_MODEL_VALUE = False
 # Remove Unreached node

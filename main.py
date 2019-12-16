@@ -137,14 +137,17 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
     # logging.info('Unique path: %s' % len(clear_path))
     for id, path in enumerate(paths):
         logging.debug('Solving the constraints...[%s/%s]' % (id + 1, len(paths)))
-        if path.solve():
-            gas_type = path.gas_type()
-            if gas_type == 'CONSTANT':
-                constant_path.append(path)
-            elif gas_type == 'BOUND':
-                bound_path.append(path)
-            else:
-                unbound_path.append(path)
+        if path.model is None:
+            if path.solve():
+                gas_type = path.gas_type()
+                if gas_type == 'CONSTANT':
+                    constant_path.append(path)
+                elif gas_type == 'BOUND':
+                    bound_path.append(path)
+                else:
+                    unbound_path.append(path)
+        else:
+            unbound_path.append(path)
     return constant_path, bound_path, unbound_path
 
 

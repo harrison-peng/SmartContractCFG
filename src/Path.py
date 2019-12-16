@@ -56,16 +56,49 @@ class Path:
     def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
         # logging.debug('Handling loop...')
         nodes = list()
-        loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
-        self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
+        # loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
+        # self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
         for node in self.path:
             if node.tag == incoming_node.tag:
                 nodes.append(node)
         nodes.append(incoming_node)
 
-        loop_formula = self.__handle_loop_constraint(nodes, loop_var)
-        self.__handle_loop_gas(incoming_node.tag, loop_var)
-        self.__fix_loop_path(incoming_node.tag)
+        if len(nodes) == 2:
+            loop_formula = self.__handle_loop_constraint(nodes, pc, variables)
+        else:
+            loop_formula = self.__handle_loop_constraint(nodes[-3:], pc, variables)
+        if loop_formula is not False:
+            loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
+            self.__handle_loop_gas(incoming_node.tag, loop_var)
+            self.__fix_loop_path(incoming_node.tag, len(nodes))
+        return loop_formula
+
+    def __handle_loop_constraint(self, nodes: list, pc: int, variables: list) -> ArithRef:
+        from src.Result import Result
+        decl, arg_1, arg_2 = list(), list(), list()
+        for i, node in enumerate(nodes):
+            formula, if_pair = self.__unpack_z3_if(node.path_constraint)
+            decl.append(formula.decl())
+            arg_1.append(formula.arg(0))
+            arg_2.append(formula.arg(1))
+
+        if len(set(decl)) == 1:
+            if len(set(arg_1)) == 1 or len(set(arg_2)) == 1:
+                loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
+                self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
+                loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
+            else:
+                loop_formula = False
+        else:
+
+            result = Result()
+            result.log_error(settings.ADDRESS, 'Operators are not same')
+            raise ValueError('Operators are not same: %s' % decl)
+            
+        if loop_formula is not False:
+            for i, node in enumerate(nodes):
+                self.__remove_constraint_from_path(node.path_constraint)
+        
         return loop_formula
 
     def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
@@ -79,45 +112,7 @@ class Path:
         except Exception as e:
             result = Result()
             result.log_error(settings.ADDRESS, 'Cannot unpack z3 if')
-            raise ValueError('Cannot unpack z3 if: %s' % e)
-
-    def __handle_loop_constraint(self, nodes: list, loop_var: BitVecRef) -> ArithRef:
-        from src.Result import Result
-        decl, arg_1, arg_2 = list(), list(), list()
-        for i, node in enumerate(nodes):
-            for constraint in self.path_constraint[::-1]:
-                constraint_str = self.to_string(constraint)
-                node_constraint_true_str = self.to_string(node.path_constraint == 1)
-                node_constraint_false_str = self.to_string(node.path_constraint == 0)
-                if node_constraint_true_str == node_constraint_true_str or node_constraint_true_str == node_constraint_false_str:
-                    self.path_constraint.remove(constraint)
-                    break
-            formula, if_pair = self.__unpack_z3_if(node.path_constraint)
-            decl.append(formula.decl())
-            arg_1.append(formula.arg(0))
-            arg_2.append(formula.arg(1))
-        if len(set(decl)) == 1:
-            loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
-            if loop_formula is None:
-                arg_1.pop(0)
-                arg_2.pop(0)
-                loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
-                if loop_formula is None:
-                    logging.error('%s %s' % (len(set(arg_1)), len(set(arg_2))))
-                    for node in nodes:
-                        logging.error('PC: %s' % self.to_string(node.path_constraint))
-                        logging.error('MEM: %s' % self.to_string(node.state.memory))
-                        logging.error('STO: %s' % self.to_string(node.state.storage))
-                    result = Result()
-                    result.log_error(settings.ADDRESS, 'Both side of formula are not fixed')
-                    raise ValueError('Both side of formula are not fixed')
-        else:
-            result = Result()
-            result.log_error(settings.ADDRESS, 'Operators are not same')
-            raise ValueError('Operators are not same')
-
-        # for constraint in self.path_constraint
-        return loop_formula
+            raise ValueError('Cannot unpack z3 if [%s]: %s' % (formula, e))
 
     def to_string(self, input: Any) -> str:
         return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")
@@ -136,27 +131,39 @@ class Path:
                 loop_formula = None
         return loop_formula
 
+    def __remove_constraint_from_path(self, node_constraint: ArithRef) -> None:
+        for constraint in self.path_constraint[::-1]:
+            constraint_str = self.to_string(constraint)
+            node_constraint_true_str = self.to_string(node_constraint == 1)
+            node_constraint_false_str = self.to_string(node_constraint == 0)
+            if constraint_str == node_constraint_true_str or constraint_str == node_constraint_false_str:
+                self.path_constraint.remove(constraint)
+                return
+
     def __handle_loop_gas(self, tag: int, loop_var: BitVecRef) -> int:
         from src.Result import Result
         gas = 0
         index = [index for index, node in enumerate(self.path) if node.tag == tag]
-        if len(index) > 1:
-            for node in self.path[index[0]:index[1]]:
-                gas += node.gas
-        else:
-            result = Result()
-            result.log_error(settings.ADDRESS, 'Only one node in the loop path')
-            raise ValueError('Only one node in the loop path')
+        path = self.path[index[0]:index[1]] if len(index) > 1 else self.path[index[0]:]
+        for node in path:
+            gas += node.gas
+        # if len(index) > 1:
+        #     for node in self.path[index[0]:index[1]]:
+        #         gas += node.gas
+        # else:
+        #     result = Result()
+        #     result.log_error(settings.ADDRESS, 'Only one node in the loop path')
+        #     raise ValueError('Only one node in the loop path')
         gas = gas * BV2Int(loop_var)
         gas = simplify(gas) if is_expr(gas) else int(gas)
         self.add_gas(gas)
 
-    def __fix_loop_path(self, tag: int) -> None:
+    def __fix_loop_path(self, tag: int, loop_num: int) -> None:
         count_loop_node = 0
         for index, node in enumerate(self.path):
             if node.tag == tag:
                 count_loop_node += 1
-                if count_loop_node == 2:
+                if count_loop_node == loop_num - 1:
                     stop_index = index + 1
                     break
         for node in self.path[stop_index:]:

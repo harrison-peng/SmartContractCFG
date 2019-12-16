@@ -68,9 +68,12 @@ class Analyzer:
                 # NOTE: Loop detection
                 detect_loop = False
                 if LOOP_DETECTION:
-                    if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(result.jump_condition):
-                        detect_loop = True
-                        result.jump_condition = path.handle_loop(node, opcode.pc, self.variables)
+                    if path.count_specific_node_num(node.tag) > 0 and is_expr(result.jump_condition):
+                        jump_condition = path.handle_loop(node, opcode.pc, self.variables)
+                        if jump_condition is not False or path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS - 1:
+                            detect_loop = True
+                            if jump_condition is not False:
+                                result.jump_condition = jump_condition
                 else:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
                         return
@@ -135,7 +138,7 @@ class Analyzer:
                 self.paths.append(path)
                 if 'loop' in str(path.gas) and path.solve():
                     settings.DETECT_LOOP = True
-                    logging.info('Detect loop')
+                    logging.debug('Detect loop')
                 return
         
         """
