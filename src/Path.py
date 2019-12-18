@@ -70,7 +70,8 @@ class Path:
         if loop_formula is not None:
             loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
             self.__handle_loop_gas(incoming_node.tag, loop_var)
-            self.__fix_loop_path(incoming_node.tag, len(nodes))
+            if len(nodes) > 2:
+                self.__fix_loop_path(incoming_node.tag, len(nodes))
         return loop_formula
 
     def __handle_loop_constraint(self, nodes: list, pc: int, variables: list) -> ArithRef:
@@ -124,6 +125,8 @@ class Path:
         elif len(set(arg_1)) > 1 and len(set(arg_2)) == 1:
             diff = simplify(arg_1[1] - arg_1[0])
             loop_formula = If(decl(arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
+        elif len(set(arg_1)) == 1 and len(set(arg_2)) == 1:
+            loop_formula = If(decl(arg_1[0], arg_2[0]), if_pair[0], if_pair[1])
         else:
             if len(arg_1) == 3 and len(arg_2) == 3 and arg_1[0] == arg_1[2] and arg_2[0] == arg_2[2]:
                 loop_formula = If(Or(decl(arg_1[0], arg_2[0]), decl(arg_1[1], arg_2[1])), if_pair[0], if_pair[1])
