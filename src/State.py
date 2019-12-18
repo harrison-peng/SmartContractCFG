@@ -1094,6 +1094,41 @@ class State:
             result.add_path_constraint(ULT(diff_var, UNSIGNED_BOUND_NUMBER))
             self.stack[str(len(self.stack))] = diff_var
             result.set_gas(gas_table[opcode.name])
+        elif opcode.name == 'GASLIMIT':
+            limit_var = variables.get_variable(Variable('Igaslimit', 'block.gaslimit', BitVec('Igaslimit', 256)))
+            result.add_path_constraint(ULT(limit_var, UNSIGNED_BOUND_NUMBER))
+            self.stack[str(len(self.stack))] = limit_var
+            result.set_gas(gas_table[opcode.name])
+        elif opcode.name == 'GETPC':
+            self.stack[str(len(self.stack))] = opcode.pc
+            result.set_gas(gas_table[opcode.name])
+        elif opcode.name == 'EXTCODECOPY':
+            if len(self.stack) > 3:
+                addr = self.stack.pop(str(len(self.stack) - 1))
+                destOffset = self.stack.pop(str(len(self.stack) - 1))
+                offset = self.stack.pop(str(len(self.stack) - 1))
+                length = self.stack.pop(str(len(self.stack) - 1))
+
+                code_var = variables.get_variable(Variable('Icode_%s' % opcode.pc, 'address(%s).code[%s:%s+%s]' % (addr, offset, offset, length), BitVec('Icode_%s' % opcode.pc, 256)))
+                result.add_path_constraint(ULT(code_var, UNSIGNED_BOUND_NUMBER))
+                self.memory[destOffset] = code_var
+
+                # NOTE: Calculate msize
+                if isinstance(self.msize, int) and isinstance(destOffset, int):
+                    old_msize = self.msize
+                    self.msize = destOffset if destOffset > self.msize else self.msize
+                else:
+                    old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
+                    destOffset = BV2Int(destOffset) if isinstance(destOffset, BitVecRef) else destOffset
+                    self.msize = If(destOffset > self.msize, destOffset, self.msize)
+
+                # NOTE: GAS
+                gas = gas_table[opcode.name]
+                gas += 3 * (length/32)
+                result.set_gas(gas_table[opcode.name])
+                result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
+            else:
+                raise ValueError('STACK underflow')
         else:
             result = Result()
             result.log_error(settings.ADDRESS, 'UNKNOWN INSTRUCTION: %s' % opcode)
@@ -1484,8 +1519,24 @@ class State:
         elif opcode.name == 'DIFFICULTY':
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Idiff', model)
             gas = gas_table[opcode.name]
-        else:
+        elif opcode.name == 'GASLIMIT':
+            self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Igaslimit', model)
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'GETPC':
+            self.stack[str(len(self.stack))] = opcode.pc
+            gas = gas_table[opcode.name]
+        elif opcode.name == 'EXTCODECOPY':
+            if len(self.stack) > 3:
+                addr = self.stack.pop(str(len(self.stack) - 1))
+                destOffset = self.stack.pop(str(len(self.stack) - 1))
+                offset = self.stack.pop(str(len(self.stack) - 1))
+                length = self.stack.pop(str(len(self.stack) - 1))
 
+                self.memory[destOffset] = self.__get_value_from_model(variables, 'Icode_%s' % opcode.pc, model)
+                gas = gas_table[opcode.name] + 3 * (length // 32)
+            else:
+                raise ValueError('STACK underflow')
+        else:
             raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
         
         return int(gas)

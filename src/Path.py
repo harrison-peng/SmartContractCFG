@@ -67,7 +67,7 @@ class Path:
             loop_formula = self.__handle_loop_constraint(nodes, pc, variables)
         else:
             loop_formula = self.__handle_loop_constraint(nodes[-3:], pc, variables)
-        if loop_formula is not False:
+        if loop_formula is not None:
             loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
             self.__handle_loop_gas(incoming_node.tag, loop_var)
             self.__fix_loop_path(incoming_node.tag, len(nodes))
@@ -88,14 +88,14 @@ class Path:
                 self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
                 loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
             else:
-                loop_formula = False
+                loop_formula = None
         else:
 
             result = Result()
             result.log_error(settings.ADDRESS, 'Operators are not same')
             raise ValueError('Operators are not same: %s' % decl)
             
-        if loop_formula is not False:
+        if loop_formula is not None:
             for i, node in enumerate(nodes):
                 self.__remove_constraint_from_path(node.path_constraint)
         

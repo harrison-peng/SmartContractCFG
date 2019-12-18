@@ -136,7 +136,8 @@ gas_table = {
     'RETURNDATACOPY': 2,
     'SHL': 3,
     'SHR': 3,
-    'SAR': 3
+    'SAR': 3,
+    'GETPC': 2
 }
 
 
