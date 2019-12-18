@@ -385,8 +385,8 @@ class State:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'SLT':
             if len(self.stack) > 1:
-                first = self.stack.pop(len(self.stack) - 1)
-                second = self.stack.pop(len(self.stack) - 1)
+                first = self.stack.pop(str(len(self.stack) - 1))
+                second = self.stack.pop(str(len(self.stack) - 1))
 
                 if is_all_real(first, second):
                     first = to_signed(first)
