@@ -1240,8 +1240,8 @@ class State:
             self.stack[str(len(self.stack))] = computed
             gas = gas_table[opcode.name]
         elif opcode.name == 'SLT':
-            first = self.stack.pop(len(self.stack) - 1)
-            second = self.stack.pop(len(self.stack) - 1)
+            first = self.stack.pop(str(len(self.stack) - 1))
+            second = self.stack.pop(str(len(self.stack) - 1))
             computed = 1 if first < second else 0
             self.stack[str(len(self.stack))] = computed
             gas = gas_table[opcode.name]
