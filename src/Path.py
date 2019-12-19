@@ -76,7 +76,13 @@ class Path:
 
     def __handle_loop_constraint(self, nodes: list, pc: int, variables: list) -> ArithRef:
         from src.Result import Result
-        decl, arg_1, arg_2 = list(), list(), list()
+        decl, arg_1, arg_2, constraint = list(), list(), list(), list()
+        
+        for node in nodes:
+            constraint.append(self.to_string(node.path_constraint))
+        if len(set(constraint)) == 1:
+            return nodes[0].path_constraint
+
         for i, node in enumerate(nodes):
             formula, if_pair = self.__unpack_z3_if(node.path_constraint)
             decl.append(formula.decl())
