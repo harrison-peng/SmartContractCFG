@@ -20,6 +20,7 @@ class Analyzer:
         self.count_path = 0
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
+        from src.Result import Result
         logging.debug('TAG: %s' % tag)
 
         if settings.DETECT_LOOP:
@@ -74,6 +75,11 @@ class Analyzer:
                             detect_loop = True
                             if jump_condition is not None:
                                 result.jump_condition = jump_condition
+                            else:
+                                # LOG ERROR
+                                err_result = Result()
+                                err_result.log_error(settings.ADDRESS, 'Loop Error:[%s] %s' % (tag, result.jump_condition))
+                                raise Exception('Loop Error:[%s] %s' % (tag, result.jump_condition))
                 else:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
                         return

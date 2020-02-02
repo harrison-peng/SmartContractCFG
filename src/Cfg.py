@@ -34,17 +34,69 @@ class Cfg:
             s = code_set[1:]
             self.__tag_index_dict.update({pc: index})
         
-        self.__building_cfg(0, list(), list())
+        self.__test()
+        # self.__building_cfg(0, list(), list())
         
-        while self.check_list:
-            try:
-                self.__building_cfg(list(self.__tag_index_dict.keys())[list(self.__tag_index_dict.values()).index(self.check_list.pop(0))], [0], list())
-            except:
-                continue
+        # while self.check_list:
+        #     try:
+        #         self.__building_cfg(list(self.__tag_index_dict.keys())[list(self.__tag_index_dict.values()).index(self.check_list.pop(0))], [0], list())
+        #     except:
+        #         continue
 
-        self.__building_cfg(0, list(), list())
+        # self.__building_cfg(0, list(), list())
 
-    def __building_cfg(self, tag: int, stack: list, path: list) -> None:   
+    def __test(self):
+        opcodes = list()
+        push_value = ''
+        pre_opcode = None
+        start_idx = 0
+        start_pc = 0
+        for index, line in self.opcode_list:
+            code_set = line.rstrip().split(' ')
+            pc = int(code_set[0].replace(':', ''))
+            s = code_set[1:]
+            opcode = Opcode(pc, s[0], None) if len(s) == 1 else Opcode(pc, s[0], s[1])
+            opcodes.append(opcode)
+
+        for index, opcode in enumerate(opcodes):
+            # print(start_idx, index, opcode)
+            if opcode.name == 'JUMPDEST' and start_idx != index:
+                content = opcodes[start_idx:index]
+                # print(start_idx, index, content)
+                node = Node(start_pc, content)
+                self.nodes.append(node)
+                start_idx = index
+                start_pc = opcode.pc
+            elif opcode.name.startswith('PUSH'):
+                push_value = opcode.value
+            elif opcode.name == 'JUMP' and pre_opcode.name.startswith('PUSH'):
+                content = opcodes[start_idx:index+1]
+                node = Node(start_pc, content)
+                self.nodes.append(node)
+                edge = Edge(start_pc, int(pre_opcode.value, 16))
+                self.edges.append(edge)
+                start_idx = index + 1
+                start_pc = opcode.pc + 1
+            elif opcode.name == 'JUMPI':
+                content = opcodes[start_idx:index+1]
+                node = Node(start_pc, content)
+                self.nodes.append(node)
+                edge = Edge(start_pc, int(pre_opcode.value, 16))
+                self.edges.append(edge)
+                edge = Edge(start_pc, opcode.pc + 1)
+                self.edges.append(edge)
+                start_idx = index + 1
+                start_pc = opcode.pc + 1
+            elif opcode.name in ['STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
+                content = opcodes[start_idx:index+1]
+                node = Node(start_pc, content)
+                self.nodes.append(node)
+                start_idx = index + 1
+                start_pc = opcode.pc + 1
+            pre_opcode = opcode
+            
+
+    def __building_cfg(self, tag: int, stack: list, path: list) -> None:
         self.count += 1
         if self.count % 1000 == 0:
             logging.debug('CFG node visit: %s' % self.count)

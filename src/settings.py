@@ -2,7 +2,11 @@ import os
 import logging
 
 # NOTE: Log Setting
-logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s [%(levelname)s]: %(message)s',
+    datefmt='%y-%m-%d %H:%M',
+    level=logging.INFO
+)
 
 # NOTE: Global Constants
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
@@ -35,3 +39,5 @@ ADDRESS = None
 # Max Node Visited Times
 ENABLE_MAX_NODE_VISITED_TIMES = True
 MAX_NODE_VISITED_TIMES = 100
+# SPECIFY SOLIDITY VERSION
+SPECILIFY_SOL_VERSION = False

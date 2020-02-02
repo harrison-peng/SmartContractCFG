@@ -17,6 +17,7 @@ class State:
         self.msize = 0
 
     def simulate(self, opcode: Opcode, variables: Variables) -> SimularionResult:
+        from src.Result import Result
         result = SimularionResult()
 
         if opcode.name in ['INVALID', 'STOP', 'REVERT', 'JUMPDEST']:
@@ -1130,8 +1131,8 @@ class State:
             else:
                 raise ValueError('STACK underflow')
         else:
-            result = Result()
-            result.log_error(settings.ADDRESS, 'UNKNOWN INSTRUCTION: %s' % opcode)
+            err_result = Result()
+            err_result.log_error(settings.ADDRESS, 'UNKNOWN INSTRUCTION: %s' % opcode)
             raise Exception('UNKNOWN INSTRUCTION:', opcode)
         
         return result

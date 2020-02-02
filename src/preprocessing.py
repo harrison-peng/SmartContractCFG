@@ -2,10 +2,11 @@ import os
 import re
 import src.settings as settings
 from subprocess import call
-from src.settings import logging, ROOT_PATH
+from src.settings import logging, ROOT_PATH, SPECILIFY_SOL_VERSION
 
 
 def source_code_to_opcodes(code_src: str) -> None:
+    from src.Result import Result
     code_path = os.path.abspath(os.path.dirname(code_src))
     contract_name = os.path.basename(code_src).split('.')[0]
     set_up_dir(contract_name)
@@ -18,7 +19,7 @@ def source_code_to_opcodes(code_src: str) -> None:
             source_code = f.read()
         
         version = get_solc_version(source_code)
-        if version and version != '0.4.25':
+        if SPECILIFY_SOL_VERSION:
             call(['docker', 'run', '--rm', '-v', '%s:/contracts' % code_path, 'ethereum/solc:%s' % version, '--opcodes', '/contracts/%s.sol' % contract_name, '-o', '/contracts/opcodes_raw', '--overwrite'])
         else:
             call(['solc', '--opcodes', '%s/%s.sol' % (code_path, contract_name), '-o', '%s/opcodes_raw' % code_path, '--overwrite'])
@@ -31,8 +32,10 @@ def source_code_to_opcodes(code_src: str) -> None:
             with open('%s/%s' % (opcodes_raw_path, file), 'r') as f:
                 code_before = f.read()
 
-            i = code_before.find('PUSH1 0x80', 1)
-            code_before = code_before[i:]
+            # i = code_before.find('PUSH1 0x80', 1)
+            i = code_before.find('STOP PUSH1 0x80')
+            if i != -1:
+                code_before = code_before[i+5:]
 
             pc = 0
             code_list = code_before.strip().split(' ')

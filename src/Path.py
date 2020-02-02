@@ -97,7 +97,6 @@ class Path:
             else:
                 loop_formula = None
         else:
-
             result = Result()
             result.log_error(settings.ADDRESS, 'Operators are not same')
             raise ValueError('Operators are not same: %s' % decl)
@@ -106,6 +105,8 @@ class Path:
             for i, node in enumerate(nodes):
                 self.__remove_constraint_from_path(node.path_constraint)
         
+        if loop_formula is None:
+            logging.warning('LOOP ERROR!!!!!')
         return loop_formula
 
     def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
