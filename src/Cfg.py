@@ -52,6 +52,7 @@ class Cfg:
             elif opcode.name == 'JUMPI':
                 content = self.opcodes[start_idx:index+1]
                 node = Node(start_pc, content)
+                node.set_color('purple')
                 self.nodes.append(node)
                 if pre_opcode.name.startswith('PUSH'):
                     edge = Edge(start_pc, int(pre_opcode.value, 16))

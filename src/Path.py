@@ -118,8 +118,8 @@ class Path:
             else:
                 return formula
         except Exception as e:
-            result = Result()
-            result.log_error(settings.ADDRESS, 'Cannot unpack z3 if')
+            err_result = Result()
+            err_result.log_error(settings.ADDRESS, 'Cannot unpack z3 if')
             raise ValueError('Cannot unpack z3 if [%s]: %s' % (formula, e))
 
     def to_string(self, input: Any) -> str:
