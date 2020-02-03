@@ -53,8 +53,9 @@ class Cfg:
                 content = self.opcodes[start_idx:index+1]
                 node = Node(start_pc, content)
                 self.nodes.append(node)
-                edge = Edge(start_pc, int(pre_opcode.value, 16))
-                self.edges.append(edge)
+                if pre_opcode.name.startswith('PUSH'):
+                    edge = Edge(start_pc, int(pre_opcode.value, 16))
+                    self.edges.append(edge)
                 edge = Edge(start_pc, opcode.pc + 1)
                 self.edges.append(edge)
                 start_idx = index + 1
