@@ -4,7 +4,7 @@ SmartContractCFG consists of a series of analysis to detect the gas vulnerabilit
 
 ## Requirements
 
-- Python 3.6+
+- [Python 3.6+](https://www.python.org/downloads/)
 - [go-ethereum](https://github.com/ethereum/go-ethereum)
 - [solidity](https://github.com/ethereum/solidity)
 - [graphviz](https://www.graphviz.org/)
