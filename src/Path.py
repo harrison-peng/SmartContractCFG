@@ -108,9 +108,9 @@ class Path:
         if loop_formula is not None:
             for i, node in enumerate(nodes):
                 self.__remove_constraint_from_path(node.path_constraint)
-        
-        if loop_formula is None:
-            logging.warning('LOOP ERROR!!!!!')
+        else:
+            logging.warning('Cannot solve loop formula')
+
         return loop_formula
 
     def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
@@ -122,8 +122,8 @@ class Path:
             else:
                 return formula
         except Exception as e:
-            result = Result()
-            result.log_error(settings.ADDRESS, 'Cannot unpack z3 if')
+            err_result = Result()
+            err_result.log_error(settings.ADDRESS, 'Cannot unpack z3 if')
             raise ValueError('Cannot unpack z3 if [%s]: %s' % (formula, e))
 
     def to_string(self, input: Any) -> str:

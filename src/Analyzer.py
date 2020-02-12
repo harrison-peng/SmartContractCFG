@@ -71,15 +71,15 @@ class Analyzer:
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) > 0 and is_expr(result.jump_condition):
                         jump_condition = path.handle_loop(node, opcode.pc, self.variables)
-                        if jump_condition is not None or path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS - 1:
+                        
+                        if jump_condition is not None:
                             detect_loop = True
-                            if jump_condition is not None:
-                                result.jump_condition = jump_condition
-                            else:
-                                # LOG ERROR
-                                err_result = Result()
-                                err_result.log_error(settings.ADDRESS, 'Loop Error:[%s] %s' % (tag, result.jump_condition))
-                                raise Exception('Loop Error:[%s] %s' % (tag, result.jump_condition))
+                            result.jump_condition = jump_condition
+                        elif path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS - 1:
+                             # LOG ERROR
+                            err_result = Result()
+                            err_result.log_error(settings.ADDRESS, 'Loop Error:[%s] %s' % (tag, result.jump_condition))
+                            raise ValueError('Loop Error:[%s] %s' % (tag, result.jump_condition))
                 else:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
                         return
