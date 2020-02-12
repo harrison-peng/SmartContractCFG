@@ -1,6 +1,6 @@
 import src.settings as settings
 from typing import Any
-from src.settings import logging, UNSIGNED_BOUND_NUMBER, TIMEOUT
+from src.settings import logging, UNSIGNED_BOUND_NUMBER, TIMEOUT, GAS_LIMIT
 from z3 import *
 from src.Node import Node
 from src.State import State
@@ -15,6 +15,7 @@ class Path:
         self.gas = 0
         self.memory_gas = 0
         self.solver = Solver()
+        self.is_unbound = False
         self.model = None
         self.model_gas = None
 
@@ -26,6 +27,9 @@ class Path:
 
     def set_id(self, id: int) -> None:
         self.id = id
+
+    def is_unbound(self) -> None:
+        self.is_unbound = True
 
     def add_node(self, node: Node) -> None:
         self.path.append(node)
@@ -187,7 +191,7 @@ class Path:
         self.gas = int(self.gas) if isinstance(self.gas, float) else self.gas
         if isinstance(self.gas, int):
             return 'CONSTANT'
-        elif 'loop' in str(self.gas):
+        elif self.is_unbound:
             return 'UNBOUND'
         else:
             return 'BOUND'
@@ -227,6 +231,14 @@ class Path:
                 raise ValueError('Solver Error')
             else:
                 return False
+
+    def solve_unbound(self) -> bool:
+        self.solver.add(self.gas > GAS_LIMIT)
+        self.solver.set(timeout=TIMEOUT)
+        if self.solver.check() == sat:
+            self.model = self.solver.model()
+            return True
+        return False
 
     def assign_model(self, variables: Variables) -> int:
         logging.debug('Assign model into cfg...')

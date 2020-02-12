@@ -141,10 +141,12 @@ class Analyzer:
 
                 # NOTE: add tag to the path list
                 path.add_node(deepcopy(node))
-                self.paths.append(path)
-                if 'loop' in str(path.gas) and path.solve():
-                    settings.DETECT_LOOP = True
-                    logging.debug('Detect loop')
+                if path.solve():
+                    if 'loop' in str(path.gas) and path.solve_unbound():
+                        settings.DETECT_LOOP = True
+                        path.is_unbound()
+                        logging.debug('Detect loop')
+                    self.paths.append(path)
                 return
         
         """

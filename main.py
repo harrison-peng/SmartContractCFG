@@ -133,11 +133,11 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
     constant_path = list()
     bound_path = list()
     unbound_path = list()
-    # clear_path = remove_duplicate_path(paths)
-    # logging.info('Unique path: %s' % len(clear_path))
     for id, path in enumerate(paths):
         logging.debug('Solving the constraints...[%s/%s]' % (id + 1, len(paths)))
-        if path.model is None:
+        if path.is_unbound:
+            unbound_path.append(path)
+        else:
             if path.solve():
                 gas_type = path.gas_type()
                 if gas_type == 'CONSTANT':
@@ -145,9 +145,7 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
                 elif gas_type == 'BOUND':
                     bound_path.append(path)
                 else:
-                    unbound_path.append(path)
-        else:
-            unbound_path.append(path)
+                    logging.error('Gas Type Error')
     return constant_path, bound_path, unbound_path
 
 
