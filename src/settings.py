@@ -1,13 +1,6 @@
 import os
 import logging
 
-# NOTE: Log Setting
-logging.basicConfig(
-    format='%(asctime)s [%(levelname)s]: %(message)s',
-    datefmt='%y-%m-%d %H:%M',
-    level=logging.INFO
-)
-
 # NOTE: Global Constants
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
 ADDRESS_BOUND_NUMBER = 2**160

@@ -21,10 +21,10 @@ class Analyzer:
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
         from src.Result import Result
-        logging.debug('TAG: %s' % tag)
+        # logging.debug('TAG: %s' % tag)
 
-        if settings.DETECT_LOOP:
-            return 
+        # if settings.DETECT_LOOP:
+        #     return 
 
         node = self.cfg.get_node(tag)
         if not node:
@@ -70,7 +70,7 @@ class Analyzer:
                 detect_loop = False
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) > 0 and is_expr(result.jump_condition):
-                        jump_condition = path.handle_loop(node, opcode.pc, self.variables)
+                        jump_condition, jump_condition_n1 = path.handle_loop(node, opcode.pc, self.variables)
                         
                         if jump_condition is not None:
                             detect_loop = True
@@ -98,10 +98,10 @@ class Analyzer:
                         return
                     else:
                         if path.contain_node(result.jump_tag):
-                            path.add_path_constraints([result.jump_condition==0])
+                            path.add_path_constraints([result.jump_condition==0, jump_condition_n1==0])
                             return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
                         else:
-                            path.add_path_constraints([result.jump_condition==1])
+                            path.add_path_constraints([result.jump_condition==1, jump_condition_n1==1])
                             return self.symbolic_execution(result.jump_tag, deepcopy(path), deepcopy(state))
                 else:
                     # NOTE: set gas to node
@@ -133,20 +133,31 @@ class Analyzer:
                         self.symbolic_execution(opcode.get_next_pc(), false_path, false_state)
                         return
             elif opcode.name in ['STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
-                self.count_path += 1
-                logging.debug('Finish one path...[%s]' % self.count_path)
                 # NOTE: set gas to node
                 node.set_gas(gas)
                 node.set_state(deepcopy(state))
 
                 # NOTE: add tag to the path list
                 path.add_node(deepcopy(node))
+
+                # NOTE: simplify gas formula
+                path.gas = simplify(path.gas) if is_expr(path.gas) else int(path.gas)
+                path.gas = int(path.gas.as_long()) if isinstance(path.gas, BitVecNumRef) else path.gas
+                path.gas = int(path.gas) if isinstance(path.gas, float) else path.gas
+
+                # NOTE: solve gas satisfiability & set gas type
                 if path.solve():
-                    if 'loop' in str(path.gas) and path.solve_unbound():
+                    if isinstance(path.gas, int):
+                        path.set_gas_type('constant')
+                    elif 'loop' in str(path.gas) and path.solve_unbound():
                         settings.DETECT_LOOP = True
-                        path.is_unbound()
+                        path.set_gas_type('unbound')
                         logging.debug('Detect loop')
+                    else:
+                        path.set_gas_type('bound')
                     self.paths.append(path)
+                    self.count_path += 1
+                    logging.debug('Finish one path...[%s]' % self.count_path)
                 return
         
         """

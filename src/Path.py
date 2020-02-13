@@ -15,7 +15,7 @@ class Path:
         self.gas = 0
         self.memory_gas = 0
         self.solver = Solver()
-        self.is_unbound = False
+        self.gas_type = None
         self.model = None
         self.model_gas = None
 
@@ -28,8 +28,8 @@ class Path:
     def set_id(self, id: int) -> None:
         self.id = id
 
-    def is_unbound(self) -> None:
-        self.is_unbound = True
+    def set_gas_type(self, gas_type: str) -> None:
+        self.gas_type = gas_type
 
     def add_node(self, node: Node) -> None:
         self.path.append(node)
@@ -67,20 +67,21 @@ class Path:
                 nodes.append(node)
         nodes.append(incoming_node)
 
-        if len(nodes) == 2:
-            loop_formula = self.__handle_loop_constraint(nodes, pc, variables)
-        else:
-            loop_formula = self.__handle_loop_constraint(nodes[-3:], pc, variables)
+        loop_formula, loop_formula_n = self.__extrapolation(nodes[-2:], pc, variables)
+        if loop_formula is None and len(nodes) > 2:
+            loop_formula = self.__switch_constraint(nodes[-3:])
+        
+        logging.debug('Loop Formula: %s' % loop_formula)
         if loop_formula is not None:
             loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
             self.__handle_loop_gas(incoming_node.tag, loop_var)
             if len(nodes) > 2:
                 self.__fix_loop_path(incoming_node.tag, len(nodes))
-        return loop_formula
+        return loop_formula, loop_formula_n
 
-    def __handle_loop_constraint(self, nodes: list, pc: int, variables: list) -> ArithRef:
+    def __extrapolation(self, nodes: list, pc: int, variables: list) -> ArithRef:
         from src.Result import Result
-        decl, arg_1, arg_2, constraint = list(), list(), list(), list()
+        decl, constraint, formulae = list(), list(), list()
         
         for node in nodes:
             constraint.append(self.to_string(node.path_constraint))
@@ -90,16 +91,20 @@ class Path:
         for i, node in enumerate(nodes):
             formula, if_pair = self.__unpack_z3_if(node.path_constraint)
             decl.append(formula.decl())
-            arg_1.append(formula.arg(0))
-            arg_2.append(formula.arg(1))
+            formulae.append(simplify(formula.arg(0) - formula.arg(1)))
+        
+        diff = simplify(formulae[1] - formulae[0])
+        diff = int(diff.as_long()) if isinstance(diff, BitVecNumRef) else diff
 
         if len(set(decl)) == 1:
-            if len(set(arg_1)) == 1 or len(set(arg_2)) == 1:
+            if isinstance(diff, int):
                 loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
                 self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
-                loop_formula = self.__produce_loop_formula(loop_var, if_pair, arg_1, arg_2, decl[0])
+                loop_formula = If(decl[0](formulae[0] + diff*loop_var, 0), if_pair[0], if_pair[1])
+                loop_formula_n = If(decl[0](formulae[0] + diff*(loop_var + 1), 0), if_pair[1], if_pair[0])
             else:
                 loop_formula = None
+                loop_formula_n = None
         else:
             result = Result()
             result.log_error(settings.ADDRESS, 'Operators are not same')
@@ -111,7 +116,16 @@ class Path:
         else:
             logging.warning('Cannot solve loop formula')
 
-        return loop_formula
+        return loop_formula, loop_formula_n
+
+    def __switch_constraint(self, nodes: list) -> ArithRef:
+        formula_1, if_pair = self.__unpack_z3_if(node[0].path_constraint)
+        formula_2, if_pair = self.__unpack_z3_if(node[1].path_constraint)
+        formula_3, if_pair = self.__unpack_z3_if(node[2].path_constraint)
+        if self.to_string(formula_1) == self.to_string(formula_3):
+            return If(Or(formula_1, formula_2), if_pair[0], if_pair[1])
+        else:
+            return None
 
     def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
         from src.Result import Result
@@ -129,22 +143,6 @@ class Path:
     def to_string(self, input: Any) -> str:
         return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")
 
-    def __produce_loop_formula(self, loop_var: BitVecRef, if_pair: tuple, arg_1: list, arg_2: list, decl: FuncDeclRef) -> ArithRef:
-        if len(set(arg_1)) == 1 and len(set(arg_2)) > 1:
-            diff = simplify(arg_2[1] - arg_2[0])
-            loop_formula = If(decl(arg_1[0], arg_2[0] + diff*loop_var), if_pair[0], if_pair[1])
-        elif len(set(arg_1)) > 1 and len(set(arg_2)) == 1:
-            diff = simplify(arg_1[1] - arg_1[0])
-            loop_formula = If(decl(arg_1[0] + diff*loop_var, arg_2[0]), if_pair[0], if_pair[1])
-        elif len(set(arg_1)) == 1 and len(set(arg_2)) == 1:
-            loop_formula = If(decl(arg_1[0], arg_2[0]), if_pair[0], if_pair[1])
-        else:
-            if len(arg_1) == 3 and len(arg_2) == 3 and arg_1[0] == arg_1[2] and arg_2[0] == arg_2[2]:
-                loop_formula = If(Or(decl(arg_1[0], arg_2[0]), decl(arg_1[1], arg_2[1])), if_pair[0], if_pair[1])
-            else:
-                loop_formula = None
-        return loop_formula
-
     def __remove_constraint_from_path(self, node_constraint: ArithRef) -> None:
         for constraint in self.path_constraint[::-1]:
             constraint_str = self.to_string(constraint)
@@ -161,13 +159,6 @@ class Path:
         path = self.path[index[0]:index[1]] if len(index) > 1 else self.path[index[0]:]
         for node in path:
             gas += node.gas
-        # if len(index) > 1:
-        #     for node in self.path[index[0]:index[1]]:
-        #         gas += node.gas
-        # else:
-        #     result = Result()
-        #     result.log_error(settings.ADDRESS, 'Only one node in the loop path')
-        #     raise ValueError('Only one node in the loop path')
         gas = gas * BV2Int(loop_var)
         gas = simplify(gas) if is_expr(gas) else int(gas)
         self.add_gas(gas)
@@ -184,17 +175,6 @@ class Path:
             self.gas -= node.gas
         self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
         self.path = self.path[:index + 1]
-
-    def gas_type(self) -> str:
-        self.gas = simplify(self.gas) if is_expr(self.gas) else int(self.gas)
-        self.gas = int(self.gas.as_long) if isinstance(self.gas, BitVecNumRef) else self.gas
-        self.gas = int(self.gas) if isinstance(self.gas, float) else self.gas
-        if isinstance(self.gas, int):
-            return 'CONSTANT'
-        elif self.is_unbound:
-            return 'UNBOUND'
-        else:
-            return 'BOUND'
 
     def solve(self) -> bool:
         for contraint in self.path_constraint:

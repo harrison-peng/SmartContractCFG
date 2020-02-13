@@ -22,8 +22,22 @@ def main():
     parser.add_argument('-r', '--remove-node', dest='removenode', help='remove unreached node from cfg', action='store_true')
     parser.add_argument('-f', '--format', dest='format', help='format of the cfg file. [options: svg, html(default)]', default='html')
     parser.add_argument('-o', '--output', dest='output', help='the output path')
+    parser.add_argument('-d', '--debug', dest='debug', help='set logger to DEBUG mode', action='store_true')
 
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(
+            format='%(asctime)s [%(levelname)s]: %(message)s',
+            datefmt='%y-%m-%d %H:%M',
+            level=logging.DEBUG
+        )
+    else:
+        logging.basicConfig(
+            format='%(asctime)s [%(levelname)s]: %(message)s',
+            datefmt='%y-%m-%d %H:%M',
+            level=logging.INFO
+        )
 
     if args.removenode:
         settings.REMOVE_UNREACHED_NODE = True
@@ -135,17 +149,14 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
     unbound_path = list()
     for id, path in enumerate(paths):
         logging.debug('Solving the constraints...[%s/%s]' % (id + 1, len(paths)))
-        if path.is_unbound:
+        if path.gas_type == 'constant':
+            constant_path.append(path)
+        elif path.gas_type == 'bound':
+            bound_path.append(path)
+        elif path.gas_type == 'unbound':
             unbound_path.append(path)
         else:
-            if path.solve():
-                gas_type = path.gas_type()
-                if gas_type == 'CONSTANT':
-                    constant_path.append(path)
-                elif gas_type == 'BOUND':
-                    bound_path.append(path)
-                else:
-                    logging.error('Gas Type Error')
+            logging.error('Gas Type Error')
     return constant_path, bound_path, unbound_path
 
 
