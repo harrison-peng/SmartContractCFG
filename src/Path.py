@@ -120,9 +120,9 @@ class Path:
         return loop_formula, loop_formula_n
 
     def __switch_constraint(self, nodes: list) -> ArithRef:
-        formula_1, if_pair = self.__unpack_z3_if(node[0].path_constraint)
-        formula_2, if_pair = self.__unpack_z3_if(node[1].path_constraint)
-        formula_3, if_pair = self.__unpack_z3_if(node[2].path_constraint)
+        formula_1, if_pair = self.__unpack_z3_if(nodes[0].path_constraint)
+        formula_2, if_pair = self.__unpack_z3_if(nodes[1].path_constraint)
+        formula_3, if_pair = self.__unpack_z3_if(nodes[2].path_constraint)
         if self.to_string(formula_1) == self.to_string(formula_3):
             return If(Or(formula_1, formula_2), if_pair[0], if_pair[1])
         else:
