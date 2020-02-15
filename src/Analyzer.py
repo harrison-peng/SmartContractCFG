@@ -40,7 +40,7 @@ class Analyzer:
         for opcode in node.opcodes:
             # NOTE: state simulation
             result = state.simulate(opcode, self.variables)
-            # if tag in [102]:
+            # if tag in [3618, 6086]:
             #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
             #     logging.debug('Stack: %s\n\n' % self.to_string(state.stack))
             #     logging.debug('MEM: %s' % self.to_string(state.memory))
@@ -61,7 +61,7 @@ class Analyzer:
                 path.add_node(deepcopy(node))
 
                 # NOTE: if edge is not in edges -> add edge into edges
-                self.__add_edge(Edge(node.tag, result.jump_tag))
+                self.__add_edge(Edge(node.tag, result.jump_tag, 'red'))
 
                 return self.symbolic_execution(result.jump_tag, path, state)
             elif opcode.name == 'JUMPI':
@@ -74,19 +74,20 @@ class Analyzer:
                         
                         if jump_condition is not None:
                             detect_loop = True
-                            result.jump_condition = jump_condition
+                            result.jump_condition = jump_condition if str(jump_condition) != 'same' else result.jump_condition
                         elif path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS - 1:
                              # LOG ERROR
                             err_result = Result()
-                            err_result.log_error(settings.ADDRESS, 'Loop Error:[%s] %s' % (tag, result.jump_condition))
-                            raise ValueError('Loop Error:[%s] %s' % (tag, result.jump_condition))
+                            err_message = 'Loop Error:[%s] %s' % (tag, result.jump_condition)
+                            err_result.log_error(settings.ADDRESS, err_message)
+                            raise ValueError(err_message)
                 else:
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
                         return
 
                 # NOTE: if edge is not in edges -> add edge into edges
-                self.__add_edge(Edge(node.tag, result.jump_tag))
-                self.__add_edge(Edge(node.tag, opcode.get_next_pc()))
+                self.__add_edge(Edge(node.tag, result.jump_tag, 'red'))
+                self.__add_edge(Edge(node.tag, opcode.get_next_pc(), 'red'))
                 edge_true = self.cfg.get_edge(node.tag, result.jump_tag)
                 edge_false = self.cfg.get_edge(node.tag, opcode.get_next_pc())
 
@@ -94,15 +95,21 @@ class Analyzer:
                     edge_true.set_path_constraint(self.to_string(simplify(result.jump_condition==1)))
                     edge_false.set_path_constraint(self.to_string(simplify(result.jump_condition==0)))
                     
-                    if path.contain_node(result.jump_tag) and path.contain_node(opcode.get_next_pc()):
-                        return
+                    if path.contain_node(result.jump_tag):
+                        jump_condition_n1 = 0 if jump_condition_n1 is None else jump_condition_n1
+                        path.add_path_constraints([result.jump_condition==0, jump_condition_n1==0])
+                        return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
+                    elif path.contain_node(opcode.get_next_pc()):
+                        jump_condition_n1 = 1 if jump_condition_n1 is None else jump_condition_n1
+                        path.add_path_constraints([result.jump_condition==1, jump_condition_n1==1])
+                        return self.symbolic_execution(result.jump_tag, deepcopy(path), deepcopy(state))
                     else:
-                        if path.contain_node(result.jump_tag):
-                            path.add_path_constraints([result.jump_condition==0, jump_condition_n1==0])
-                            return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
-                        else:
-                            path.add_path_constraints([result.jump_condition==1, jump_condition_n1==1])
-                            return self.symbolic_execution(result.jump_tag, deepcopy(path), deepcopy(state))
+                        # LOG ERROR
+                        err_result = Result()
+                        err_message = 'Loop Error:[%s] Both JUMPDEST tags have been executed' % tag
+                        err_result.log_error(settings.ADDRESS, err_message)
+                        raise ValueError(err_message)
+
                 else:
                     # NOTE: set gas to node
                     node.set_gas(gas)
@@ -171,7 +178,7 @@ class Analyzer:
         path.add_node(deepcopy(node))
 
         # NOTE: if edge is not in edges -> add edge into edges
-        self.__add_edge(Edge(node.tag, opcode.get_next_pc()))
+        self.__add_edge(Edge(node.tag, opcode.get_next_pc(), 'red'))
 
         return self.symbolic_execution(opcode.get_next_pc(), path, state)
 

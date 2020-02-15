@@ -58,10 +58,7 @@ class Path:
         return [index for index, node in enumerate(self.path) if node.tag == tag][-1]
 
     def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
-        # logging.debug('Handling loop...')
         nodes = list()
-        # loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
-        # self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
         for node in self.path:
             if node.tag == incoming_node.tag:
                 nodes.append(node)
@@ -71,22 +68,21 @@ class Path:
         if loop_formula is None and len(nodes) > 2:
             loop_formula = self.__switch_constraint(nodes[-3:])
         
-        logging.debug('Loop Formula: %s' % loop_formula)
-        if loop_formula is not None:
+        if loop_formula is not None and str(loop_formula) != 'same':
             loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
             self.__handle_loop_gas(incoming_node.tag, loop_var)
             if len(nodes) > 2:
                 self.__fix_loop_path(incoming_node.tag, len(nodes))
         return loop_formula, loop_formula_n
 
-    def __extrapolation(self, nodes: list, pc: int, variables: list) -> ArithRef:
+    def __extrapolation(self, nodes: list, pc: int, variables: list) -> (ArithRef, ArithRef):
         from src.Result import Result
         decl, constraint, formulae = list(), list(), list()
         
         for node in nodes:
             constraint.append(self.to_string(node.path_constraint))
         if len(set(constraint)) == 1:
-            return nodes[0].path_constraint
+            return 'same', None
 
         for i, node in enumerate(nodes):
             formula, if_pair = self.__unpack_z3_if(node.path_constraint)
@@ -95,13 +91,18 @@ class Path:
         
         diff = simplify(formulae[1] - formulae[0])
         diff = int(diff.as_long()) if isinstance(diff, BitVecNumRef) else diff
+        # logging.debug('Loop constraint diff: %s' % diff)
 
         if len(set(decl)) == 1:
             if isinstance(diff, int):
-                loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
-                self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
-                loop_formula = If(decl[0](formulae[0] + diff*loop_var, 0), if_pair[0], if_pair[1])
-                loop_formula_n = If(decl[0](formulae[0] + diff*(loop_var + 1), 0), if_pair[1], if_pair[0])
+                if diff != 0:
+                    loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
+                    self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
+                    loop_formula = If(decl[0](formulae[0] + diff*loop_var, 0), if_pair[0], if_pair[1])
+                    loop_formula_n = If(decl[0](formulae[0] + diff*(loop_var + 1), 0), if_pair[1], if_pair[0])
+                else:
+                    loop_formula = 'same'
+                    loop_formula_n = None
             else:
                 loop_formula = None
                 loop_formula_n = None

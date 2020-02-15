@@ -1,10 +1,10 @@
 class Edge:
 
-    def __init__(self, from_: int, to_: int):
+    def __init__(self, from_: int, to_: int, color: str = 'black'):
         self.from_ = from_
         self.to_ = to_
         self.path_constraint = None
-        self.color = 'black'
+        self.color = color
 
     def __str__(self) -> str:
         return '(%s, %s)' % (self.from_, self.to_)
