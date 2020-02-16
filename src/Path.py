@@ -192,12 +192,15 @@ class Path:
         is_sat = False
         self.solver.set(timeout=TIMEOUT)
         while self.solver.check() == sat:
+            logging.debug('SAT: %s' % gas)
             is_sat = True
             gas += 10000
             self.solver.pop()
             self.solver.push()
             self.solver.add(self.gas > gas)
             self.solver.set(timeout=TIMEOUT)
+        else:
+            logging.debug('UNSAT: %s' % gas)
         self.solver.pop()
         self.solver.push()
         self.solver.add(self.gas > gas - 10000)

@@ -162,7 +162,7 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
 
 def solve_path(variables: Variables, bound_path: [Path], gas_limit: int) -> int:
     logging.info('Solving bound paths...')
-    max_gas = 0
+    max_gas = gas_limit
     for id, path in enumerate(bound_path):
         logging.debug('Finding max gas...[%s/%s]' % (id + 1, len(bound_path)))
         if path.solve_max_gas(gas_limit):
