@@ -115,7 +115,7 @@ class Path:
             for i, node in enumerate(nodes):
                 self.__remove_constraint_from_path(node.path_constraint)
         else:
-            logging.warning('Cannot solve loop formula')
+            logging.debug('Cannot solve loop formula: %s' % formulae)
 
         return loop_formula, loop_formula_n
 
