@@ -23,8 +23,8 @@ class Analyzer:
         from src.Result import Result
         # logging.debug('TAG: %s' % tag)
 
-        # if settings.DETECT_LOOP:
-        #     return 
+        if settings.DETECT_LOOP:
+            return 
 
         node = self.cfg.get_node(tag)
         if not node:
