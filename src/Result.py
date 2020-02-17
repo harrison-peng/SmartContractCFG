@@ -1,17 +1,19 @@
 import os
 import src.settings as settings
+from z3 import *
 from typing import Any
 from src.Analyzer import Analyzer
 from src.Path import Path
 
 class Result:
 
-    def __init__(self, analyzer: Analyzer = None, max_gas: int = None, constant_path: [Path] = None, bound_path: [Path] = None, unbound_path: [Path] = None):
+    def __init__(self, analyzer: Analyzer = None, max_gas: int = None, gas_formula: ArithRef = None, constant_path: [Path] = None, bound_path: [Path] = None, unbound_path: [Path] = None):
         self.analyzer = analyzer
         self.max_gas = max_gas
         self.constant_path = constant_path
         self.bound_path = bound_path
         self.unbound_path = unbound_path
+        self.gas_formula = gas_formula
 
     def render(self, directory: str, file_name: str) -> None:
         # NOTE: This file is for Etherscan Analysis
@@ -21,7 +23,8 @@ class Result:
             elif len(self.bound_path):
                 f.write('bound\n')
             else:
-                f.write('constant\n')
+                f.write('constant\n') 
+            f.write('%s\n' % self.to_string(self.gas_formula))
             f.write('%s\n' % self.to_string(self.max_gas))
             f.write('%s\n' % self.analyzer.cfg.ins_num())
             f.write('%s\n' % self.analyzer.cfg.node_num())
@@ -38,6 +41,8 @@ class Result:
             f.write('Constant Gas Path: %s\n' % len(self.constant_path))
             f.write('Bounded Gas Path: %s\n' % len(self.bound_path))
             f.write('Unbounded Gas Path: %s\n' % len(self.unbound_path))
+            if self.gas_formula is not None:
+                f.write('Max Gas Formula: %s\n' % self.to_string(self.max_gas))
             f.write('Max Gas Consumption: %s\n' % self.to_string(self.max_gas))
             f.write('\n%s\n\n' % sep_line)
             f.write('[SYMBOLIC VARIABLE TABLE]:\n\n')

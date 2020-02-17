@@ -123,21 +123,40 @@ def opcodes_analysis(contract_name):
             logging.info('Satisfiability constant gas path: %s' % len(constant_path))
             logging.info('Satisfiability bound gas path: %s' % len(bound_path))
             logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
+            gas_formula = None
             if len(unbound_path) > 0:
                 max_gas = unbound_path[-1].gas
             elif len(bound_path) > 0:
-                max_gas = solve_path(analyzer.variables, bound_path, get_max_constant_gas(constant_path))
+                max_gas, gas_formula = solve_path(analyzer.variables, bound_path, get_max_constant_gas(constant_path))
+                logging.info('Max gas formula: %s' % gas_formula)
             else:
                 max_gas = get_max_constant_gas(constant_path)
+            logging.info('Max gas: %s' % max_gas)
 
             # NOTE: Output Result File
             logging.info('Writting analysis result into file...')
-            result = Result(analyzer, max_gas, constant_path, bound_path, unbound_path)
+            if gas_formula is None:
+                result = Result(
+                    analyzer = analyzer,
+                    max_gas = max_gas,
+                    constant_path = constant_path,
+                    bound_path = bound_path,
+                    unbound_path = unbound_path
+                )
+            else:
+                result = Result(
+                    analyzer = analyzer, 
+                    max_gas = max_gas,
+                    gas_formula = gas_formula,
+                    constant_path = constant_path, 
+                    bound_path = bound_path, 
+                    unbound_path = unbound_path
+                )
             result.render(contract_name, file_name)
             del cfg, analyzer, result
-            logging.info('%s finished\n' % file_name)
+            logging.info('%s finished' % file_name)
         else:
-            logging.info('%s is empyty\n' % file_name)
+            logging.info('%s is empyty' % file_name)
             result = Result()
             result.log_error(contract_name, 'empty')
 
@@ -163,12 +182,15 @@ def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
 def solve_path(variables: Variables, bound_path: [Path], gas_limit: int) -> int:
     logging.info('Solving bound paths...')
     max_gas = gas_limit
+    gas_formula = gas_limit
     for id, path in enumerate(bound_path):
         logging.debug('Finding max gas...[%s/%s]' % (id + 1, len(bound_path)))
         if path.solve_max_gas(gas_limit):
             path.assign_model(variables)
-            max_gas = path.model_gas if path.model_gas > max_gas else max_gas
-    return max_gas
+            if path.model_gas > max_gas:
+                max_gas = path.model_gas
+                gas_formula = path.gas
+    return max_gas, gas_formula
 
 
 def get_max_constant_gas(paths) -> int:
