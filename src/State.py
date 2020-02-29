@@ -635,7 +635,7 @@ class State:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CALLDATASIZE':
             ds_var = variables.get_variable(Variable('Id_size', 'msg.data.size', BitVec('Id_size', 256)))
-            result.add_path_constraint(ULT(ds_var, UNSIGNED_BOUND_NUMBER))
+            result.add_path_constraint(ULT(ds_var, BYTE_BOUND_NUMBER))
 
             self.stack[str(len(self.stack))] = ds_var
             result.set_gas(gas_table[opcode.name])
@@ -670,7 +670,7 @@ class State:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'CODESIZE':
             size_var = variables.get_variable(Variable('Id_size', 'address(this).code.size', BitVec('Id_size', 256)))
-            result.add_path_constraint(ULT(size_var, UNSIGNED_BOUND_NUMBER))
+            result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
 
             self.stack[str(len(self.stack))] = size_var
             result.set_gas(gas_table[opcode.name])
