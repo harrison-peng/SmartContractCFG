@@ -1,4 +1,5 @@
 import sha3
+from math import log
 from typing import Any
 from src.z3_func import *
 from src.gas_price import gas_table
@@ -1345,7 +1346,7 @@ class State:
             msg_p = self.stack.pop(str(len(self.stack) - 1))
             num_bytes = self.stack.pop(str(len(self.stack) - 1))
             self.memory[str(mem_p)] = self.__get_value_from_model(variables, 'Ic_%s' % opcode.pc, model)
-            gas = 2 + 3 * (num_bytes / 32)
+            gas = 2 + 3 * (int(log(num_bytes, 2)) // 8) if num_bytes > 0 else 2
         elif opcode.name == 'GASPRICE':
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Ip_%s' % opcode.pc, model)
             gas = gas_table[opcode.name]
@@ -1354,7 +1355,7 @@ class State:
             y = self.stack.pop(str(len(self.stack) - 1))
             x = self.stack.pop(str(len(self.stack) - 1))
             self.memory[str(z)] = self.__get_value_from_model(variables, 'Id_%s'% opcode.pc, model)
-            gas = 2 + 3 * (x / 32)
+            gas = 2 + 3 * (int(log(x, 2)) // 8) if x > 0 else 2
         elif opcode.name == 'RETURNDATASIZE':
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Id_size', model)
             gas = gas_table[opcode.name]
@@ -1437,7 +1438,7 @@ class State:
                 pop_value = self.stack.pop(str(len(self.stack) - 1))
 
             # NOTE: GAS
-            gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (word / 32))
+            gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (int(log(word, 2)) // 8))
         elif opcode.name == 'CALL':
             out_gas = self.stack.pop(str(len(self.stack) - 1))
             addr = self.stack.pop(str(len(self.stack) - 1))
