@@ -1,4 +1,5 @@
 import os
+import json
 import src.settings as settings
 from z3 import *
 from typing import Any
@@ -17,18 +18,24 @@ class Result:
 
     def render(self, directory: str, file_name: str) -> None:
         # NOTE: This file is for Etherscan Analysis
-        with open('%s/%s/gas_type.txt' % (settings.OUTPUT_PATH, directory), 'w') as f:
-            if len(self.unbound_path) > 0:
-                f.write('unbound\n')
-            elif len(self.bound_path):
-                f.write('bound\n')
-            else:
-                f.write('constant\n') 
-            f.write('%s\n' % self.to_string(self.gas_formula))
-            f.write('%s\n' % self.to_string(self.max_gas))
-            f.write('%s\n' % self.analyzer.cfg.ins_num())
-            f.write('%s\n' % self.analyzer.cfg.node_num())
-            f.write('%s\n' % self.analyzer.cfg.edge_num())
+        if len(self.unbound_path) > 0:
+            gas_type = 'unbound'
+        elif len(self.bound_path):
+            gas_type = 'bound'
+        else: 
+            gas_type = 'constant'
+        self.gas_formula = None if self.gas_formula is None else self.to_string(self.gas_formula)
+        info = {
+            'address': file_name,
+            'gas_type': gas_type,
+            'ins_num': self.analyzer.cfg.ins_num(),
+            'node_num': self.analyzer.cfg.node_num(),
+            'edge_num': self.analyzer.cfg.edge_num(),
+            'gas_formula': self.gas_formula,
+            'max_gas': self.to_string(self.max_gas)
+        }
+        with open('%s/%s/info.json' % (settings.OUTPUT_PATH, directory), 'w') as f:
+            json.dump(info, f)
 
         sep_line = '-|-' * 30
         with open('%s/%s/%s.txt' % (settings.OUTPUT_PATH, directory, file_name), 'w') as f:
