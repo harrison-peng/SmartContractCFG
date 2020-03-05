@@ -76,7 +76,7 @@ def main():
             # NOTE: Compile source code to opcodes
             preprocessing.bytecode_to_opcodes(f_src)
     else:
-        logging.error('Must use an argument, -s for individual source code')
+        logging.error('Must use an argument, --help for more details')
     
     # NOTE: Analyze the opcodes
     opcodes_analysis(contract_name)
