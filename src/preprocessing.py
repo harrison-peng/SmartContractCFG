@@ -7,6 +7,7 @@ from src.settings import logging, ROOT_PATH, SPECILIFY_SOL_VERSION
 
 def source_code_to_opcodes(code_src: str) -> None:
     from src.Result import Result
+    
     code_path = os.path.abspath(os.path.dirname(code_src))
     contract_name = os.path.basename(code_src).split('.')[0]
     set_up_dir(contract_name)
@@ -77,12 +78,14 @@ def source_code_to_opcodes(code_src: str) -> None:
             with open('%s/%s/%s' % (os.path.join(ROOT_PATH, 'opcodes'), contract_name, file), 'w') as f:
                 f.write(code_after)
     except Exception as e:
-        result = Result()
+        err_result = Result()
         result.log_error(settings.ADDRESS, 'Compile source code error: %s' % e)
         raise ValueError('Compile source code error: %s' % e)
 
 
 def bytecode_to_opcodes(file_name: str) -> None:
+    from src.Result import Result
+
     contract_name = os.path.basename(file_name).split('.')[0]
     set_up_dir(contract_name)
 
@@ -107,12 +110,14 @@ def bytecode_to_opcodes(file_name: str) -> None:
             f.write(code_after)
 
     except Exception as e:
-        result = Result()
+        err_result = Result()
         result.log_error(settings.ADDRESS, 'Decompile source code error: %s' % e)
         raise ValueError('Decompile source code error: %s' % e)
 
 
 def set_up_dir(contract_name: str) -> None:
+    from src.Result import Result
+
     try:
         logging.info('Setup the opcodes_raw and opcodes directory.')
         opcodes_raw_path = os.path.join(ROOT_PATH, 'opcodes_raw')
@@ -143,7 +148,7 @@ def set_up_dir(contract_name: str) -> None:
             call(['mkdir', os.path.join(result_path, contract_name, 'cfg')])
 
     except Exception as e:
-        result = Result()
+        err_result = Result()
         result.log_error(settings.ADDRESS, 'Directory set up error: %s' % e)
         raise ValueError('Directory set up error: %s' % e)
 
