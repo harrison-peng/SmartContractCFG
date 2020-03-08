@@ -120,7 +120,7 @@ def set_up_dir(contract_name: str) -> None:
         result_path = settings.OUTPUT_PATH
 
         if settings.LINUX_MODE:
-                call(['sudo', 'rm', '-rf', opcodes_raw_path])
+            call(['sudo', 'rm', '-rf', opcodes_raw_path])
             call(['sudo', 'rm', '-rf', opcodes_path])
             call(['sudo', 'mkdir', opcodes_path])
             call(['sudo', 'mkdir', opcodes_raw_path])
