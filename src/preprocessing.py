@@ -23,8 +23,13 @@ def source_code_to_opcodes(code_src: str) -> None:
             call(['docker', 'run', '--rm', '-v', '%s:/contracts' % code_path, 'ethereum/solc:%s' % version, '--opcodes', '/contracts/%s.sol' % contract_name, '-o', '/contracts/opcodes_raw', '--overwrite'])
         else:
             call(['solc', '--opcodes', '%s/%s.sol' % (code_path, contract_name), '-o', '%s/opcodes_raw' % code_path, '--overwrite'])
-        call(['cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
-        call(['rm', '-rf', '%s/opcodes_raw' % code_path])
+        
+        if settings.LINUX_MODE:
+            call(['sudo', 'cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
+            call(['sudo', 'rm', '-rf', '%s/opcodes_raw' % code_path])
+        else:
+            call(['cp', '-r', '%s/opcodes_raw' % code_path, ROOT_PATH])
+            call(['rm', '-rf', '%s/opcodes_raw' % code_path])
             
         for file in os.listdir(opcodes_raw_path):
             code_after = ''
@@ -114,16 +119,28 @@ def set_up_dir(contract_name: str) -> None:
         opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
         result_path = settings.OUTPUT_PATH
 
-        call(['rm', '-rf', opcodes_raw_path])
-        call(['rm', '-rf', opcodes_path])
-        call(['mkdir', opcodes_path])
-        call(['mkdir', opcodes_raw_path])
-        call(['mkdir', '%s/%s' % (opcodes_path, contract_name)])
-        if not os.path.isdir(result_path):
-            call(['mkdir', result_path])
-        call(['rm', '-rf', os.path.join(result_path, contract_name)])
-        call(['mkdir', os.path.join(result_path, contract_name)])
-        call(['mkdir', os.path.join(result_path, contract_name, 'cfg')])
+        if settings.LINUX_MODE:
+                call(['sudo', 'rm', '-rf', opcodes_raw_path])
+            call(['sudo', 'rm', '-rf', opcodes_path])
+            call(['sudo', 'mkdir', opcodes_path])
+            call(['sudo', 'mkdir', opcodes_raw_path])
+            call(['sudo', 'mkdir', '%s/%s' % (opcodes_path, contract_name)])
+            if not os.path.isdir(result_path):
+                call(['sudo', 'mkdir', result_path])
+            call(['sudo', 'rm', '-rf', os.path.join(result_path, contract_name)])
+            call(['sudo', 'mkdir', os.path.join(result_path, contract_name)])
+            call(['sudo', 'mkdir', os.path.join(result_path, contract_name, 'cfg')])
+        else:
+            call(['rm', '-rf', opcodes_raw_path])
+            call(['rm', '-rf', opcodes_path])
+            call(['mkdir', opcodes_path])
+            call(['mkdir', opcodes_raw_path])
+            call(['mkdir', '%s/%s' % (opcodes_path, contract_name)])
+            if not os.path.isdir(result_path):
+                call(['mkdir', result_path])
+            call(['rm', '-rf', os.path.join(result_path, contract_name)])
+            call(['mkdir', os.path.join(result_path, contract_name)])
+            call(['mkdir', os.path.join(result_path, contract_name, 'cfg')])
 
     except Exception as e:
         result = Result()

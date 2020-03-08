@@ -23,6 +23,7 @@ def main():
     parser.add_argument('-f', '--format', dest='format', help='format of the cfg file. [options: svg, html(default)]', default='html')
     parser.add_argument('-o', '--output', dest='output', help='the output path')
     parser.add_argument('-d', '--debug', dest='debug', help='set logger to DEBUG mode', action='store_true')
+    parser.add_argument('-l', '--linux-mode', dest='linuxmode', help='to run on linux, use linux mode', action='store_true')
 
     args = parser.parse_args()
 
@@ -41,6 +42,9 @@ def main():
 
     if args.removenode:
         settings.REMOVE_UNREACHED_NODE = True
+
+    if args.linuxmode:
+        settings.LINUX_MODE = True
 
     if args.format in ['html', 'svg']:
         settings.CFG_FORMAT = args.format

@@ -15,6 +15,8 @@ LOOP_DETECTION = True
 MAX_LOOP_ITERATIONS = 5
 # Remove Unreached node
 REMOVE_UNREACHED_NODE = False
+# Linux Mode
+LINUX_MODE = False
 # CFG format
 CFG_FORMAT = None
 # contain state information in CFG
