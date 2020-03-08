@@ -122,14 +122,14 @@ def set_up_dir(contract_name: str) -> None:
         if settings.LINUX_MODE:
             call(['sudo', 'rm', '-rf', opcodes_raw_path])
             call(['sudo', 'rm', '-rf', opcodes_path])
-            call(['sudo', 'mkdir', opcodes_path])
-            call(['sudo', 'mkdir', opcodes_raw_path])
-            call(['sudo', 'mkdir', '%s/%s' % (opcodes_path, contract_name)])
+            call(['sudo', 'mkdir', '-m', '777', opcodes_path])
+            call(['sudo', 'mkdir', '-m', '777', opcodes_raw_path])
+            call(['sudo', 'mkdir', '-m', '777', '%s/%s' % (opcodes_path, contract_name)])
             if not os.path.isdir(result_path):
                 call(['sudo', 'mkdir', result_path])
             call(['sudo', 'rm', '-rf', os.path.join(result_path, contract_name)])
-            call(['sudo', 'mkdir', os.path.join(result_path, contract_name)])
-            call(['sudo', 'mkdir', os.path.join(result_path, contract_name, 'cfg')])
+            call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name)])
+            call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name, 'cfg')])
         else:
             call(['rm', '-rf', opcodes_raw_path])
             call(['rm', '-rf', opcodes_path])
