@@ -76,7 +76,7 @@ def main():
             f_src = os.path.abspath(args.code)
             contract_name = os.path.basename(f_src).split('.')[0]
 
-            logging.info('Transforming contract %s source code to opcodes' % contract_name)
+            logging.info('Transforming address %s bytecode to opcodes' % contract_name)
             # NOTE: Compile source code to opcodes
             preprocessing.bytecode_to_opcodes(f_src)
     else:
