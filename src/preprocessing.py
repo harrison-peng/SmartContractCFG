@@ -125,6 +125,8 @@ def set_up_dir(contract_name: str) -> None:
         result_path = settings.OUTPUT_PATH
 
         if settings.LINUX_MODE:
+            if not os.path.isdir(settings.OUTPUT_PATH):
+                call(['sudo', 'mkdir', '-m', '777', settings.OUTPUT_PATH])
             call(['sudo', 'rm', '-rf', opcodes_raw_path])
             call(['sudo', 'rm', '-rf', opcodes_path])
             call(['sudo', 'mkdir', '-m', '777', opcodes_path])
@@ -136,6 +138,8 @@ def set_up_dir(contract_name: str) -> None:
             call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name)])
             call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name, 'cfg')])
         else:
+            if not os.path.isdir(settings.OUTPUT_PATH):
+                call(['mkdir', settings.OUTPUT_PATH])
             call(['rm', '-rf', opcodes_raw_path])
             call(['rm', '-rf', opcodes_path])
             call(['mkdir', opcodes_path])
