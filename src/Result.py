@@ -59,13 +59,13 @@ class Result:
 
             # NOTE: Write Constant Path
             if self.constant_path:
-                f.write('[CONSTANT PATH]\n\n%s' % self.__add_path_content(self.constant_path))
+                f.write('[CONSTANT PATH]\n\n%s' % self.__add_path_content(self.constant_path, 'constant'))
 
             if self.bound_path:
-                f.write('[BOUNDED PATH]\n\n%s' % self.__add_path_content(self.bound_path))
+                f.write('[BOUNDED PATH]\n\n%s' % self.__add_path_content(self.bound_path, 'bound'))
 
             if self.unbound_path:
-                f.write('[UNBOUNDED PATH]\n\n%s' % self.__add_path_content(self.unbound_path))
+                f.write('[UNBOUNDED PATH]\n\n%s' % self.__add_path_content(self.unbound_path, 'unbound'))
 
     def log_error(self, directory: str, log: str) -> None:
         if log == 'empty':
@@ -79,7 +79,7 @@ class Result:
             with open('%s/%s/error.txt' % (settings.OUTPUT_PATH, directory), 'w') as f:
                 f.write(log)
 
-    def __add_path_content(self, paths: list) -> str:
+    def __add_path_content(self, paths: list, gas_type: str) -> str:
         sep_line = '-|-' * 30
         sub_sep_line = '-.' * 45
         content = ''
@@ -94,7 +94,13 @@ class Result:
             for model in path.model:
                 content += '[%s]: %s\n' % (model, path.model[model])
             gas = path.model_gas if path.model_gas else path.gas
-            content += '\n[Gas]: %s\n%s\n\n' % (gas, sub_sep_line)
+            if gas_type == 'constant':
+                content += '\n[Gas]: %s\n%s\n\n' % (gas, sub_sep_line)
+            elif gas_type == 'bound':
+                content += '\n[Gas Formula]: %s\n' % path.gas
+                content += '[Gas]: %s\n%s\n\n' % (gas, sub_sep_line)
+            else:
+                content += '\n[Gas]: %s\n%s\n\n' % (gas, sub_sep_line)
         content = content[:-92] + '\n%s\n\n' % sep_line
         return content
 
