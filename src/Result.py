@@ -49,7 +49,7 @@ class Result:
             f.write('Bounded Gas Path: %s\n' % len(self.bound_path))
             f.write('Unbounded Gas Path: %s\n' % len(self.unbound_path))
             if self.gas_formula is not None:
-                f.write('Max Gas Formula: %s\n' % self.to_string(self.max_gas))
+                f.write('Max Gas Formula: %s\n' % self.to_string(self.gas_formula))
             f.write('Max Gas Consumption: %s\n' % self.to_string(self.max_gas))
             f.write('\n%s\n\n' % sep_line)
             f.write('[SYMBOLIC VARIABLE TABLE]:\n\n')
