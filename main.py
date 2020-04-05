@@ -104,6 +104,7 @@ def opcodes_analysis(contract_name):
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
+            settings.CFG_PATH = '%s/%s/cfg/%s' % (settings.OUTPUT_PATH, contract_name, file_name)
             cfg.render('%s/%s/cfg/%s' % (settings.OUTPUT_PATH, contract_name, file_name))
             logging.info('Total instructions: %s' % cfg.ins_num())
 

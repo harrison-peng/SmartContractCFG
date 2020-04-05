@@ -86,8 +86,10 @@ class Path:
 
         for i, node in enumerate(nodes):
             formula, if_pair = self.__unpack_z3_if(node.path_constraint)
+            if formula is None:
+                return None, None
             decl.append(formula.decl())
-            formulae.append(simplify(formula.arg(0) - formula.arg(1)))
+            formulae.append(formula.arg(0) - formula.arg(1))
         
         diff = simplify(formulae[1] - formulae[0])
         diff = int(diff.as_long()) if isinstance(diff, BitVecNumRef) else diff
@@ -134,6 +136,8 @@ class Path:
             formula = int(formula.as_long) if isinstance(formula, BitVecNumRef) else formula
             if is_expr(formula) and str(formula.decl()) == 'If':
                 return self.__unpack_z3_if(formula.arg(0)), (formula.arg(1), formula.arg(2))
+            elif isinstance(formula, z3.z3.BitVecRef):
+                return None, None
             else:
                 return formula
         except Exception as e:

@@ -37,16 +37,20 @@ class Cfg:
                 content = self.opcodes[start_idx:index]
                 node = Node(start_pc, content)
                 self.nodes.append(node)
+                if pre_opcode.name not in ['JUMP', 'JUMPI', 'STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
+                    edge = Edge(start_pc, opcode.pc)
+                    self.edges.append(edge)
                 start_idx = index
                 start_pc = opcode.pc
             elif opcode.name.startswith('PUSH'):
                 push_value = opcode.value
-            elif opcode.name == 'JUMP' and pre_opcode.name.startswith('PUSH'):
+            elif opcode.name == 'JUMP':
                 content = self.opcodes[start_idx:index+1]
                 node = Node(start_pc, content)
                 self.nodes.append(node)
-                edge = Edge(start_pc, int(pre_opcode.value, 16))
-                self.edges.append(edge)
+                if pre_opcode.name.startswith('PUSH'):
+                    edge = Edge(start_pc, int(pre_opcode.value, 16))
+                    self.edges.append(edge)
                 start_idx = index + 1
                 start_pc = opcode.pc + 1
             elif opcode.name == 'JUMPI':

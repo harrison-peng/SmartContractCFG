@@ -198,6 +198,7 @@ class Analyzer:
                 e.change_color()
                 return
         self.cfg.add_edge(edge)
+        self.cfg.render(settings.CFG_PATH)
     
     def to_string(self, input: Any) -> str:
         return str(input).replace('\n', '').replace(' ', '').replace(",'", ",\n'")
