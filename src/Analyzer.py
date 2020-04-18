@@ -42,7 +42,7 @@ class Analyzer:
             result = state.simulate(opcode, self.variables)
             # if tag in [3618, 6086]:
             #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
-            #     logging.debug('Stack: %s\n\n' % self.to_string(state.stack))
+            #     logging.debug('Stack: %s' % self.to_string(state.stack))
             #     logging.debug('MEM: %s' % self.to_string(state.memory))
             #     logging.debug('STO: %s\n' % self.to_string(state.storage))
             path.add_path_constraints(result.path_constraints)
@@ -65,6 +65,9 @@ class Analyzer:
 
                 return self.symbolic_execution(result.jump_tag, path, state)
             elif opcode.name == 'JUMPI':
+                tmp_cond = simplify(result.jump_condition) if is_expr(result.jump_condition) else result.jump_condition
+                result.jump_condition = int(tmp_cond.as_long()) if isinstance(tmp_cond, BitVecNumRef) else result.jump_condition
+
                 node.set_path_constraint(result.jump_condition)
                 # NOTE: Loop detection
                 detect_loop = False
@@ -82,7 +85,11 @@ class Analyzer:
                             err_result.log_error(settings.ADDRESS, err_message)
                             raise ValueError(err_message)
                 else:
-                    if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS:
+                    path_cond = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
+                    if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):
+                        for node in self.cfg.nodes:
+                            if node.tag == tag:
+                                node.loop_condition.append(path.find_loop_condition(node))
                         return
 
                 # NOTE: if edge is not in edges -> add edge into edges

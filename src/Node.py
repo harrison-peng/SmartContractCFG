@@ -13,6 +13,7 @@ class Node:
         self.color = 'black'
         self.visited = False
         self.count = 0
+        self.loop_condition = list()
     
     def __str__(self) -> str:
         return '%s' % self.tag

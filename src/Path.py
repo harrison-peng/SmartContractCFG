@@ -57,6 +57,15 @@ class Path:
     def node_last_index(self, tag: int) -> int:
         return [index for index, node in enumerate(self.path) if node.tag == tag][-1]
 
+    def find_loop_condition(self, incoming_node: Node):
+        for node in self.path:
+            if node.tag == incoming_node.tag:
+                # c1 = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
+                # c2 = simplify(incoming_node.path_constraint) if is_expr(incoming_node.path_constraint) else incoming_node.path_constraint
+                c1 = node.path_constraint
+                c2 = incoming_node.path_constraint
+                return (c1, c2)
+
     def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
         nodes = list()
         for node in self.path:

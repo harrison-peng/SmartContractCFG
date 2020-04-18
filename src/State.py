@@ -94,7 +94,7 @@ class State:
                 if is_all_real(first, second):
                     computed = 0 if second == 0 else to_unsigned(first) // to_unsigned(second)
                 else:
-                    computed =first / second if is_real(second) else If(second == 0, 0, first/second)
+                    computed =first / second if is_real(second) else self.__get_if_expression(second == 0, 0, first/second)
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -132,7 +132,7 @@ class State:
                             self.solver.push()
                             self.solver.add(first / second < 0)
                             sign = -1 if check_sat(self.solver) == sat else 1
-                            z3_abs = lambda x: If(x >= 0, x, -x)
+                            z3_abs = lambda x: self.__get_if_expression(x >= 0, x, -x)
                             first = z3_abs(first)
                             second = z3_abs(second)
                             computed = sign * (first / second)
@@ -206,7 +206,7 @@ class State:
                             else BitVecVal(1, 256)
                         self.solver.pop()
 
-                        z3_abs = lambda x: If(x >= 0, x, -x)
+                        z3_abs = lambda x: self.__get_if_expression(x >= 0, x, -x)
                         first = z3_abs(first)
                         second = z3_abs(second)
 
@@ -361,7 +361,7 @@ class State:
                         second = to_unsigned(second)
                         computed = 1 if first < second else 0
                     else:
-                        computed = If(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+                        computed = self.__get_if_expression(ULT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
                     # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -378,7 +378,7 @@ class State:
                     second = to_unsigned(second)
                     computed = 1 if first > second else 0
                 else:
-                    computed = If(UGT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
+                    computed = self.__get_if_expression(UGT(first, second), BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -395,7 +395,7 @@ class State:
                     second = to_signed(second)
                     computed = 1 if first < second else 0
                 else:
-                    computed = If(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
+                    computed = self.__get_if_expression(first < second, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -412,7 +412,7 @@ class State:
                     second = to_signed(second)
                     computed = 1 if first > second else 0
                 else:
-                    computed = If(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
+                    computed = self.__get_if_expression(first > second, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -427,7 +427,7 @@ class State:
                 if is_all_real(first, second):
                     computed = 1 if first == second else 0
                 else:
-                    computed = If(first == second, BitVecVal(1, 256), BitVecVal(0, 256))
+                    computed = self.__get_if_expression(first == second, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -442,7 +442,7 @@ class State:
                     computed = 1 if first == 0 else 0
                 else:
                     condiiton = first.decl().name() == 'if' and str(first.arg(1)) in ['1', '0'] and str(first.arg(2)) in ['1', '0']
-                    computed = If(first.arg(0), first.arg(2), first.arg(1)) if condiiton else If(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
+                    computed = self.__get_if_expression(first.arg(0), first.arg(2), first.arg(1)) if condiiton else self.__get_if_expression(first == 0, BitVecVal(1, 256), BitVecVal(0, 256))
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -550,7 +550,7 @@ class State:
                                     data += self.memory[position + 32*i]
                             else:
                                 data += self.memory[position + 32 * i]
-                                data = simplify(data) if is_expr(data) else data
+                                # data = simplify(data) if is_expr(data) else data
                         else:
                             mem_var = variables.get_variable(Variable('Imem_%s' % opcode.pc, 'memory[%s:%s+32]' % (self.to_string(i), self.to_string(i)), BitVec('Imem_%s' % opcode.pc, 256)))
                             data = data + mem_var
@@ -655,7 +655,7 @@ class State:
                 else:
                     old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
                     mem_p = BV2Int(mem_p) if isinstance(mem_p, BitVecRef) else mem_p
-                    self.msize = If(mem_p > self.msize, mem_p, self.msize)
+                    self.msize = self.__get_if_expression(mem_p > self.msize, mem_p, self.msize)
 
                 # NOTE: GAS
                 if is_real(num_bytes):
@@ -690,7 +690,7 @@ class State:
                 else:
                     old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
                     mem_p = BV2Int(mem_p) if isinstance(mem_p, BitVecRef) else mem_p
-                    self.msize = If(mem_p > self.msize, mem_p, self.msize)
+                    self.msize = self.__get_if_expression(mem_p > self.msize, mem_p, self.msize)
 
                 # NOTE: GAS
                 if is_real(num_bytes):
@@ -726,7 +726,7 @@ class State:
                 else:
                     old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
                     z = BV2Int(z) if isinstance(z, BitVecRef) else z
-                    self.msize = If(z > self.msize, z, self.msize)
+                    self.msize = self.__get_if_expression(z > self.msize, z, self.msize)
 
                 # NOTE: GAS
                 if is_real(x):
@@ -763,11 +763,11 @@ class State:
                 value = self.memory.get(address, None)
 
                 if value is None:
-                    value = If(self.memory == list(self.memory.keys())[0], self.memory[list(self.memory.keys())[0]], BitVecVal(0, 256))
+                    value = self.__get_if_expression(self.memory == list(self.memory.keys())[0], self.memory[list(self.memory.keys())[0]], BitVecVal(0, 256))
                     if len(self.memory) > 1:
                         tem_val = value
                         for key, val in self.memory.items():
-                            value = If(address == key, val, tem_val)
+                            value = self.__get_if_expression(address == key, val, tem_val)
                             tem_val = value
                     value_s = simplify(value) if is_expr(value) else value
                     value = value_s.as_long() if isinstance(value_s, BitVecNumRef) else value
@@ -780,7 +780,8 @@ class State:
             if len(self.stack) > 1:
                 address = self.stack.pop(str(len(self.stack) - 1))
                 value = self.stack.pop(str(len(self.stack) - 1))
-                self.memory[address] = value
+                if not (isinstance(value, int) and value == 0):
+                    self.memory[address] = value
 
                 if isinstance(self.msize, int) and isinstance(address, int):
                     old_msize = self.msize
@@ -788,7 +789,7 @@ class State:
                 else:
                     old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
                     address = BV2Int(address) if isinstance(address, BitVecRef) else address
-                    self.msize = If(address > self.msize, address, self.msize)
+                    self.msize = self.__get_if_expression(address > self.msize, address, self.msize)
 
                 result.set_gas(gas_table[opcode.name])
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
@@ -812,7 +813,7 @@ class State:
                 else:
                     old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
                     address = BV2Int(address) if isinstance(address, BitVecRef) else address
-                    self.msize = If(address > self.msize, address, self.msize)
+                    self.msize = self.__get_if_expression(address > self.msize, address, self.msize)
 
                 result.set_gas(gas_table[opcode.name])
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
@@ -851,7 +852,7 @@ class State:
                         else:
                             gas = 20000
                     else:
-                        gas = simplify(BV2Int(If(Not(value == 0), BitVecVal(20000, 256), BitVecVal(5000, 256))))
+                        gas = simplify(BV2Int(self.__get_if_expression(Not(value == 0), BitVecVal(20000, 256), BitVecVal(5000, 256))))
                 else:
                     if address in self.storage.keys():
                         gas = 5000
@@ -862,7 +863,7 @@ class State:
                             cond = False
                             for k in [e for e in self.storage.keys() if is_expr(e)]:
                                 cond = Or(cond, k == address)
-                            gas = simplify(BV2Int(If(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
+                            gas = simplify(BV2Int(self.__get_if_expression(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
                 result.set_gas(gas)
             else:
                 raise ValueError('STACK underflow')
@@ -950,11 +951,11 @@ class State:
                 if isinstance(out_value, int) and out_value != 0:
                     gas += 9000
                 elif is_expr(out_value):
-                    g = If(out_value == 0, 0, 9000)
+                    g = self.__get_if_expression(out_value == 0, 0, 9000)
                     if is_bv(g):
-                        gas += BV2Int(If(out_value == 0, 0, 9000))
+                        gas += BV2Int(self.__get_if_expression(out_value == 0, 0, 9000))
                     else:
-                        gas += If(out_value == 0, 0, 9000)
+                        gas += self.__get_if_expression(out_value == 0, 0, 9000)
                 result.set_gas(gas)
             else:
                 raise ValueError('STACK underflow')
@@ -1037,7 +1038,7 @@ class State:
 
                 contract_var = variables.get_variable(Variable('Inewaccount_%s' % opcode.pc, 'selfdestruct(address(%s))' % self.to_string(address), BitVec('Inewaccount_%s' % opcode.pc, 256)))
                 result.add_path_constraint(Or(contract_var==1, contract_var==0))
-                result.set_gas(5000 + BV2Int(If(contract_var==1, BitVecVal(25000, 256), BitVecVal(0, 256))))
+                result.set_gas(5000 + BV2Int(self.__get_if_expression(contract_var==1, BitVecVal(25000, 256), BitVecVal(0, 256))))
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'MSIZE':
@@ -1122,7 +1123,7 @@ class State:
                 else:
                     old_msize = BV2Int(self.msize) if isinstance(self.msize, BitVecRef) else self.msize
                     destOffset = BV2Int(destOffset) if isinstance(destOffset, BitVecRef) else destOffset
-                    self.msize = If(destOffset > self.msize, destOffset, self.msize)
+                    self.msize = self.__get_if_expression(destOffset > self.msize, destOffset, self.msize)
 
                 # NOTE: GAS
                 gas = gas_table[opcode.name]
@@ -1438,7 +1439,8 @@ class State:
                 pop_value = self.stack.pop(str(len(self.stack) - 1))
 
             # NOTE: GAS
-            gas = (int(opcode.name[3:]) + 1) * 375 + (8 * (int(log(word, 2)) // 8))
+            word_gas = 8 * (int(log(word, 2)) // 8) if word > 0 else 0
+            gas = (int(opcode.name[3:]) + 1) * 375 + word_gas
         elif opcode.name == 'CALL':
             out_gas = self.stack.pop(str(len(self.stack) - 1))
             addr = self.stack.pop(str(len(self.stack) - 1))
@@ -1547,7 +1549,19 @@ class State:
         for value in model.decls():
             if str(value) == variable:
                 return int(model[value].as_long())
-        return self.__get_value_from_model(variables, variables.variable_mapping[variable], model)
+        v = variables.variable_mapping.get(variable, None)
+        if v is None:
+            return 0
+        return self.__get_value_from_model(variables, v, model)
+    
+    def __get_if_expression(self, cond, true_val, false_val) -> ArithRef:
+        cond_val = simplify(cond) if is_expr(cond) else cond
+        if isinstance(cond_val, bool):
+            if cond_val:
+                return true_val
+            else:
+                return false_val
+        return If(cond, true_val, false_val)
 
     def init_with_var(self, variables: Variables) -> None:
         for i in range(3):
