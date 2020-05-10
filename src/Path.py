@@ -84,7 +84,7 @@ class Path:
                 p.append(node.tag)
         p.append(incoming_node.tag)
         loop_tag = p.pop(0)
-        p *= 3
+        p *= settings.MAX_LOOP_ITERATIONS
         return loop_tag, p
 
     def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:

@@ -51,7 +51,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MUL':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -67,7 +68,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SUB':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -87,7 +89,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'DIV':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -102,7 +105,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SDIV':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -146,7 +150,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MOD':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -177,7 +182,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SMOD':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -220,7 +226,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'ADDMOD':
             if len(self.stack) > 2:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -251,7 +258,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MULMOD':
             if len(self.stack) > 2:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -282,7 +290,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'EXP':
             if len(self.stack) > 1:
                 base = self.stack.pop(str(len(self.stack) - 1))
@@ -312,7 +321,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SIGNEXTEND':
             if len(self.stack) > 1:
                 bit = self.stack.pop(str(len(self.stack) - 1))
@@ -349,7 +359,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'LT':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -369,7 +380,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'GT':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -386,7 +398,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SLT':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -403,7 +416,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SGT':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -420,7 +434,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'EQ':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -435,7 +450,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'ISZERO':
             if len(self.stack) > 0:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -450,7 +466,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'AND':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -475,7 +492,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'OR':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -487,7 +505,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'XOR':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -499,7 +518,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'NOT':
             if len(self.stack) > 0:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -510,7 +530,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'BYTE':
             if len(self.stack) > 1:
                 first = self.stack.pop(str(len(self.stack) - 1))
@@ -539,7 +560,8 @@ class State:
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name in ['SHA3', 'KECCAK256']:
             if len(self.stack) > 1:
                 position = self.stack.pop(str(len(self.stack) - 1))
@@ -588,7 +610,8 @@ class State:
 
                 result.set_gas(gas)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'ADDRESS':
             addr_var = variables.get_variable(Variable('Ia', 'address(this) (address of the executing contract)', BitVec('Ia', 256)))
             result.add_path_constraint(ULT(addr_var, UNSIGNED_BOUND_NUMBER))
@@ -605,7 +628,8 @@ class State:
                 self.stack[str(len(self.stack))] = banlance_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'CALLER':
             caller_var = variables.get_variable(Variable('Ia_caller', 'msg.caller (caller address)', BitVec('Ia_caller', 256)))
             result.add_path_constraint(ULT(caller_var, UNSIGNED_BOUND_NUMBER))
@@ -638,7 +662,8 @@ class State:
                 self.stack[str(len(self.stack))] = data_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'CALLDATASIZE':
             ds_var = variables.get_variable(Variable('Id_size', 'msg.data.size', BitVec('Id_size', 256)))
             result.add_path_constraint(ULT(ds_var, BYTE_BOUND_NUMBER))
@@ -673,7 +698,8 @@ class State:
                 result.set_gas(gas)
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'CODESIZE':
             size_var = variables.get_variable(Variable('Id_size', 'address(this).code.size', BitVec('Id_size', 256)))
             result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
@@ -709,7 +735,8 @@ class State:
                 result.set_gas(gas)
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'GASPRICE':
             gas_var = variables.get_variable(Variable('Ip_%s' % opcode.pc, 'tx.gasprice', BitVec('Ip_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(gas_var, UNSIGNED_BOUND_NUMBER))
@@ -744,7 +771,8 @@ class State:
                 result.set_gas(gas)
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'RETURNDATASIZE':
             size_var = variables.get_variable(Variable('Id_size', 'data.size', BitVec('Id_size', 256)))
             result.add_path_constraint(ULT(size_var, BYTE_BOUND_NUMBER))
@@ -762,7 +790,8 @@ class State:
                 self.stack.pop(str(len(self.stack) - 1))
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MLOAD':
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -781,7 +810,8 @@ class State:
                 self.stack[str(len(self.stack))] = value
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MSTORE':
             if len(self.stack) > 1:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -800,7 +830,8 @@ class State:
                 result.set_gas(gas_table[opcode.name])
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MSTORE8':
             if len(self.stack) > 1:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -824,7 +855,8 @@ class State:
                 result.set_gas(gas_table[opcode.name])
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SLOAD':
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -843,7 +875,8 @@ class State:
                 self.stack[str(len(self.stack))] = value
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SSTORE':
             if len(self.stack) > 1:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -872,20 +905,23 @@ class State:
                             gas = simplify(BV2Int(self.__get_if_expression(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
                 result.set_gas(gas)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'JUMP':
             if len(self.stack) > 0:
                 result.set_jump_tag(self.stack.pop(str(len(self.stack) - 1)))
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'JUMPI':
             if len(self.stack) > 1:
                 result.set_jump_tag(self.stack.pop(str(len(self.stack) - 1)))
                 result.set_jump_condition(self.stack.pop(str(len(self.stack) - 1)))
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'GAS':
             gas_var = variables.get_variable(Variable('Igas_%s' % opcode.pc, 'Gas Remaining', BitVec('Igas_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(gas_var, UNSIGNED_BOUND_NUMBER))
@@ -907,7 +943,8 @@ class State:
                 self.stack[str(len(self.stack))] = duplicate_value
                 result.set_gas(gas_table['DUP'])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name.startswith('SWAP', 0):
             position = len(self.stack) - 1 - int(opcode.name[4:], 10)
             if position >= 0:
@@ -936,7 +973,8 @@ class State:
                     gas = (int(opcode.name[3:]) + 1) * 375 + (8 * BV2Int(size_var))
                 result.set_gas(gas)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'CALL':
             if len(self.stack) > 6:
                 out_gas = self.stack.pop(str(len(self.stack) - 1))
@@ -965,7 +1003,8 @@ class State:
                         gas += self.__get_if_expression(out_value == 0, 0, 9000)
                 result.set_gas(gas)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'CALLCODE':
             if len(self.stack) > 6:
                 out_gas = self.stack.pop(str(len(self.stack) - 1))
@@ -981,7 +1020,8 @@ class State:
                 self.stack[str(len(self.stack))] = call_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name in ['DELEGATECALL', 'STATICCALL']:
             if len(self.stack) > 2:
                 out_gas = self.stack.pop(str(len(self.stack) - 1))
@@ -996,14 +1036,16 @@ class State:
                 self.stack[str(len(self.stack))] = call_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'RETURN':
             if len(self.stack) > 1:
                 offset = self.stack.pop(str(len(self.stack) - 1))
                 length = self.stack.pop(str(len(self.stack) - 1))
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'CREATE':
             if len(self.stack) > 2:
                 value = self.stack.pop(str(len(self.stack) - 1))
@@ -1016,7 +1058,8 @@ class State:
                 self.stack[str(len(self.stack))] = addr_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'EXTCODESIZE':
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -1027,7 +1070,8 @@ class State:
                 self.stack[str(len(self.stack))] = code_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'BLOCKHASH':
             if len(self.stack) > 0:
                 block_num = self.stack.pop(str(len(self.stack) - 1))
@@ -1038,7 +1082,8 @@ class State:
                 self.stack[str(len(self.stack))] = hash_var
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SELFDESTRUCT':
             if len(self.stack) > 0:
                 address = self.stack.pop(str(len(self.stack) - 1))
@@ -1047,7 +1092,8 @@ class State:
                 result.add_path_constraint(Or(contract_var==1, contract_var==0))
                 result.set_gas(5000 + BV2Int(self.__get_if_expression(contract_var==1, BitVecVal(25000, 256), BitVecVal(0, 256))))
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'MSIZE':
             size_var = variables.get_variable(Variable('Imemsize_%s' % opcode.pc, 'size of memory for this contract execution, in bytes', BitVec('Imemsize_%s' % opcode.pc, 256)))
             result.add_path_constraint(ULT(size_var, UNSIGNED_BOUND_NUMBER))
@@ -1068,7 +1114,8 @@ class State:
                 self.stack[str(len(self.stack))] = shift_value
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SHR':
             if len(self.stack) > 1:
                 shift = self.stack.pop(str(len(self.stack) - 1))
@@ -1083,7 +1130,8 @@ class State:
                 self.stack[str(len(self.stack))] = shift_value
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SAR':
             if len(self.stack) > 1:
                 shift = self.stack.pop(str(len(self.stack) - 1))
@@ -1098,7 +1146,8 @@ class State:
                 self.stack[str(len(self.stack))] = shift_value
                 result.set_gas(gas_table[opcode.name])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'DIFFICULTY':
             diff_var = variables.get_variable(Variable('Idiff', 'block.difficulty', BitVec('Idiff', 256)))
             result.add_path_constraint(ULT(diff_var, UNSIGNED_BOUND_NUMBER))
@@ -1138,7 +1187,8 @@ class State:
                 result.set_gas(gas_table[opcode.name])
                 result.set_memory_gas(3 * (self.msize - old_msize) + (self.msize * self.msize)/512 - (old_msize * old_msize)/512)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         else:
             err_result = Result()
             err_result.log_error(settings.ADDRESS, 'UNKNOWN INSTRUCTION: %s' % opcode)
@@ -1511,7 +1561,8 @@ class State:
                 self.stack[str(len(self.stack))] = value << shift
                 gas = gas_table[opcode.name]
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SHR':
             if len(self.stack) > 1:
                 shift = self.stack.pop(str(len(self.stack) - 1))
@@ -1519,7 +1570,8 @@ class State:
                 self.stack[str(len(self.stack))] = value >> shift
                 gas = gas_table[opcode.name]
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'SAR':
             if len(self.stack) > 1:
                 shift = self.stack.pop(str(len(self.stack) - 1))
@@ -1527,7 +1579,8 @@ class State:
                 self.stack[str(len(self.stack))] = value >> shift
                 gas = gas_table[opcode.name]
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name == 'DIFFICULTY':
             self.stack[str(len(self.stack))] = self.__get_value_from_model(variables, 'Idiff', model)
             gas = gas_table[opcode.name]
@@ -1547,7 +1600,8 @@ class State:
                 self.memory[destOffset] = self.__get_value_from_model(variables, 'Icode_%s' % opcode.pc, model)
                 gas = gas_table[opcode.name] + 3 * (length // 32)
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         else:
             raise Exception('UNKNOWN INSTRUCTION:', instruction, line)
         

@@ -12,7 +12,7 @@ OUTPUT_PATH = os.path.join(ROOT_PATH, 'result')
 # Detect loop once and evaluate to n
 LOOP_DETECTION = False
 # How many times to execute the loop if not detecting the loop
-MAX_LOOP_ITERATIONS = 2
+MAX_LOOP_ITERATIONS = 3
 # Remove Unreached node
 REMOVE_UNREACHED_NODE = False
 # Linux Mode

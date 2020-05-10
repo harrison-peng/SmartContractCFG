@@ -27,9 +27,9 @@ class Analyzer:
                 logging.debug('Start From Tag %s' % node.tag)
                 self.symbolic_execution(node.tag, Path(), s)
 
-    def symbolic_execution(self, tag: int, path: Path, state: State, loop_path: [int] = None) -> None:
+    def symbolic_execution(self, tag: int, path: Path, state: State, loop_path: [int] = None, loop_tag: int = None) -> None:
         from src.Result import Result
-        logging.debug('TAG: %s' % tag)
+        logging.debug('TAG: %s (%s)' % (tag, loop_tag))
         if loop_path:
             print('[PATH]:')
             print(path)
@@ -78,9 +78,9 @@ class Analyzer:
                 self.__add_edge(Edge(node.tag, result.jump_tag, 'red'))
 
                 if loop_path:
-                    return self.symbolic_execution(loop_path.pop(0), path, state, loop_path)
+                    return self.symbolic_execution(loop_path.pop(0), path, state, loop_path, loop_tag)
 
-                return self.symbolic_execution(result.jump_tag, path, state)
+                return self.symbolic_execution(result.jump_tag, path, state, loop_tag)
             elif opcode.name == 'JUMPI':
                 tmp_cond = simplify(result.jump_condition) if is_expr(result.jump_condition) else result.jump_condition
                 result.jump_condition = int(tmp_cond.as_long()) if isinstance(tmp_cond, BitVecNumRef) else result.jump_condition
@@ -104,12 +104,15 @@ class Analyzer:
                 else:
                     path_cond = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
 
+                    if loop_path is not None:
+                        print('[JUMPI LOOP]:', tag, loop_tag, path.count_specific_node_num(node.tag), loop_path)
                     if loop_path is None and path.count_specific_node_num(node.tag) > 0 and is_expr(path_cond):
                         loop_tag, loop_path = path.find_loop_path(node)
-                        print('LOOP:', loop_tag, loop_path)
+                        print('[LOOP]:', loop_tag, loop_path)
                         # loop_path.pop(0)
                     
-                    if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):
+                    if loop_tag == tag and path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):
+                        print('MAX LOOP:', tag)
                         for node in self.cfg.nodes:
                             if node.tag == tag:
                                 node.loop_condition.append(path.find_loop_condition(node))
@@ -140,12 +143,13 @@ class Analyzer:
                         err_result.log_error(settings.ADDRESS, err_message)
                         raise ValueError(err_message)
                 elif loop_path:
+                    path.add_node(deepcopy(node))
                     next_tag = loop_path.pop(0)
                     if next_tag == opcode.get_next_pc():
                         path.add_path_constraints([result.jump_condition==0])
                     else:
                         path.add_path_constraints([result.jump_condition==1])
-                    return self.symbolic_execution(next_tag, deepcopy(path), deepcopy(state), loop_path)
+                    return self.symbolic_execution(next_tag, deepcopy(path), deepcopy(state), loop_path, loop_tag)
                 else:
                     # NOTE: set gas to node
                     node.set_gas(gas)
