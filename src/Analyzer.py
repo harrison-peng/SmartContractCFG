@@ -19,9 +19,21 @@ class Analyzer:
         self.variables = Variables()
         self.count_path = 0
 
-    def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
+    def start(self):
+        for node in self.cfg.nodes:
+            if node.color == 'yellow':
+                s = State()
+                s.memory = {64:128}
+                logging.debug('Start From Tag %s' % node.tag)
+                self.symbolic_execution(node.tag, Path(), s)
+
+    def symbolic_execution(self, tag: int, path: Path, state: State, loop_path: [int] = None) -> None:
         from src.Result import Result
-        # logging.debug('TAG: %s' % tag)
+        logging.debug('TAG: %s' % tag)
+        if loop_path:
+            print('[PATH]:')
+            print(path)
+            print(loop_path, '\n')
 
         if settings.DETECT_LOOP:
             return 
@@ -40,9 +52,11 @@ class Analyzer:
         for opcode in node.opcodes:
             # NOTE: state simulation
             result = state.simulate(opcode, self.variables)
-            # if tag in [3618, 6086]:
+            if result == 'ERROR': 
+                return
+            # if tag in [2041]:
             #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
-            #     logging.debug('Stack: %s' % self.to_string(state.stack))
+            #     logging.debug('Stack: %s\n' % self.to_string(state.stack))
             #     logging.debug('MEM: %s' % self.to_string(state.memory))
             #     logging.debug('STO: %s\n' % self.to_string(state.storage))
             path.add_path_constraints(result.path_constraints)
@@ -62,6 +76,9 @@ class Analyzer:
 
                 # NOTE: if edge is not in edges -> add edge into edges
                 self.__add_edge(Edge(node.tag, result.jump_tag, 'red'))
+
+                if loop_path:
+                    return self.symbolic_execution(loop_path.pop(0), path, state, loop_path)
 
                 return self.symbolic_execution(result.jump_tag, path, state)
             elif opcode.name == 'JUMPI':
@@ -86,6 +103,12 @@ class Analyzer:
                             raise ValueError(err_message)
                 else:
                     path_cond = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
+
+                    if loop_path is None and path.count_specific_node_num(node.tag) > 0 and is_expr(path_cond):
+                        loop_tag, loop_path = path.find_loop_path(node)
+                        print('LOOP:', loop_tag, loop_path)
+                        # loop_path.pop(0)
+                    
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):
                         for node in self.cfg.nodes:
                             if node.tag == tag:
@@ -116,7 +139,13 @@ class Analyzer:
                         err_message = 'Loop Error:[%s] Both JUMPDEST tags have been executed' % tag
                         err_result.log_error(settings.ADDRESS, err_message)
                         raise ValueError(err_message)
-
+                elif loop_path:
+                    next_tag = loop_path.pop(0)
+                    if next_tag == opcode.get_next_pc():
+                        path.add_path_constraints([result.jump_condition==0])
+                    else:
+                        path.add_path_constraints([result.jump_condition==1])
+                    return self.symbolic_execution(next_tag, deepcopy(path), deepcopy(state), loop_path)
                 else:
                     # NOTE: set gas to node
                     node.set_gas(gas)
@@ -126,6 +155,10 @@ class Analyzer:
                     path.add_node(deepcopy(node))
 
                     # NOTE: Jump to two path
+                    # if tag == 0:
+                    # edge_false.set_path_constraint(self.to_string(simplify(result.jump_condition==0)))
+                    # return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
+
                     if isinstance(result.jump_condition, int) and result.jump_condition == 1:
                         edge_true.set_path_constraint('True')
                         edge_false.set_path_constraint('False')
@@ -187,7 +220,7 @@ class Analyzer:
         # NOTE: if edge is not in edges -> add edge into edges
         self.__add_edge(Edge(node.tag, opcode.get_next_pc(), 'red'))
 
-        return self.symbolic_execution(opcode.get_next_pc(), path, state)
+        return self.symbolic_execution(opcode.get_next_pc(), path, state, loop_path)
 
     def symbolic_execution_from_other_head(self) -> None:
         from_list = [edge.from_ for edge in self.cfg.edges]

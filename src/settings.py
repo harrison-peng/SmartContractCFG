@@ -10,9 +10,9 @@ OUTPUT_PATH = os.path.join(ROOT_PATH, 'result')
 
 # NOTE: Settings
 # Detect loop once and evaluate to n
-LOOP_DETECTION = True
+LOOP_DETECTION = False
 # How many times to execute the loop if not detecting the loop
-MAX_LOOP_ITERATIONS = 5
+MAX_LOOP_ITERATIONS = 2
 # Remove Unreached node
 REMOVE_UNREACHED_NODE = False
 # Linux Mode
@@ -22,14 +22,14 @@ CFG_FORMAT = None
 # contain state information in CFG
 CFG_STATE = False
 # Solver Timeout (millisecond)
-TIMEOUT = 30000
+TIMEOUT = 3000
 # LOOP DETECTION
 DETECT_LOOP = False
 # ADDRESS
 ADDRESS = None
 # Max Node Visited Times
 ENABLE_MAX_NODE_VISITED_TIMES = True
-MAX_NODE_VISITED_TIMES = 100
+MAX_NODE_VISITED_TIMES = 20
 # SPECIFY SOLIDITY VERSION
 SPECILIFY_SOL_VERSION = False
 # GAS LIMIT

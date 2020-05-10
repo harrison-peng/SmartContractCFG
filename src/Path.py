@@ -57,14 +57,35 @@ class Path:
     def node_last_index(self, tag: int) -> int:
         return [index for index, node in enumerate(self.path) if node.tag == tag][-1]
 
-    def find_loop_condition(self, incoming_node: Node):
+    def find_loop_condition(self, incoming_node: Node) -> ([int], [ArithRef]):
+        start = False
+        p = list()
+        c = list()
         for node in self.path:
             if node.tag == incoming_node.tag:
                 # c1 = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
                 # c2 = simplify(incoming_node.path_constraint) if is_expr(incoming_node.path_constraint) else incoming_node.path_constraint
-                c1 = node.path_constraint
-                c2 = incoming_node.path_constraint
-                return (c1, c2)
+                # c1 = node.path_constraint
+                # c2 = incoming_node.path_constraint
+                c.append(node.path_constraint)
+                start = True
+            if start:
+                p.append(node.tag)
+        c.append(incoming_node.path_constraint)
+        return (p, c)
+    
+    def find_loop_path(self, incoming_node: Node) -> [int]:
+        p = list()
+        start = False
+        for node in self.path:
+            if node.tag == incoming_node.tag:
+                start = True
+            if start:
+                p.append(node.tag)
+        p.append(incoming_node.tag)
+        loop_tag = p.pop(0)
+        p *= 3
+        return loop_tag, p
 
     def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
         nodes = list()

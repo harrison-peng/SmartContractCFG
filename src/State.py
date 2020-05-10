@@ -45,7 +45,8 @@ class State:
                     second = BitVecVal(second, 256)
                     computed = first + second
                 else:
-                    computed = (first + second) % (2 ** 256)
+                    # computed = (first + second) % (2 ** 256)
+                    computed = first + second
 
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
@@ -60,7 +61,7 @@ class State:
                     first = BitVecVal(first, 256)
                 elif is_symbolic(first) and is_real(second):
                     second = BitVecVal(second, 256)
-                computed = first * second & UNSIGNED_BOUND_NUMBER
+                computed = first * second #& UNSIGNED_BOUND_NUMBER
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -79,7 +80,8 @@ class State:
                     second = BitVecVal(second, 256)
                     computed = first - second
                 else:
-                    computed = (first - second) % (2 ** 256)
+                    # computed = (first - second) % (2 ** 256)
+                    computed = first - second
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -156,7 +158,7 @@ class State:
                     else:
                         first = to_unsigned(first)
                         second = to_unsigned(second)
-                        computed = first % second & UNSIGNED_BOUND_NUMBER
+                        computed = first % second #& UNSIGNED_BOUND_NUMBER
 
                 else:
                     first = to_symbolic(first)
@@ -462,6 +464,10 @@ class State:
                     computed = first
                     if is_expr(first):
                         result.add_path_constraint(ULT(computed, ADDRESS_BOUND_NUMBER))
+                elif isinstance(first, int) and first == 115792089237316195423570985008687907853269984665640564039457584007913129639935:
+                    computed = second
+                elif isinstance(second, int) and second == 115792089237316195423570985008687907853269984665640564039457584007913129639935:
+                    computed = first
                 else:
                     computed = first & second
                     # computed = simplify(computed) if is_expr(computed) else computed
@@ -904,13 +910,14 @@ class State:
                 raise ValueError('STACK underflow')
         elif opcode.name.startswith('SWAP', 0):
             position = len(self.stack) - 1 - int(opcode.name[4:], 10)
-            if len(self.stack) > position:
+            if position >= 0:
                 temp_value = self.stack[str(position)]
                 self.stack[str(position)] = self.stack[str(len(self.stack) - 1)]
                 self.stack[str(len(self.stack) - 1)] = temp_value
                 result.set_gas(gas_table['SWAP'])
             else:
-                raise ValueError('STACK underflow')
+                return 'ERROR'
+                # raise ValueError('STACK underflow')
         elif opcode.name in ('LOG0', 'LOG1', 'LOG2', 'LOG3', 'LOG4'):
             num_of_pops = 2 + int(opcode.name[3:])
             if len(self.stack) >= num_of_pops:
@@ -1159,7 +1166,8 @@ class State:
         elif opcode.name == 'SUB':
             first = self.stack.pop(str(len(self.stack) - 1))
             second = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = (first - second) % (2 ** 256)
+            # self.stack[str(len(self.stack))] = (first - second) % (2 ** 256)
+            self.stack[str(len(self.stack))] = first - second
             gas = gas_table[opcode.name]
         elif opcode.name == 'DIV':
             first = self.stack.pop(str(len(self.stack) - 1))
@@ -1282,7 +1290,7 @@ class State:
             gas = gas_table[opcode.name]
         elif opcode.name == 'NOT':
             first = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = (~first) & UNSIGNED_BOUND_NUMBER
+            self.stack[str(len(self.stack))] = (~first) #& UNSIGNED_BOUND_NUMBER
             gas = gas_table[opcode.name]
         elif opcode.name == 'BYTE':
             first = self.stack.pop(str(len(self.stack) - 1))

@@ -12,6 +12,7 @@ from src.Path import Path
 from src.State import State
 from src.Result import Result
 from src.Variable import Variables
+from z3 import *
 
 
 def main():
@@ -111,7 +112,8 @@ def opcodes_analysis(contract_name):
             # NOTE: Analysis
             logging.info('Symbolic simulation...')
             analyzer = Analyzer(cfg)
-            analyzer.symbolic_execution(0, Path(), State())
+            analyzer.start()
+            # analyzer.symbolic_execution(0, Path(), State())
             # analyzer.symbolic_execution_from_other_head()
             analyzer.set_paths_id()
             logging.info('CFG node count = %s' % cfg.node_num())
@@ -137,6 +139,27 @@ def opcodes_analysis(contract_name):
             else:
                 max_gas = get_max_constant_gas(constant_path)
             logging.info('Max gas: %s' % max_gas)
+
+            content = ''
+            for node in cfg.nodes:
+                if node.loop_condition:
+                    content += '[%s]\n' % node.tag
+                    loop_cond_li = list()
+                    for paths, conds in node.loop_condition:
+                        loop_cond_ctx = 'PATH:%s\n' % paths
+                        for idx, cond in enumerate(conds):
+                            loop_cond_ctx += '(%s)      %s\n' % (idx, cond)
+                            loop_cond_ctx += '-------------------------------------------\n'
+                        loop_cond_ctx += '+-------------------------------------------+\n\n'
+                        if loop_cond_ctx not in loop_cond_li:
+                            loop_cond_li.append(loop_cond_ctx)
+                    for ctx in loop_cond_li:
+                        content += ctx
+                    content += '==================================================\n\n\n'
+            content = content.replace('-------------------------------------------\n+-------------------------------------------+', '+-------------------------------------------+')
+            content = content.replace('+-------------------------------------------+\n\n==================================================', '==================================================')
+            with open('%s/%s/loopCond.txt' % (settings.OUTPUT_PATH, contract_name), 'w') as f:
+                f.write(content)
 
             # NOTE: Output Result File
             logging.info('Writting analysis result into file...')
