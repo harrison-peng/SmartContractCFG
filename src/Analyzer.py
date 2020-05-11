@@ -106,11 +106,31 @@ class Analyzer:
 
                     if loop_path is not None:
                         print('[JUMPI LOOP]:', tag, loop_tag, path.count_specific_node_num(node.tag), loop_path)
-                    if loop_path is None and path.count_specific_node_num(node.tag) > 0 and is_expr(path_cond):
-                        loop_tag, loop_path = path.find_loop_path(node)
-                        print('[LOOP]:', loop_tag, loop_path)
-                        # loop_path.pop(0)
-                    
+                    if path.count_specific_node_num(node.tag) > 0 and is_expr(path_cond):
+                        if loop_path is None:
+                            loop_tag, loop_path = path.find_loop_path(node)
+                            print('[LOOP]:', loop_tag, loop_path)
+                            path.add_node(deepcopy(node))
+                            next_tag = loop_path.pop(0)
+                            if next_tag == opcode.get_next_pc():
+                                path.add_path_constraints([result.jump_condition==0])
+                            else:
+                                path.add_path_constraints([result.jump_condition==1])
+                            return self.symbolic_execution(next_tag, deepcopy(path), deepcopy(state), loop_path, loop_tag)
+                        elif loop_tag != tag:
+                            path.add_node(deepcopy(node))
+                            next_tag = loop_path.pop(0)
+                            if next_tag == opcode.get_next_pc():
+                                path.add_path_constraints([result.jump_condition==0])
+                            else:
+                                path.add_path_constraints([result.jump_condition==1])
+                            self.symbolic_execution(next_tag, deepcopy(path), deepcopy(state), loop_path, loop_tag)
+
+                            new_loop_tag, new_loop_path = path.find_loop_path(node)
+                            print('[LOOP]:', new_loop_tag, new_loop_path)
+                            new_next_tag = new_loop_path.pop(0)
+                            return self.symbolic_execution(new_next_tag, deepcopy(path), deepcopy(state), new_loop_path, new_loop_tag)
+
                     if loop_tag == tag and path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):
                         print('MAX LOOP:', tag)
                         for node in self.cfg.nodes:
