@@ -19,6 +19,7 @@ class Cfg:
 
     def build_cfg(self, opcode_data: str) -> None:
         logging.info('Constructing CFG...')
+        start_list = list()
 
         opcode_list = opcode_data.split('\n')
         for i in range(len(opcode_list)):
@@ -32,7 +33,10 @@ class Cfg:
         pre_opcode = None
         start_idx = 0
         start_pc = 0
+        function_start = False
         for index, opcode in enumerate(self.opcodes):
+            if opcode.pc == 9:
+                start_list.append(int(str(opcode.value), 16))
             if opcode.name == 'JUMPDEST' and start_idx != index:
                 content = self.opcodes[start_idx:index]
                 node = Node(start_pc, content)
@@ -43,6 +47,11 @@ class Cfg:
                 start_idx = index
                 start_pc = opcode.pc
             elif opcode.name.startswith('PUSH'):
+                if opcode.name == 'PUSH4' and opcode.value != '0xFFFFFFFF':
+                    function_start = True
+                if function_start and opcode.name == 'PUSH2':
+                    start_list.append(int(str(opcode.value), 16))
+                    function_start = False
                 push_value = opcode.value
             elif opcode.name == 'JUMP':
                 content = self.opcodes[start_idx:index+1]
@@ -78,6 +87,10 @@ class Cfg:
                 start_idx = index + 1
                 start_pc = opcode.pc + 1
             pre_opcode = opcode
+        
+        for node in self.nodes:
+            if node.tag in start_list:
+                node.color = 'yellow'
 
     def render(self, file: str, paths: list = None) -> None:
         G = nx.DiGraph()
@@ -174,6 +187,11 @@ class Cfg:
         return [edge for edge in self.edges if edge.from_ == from_ and edge.to_ == to_][0]
 
     def remove_unreach_nodes(self) -> None:
+        new_edges = list()
+        for edge in self.edges:
+            if edge.color != 'black':
+                new_edges.append(edge)
+        self.edges = new_edges
         reached_list = [edge.from_ for edge in self.edges] + [edge.to_ for edge in self.edges]
         for node in list(self.nodes):
             if node.tag not in reached_list:
