@@ -106,12 +106,14 @@ def opcodes_analysis(contract_name):
             cfg.build_cfg(opcodes)
             settings.CFG_PATH = '%s/%s/cfg/%s' % (settings.OUTPUT_PATH, contract_name, file_name)
             cfg.render(settings.CFG_PATH)
+            logging.debug('Function Hashes: %s' % cfg.function_map)
             logging.info('Total instructions: %s' % cfg.ins_num())
 
             # NOTE: Analysis
             logging.info('Symbolic simulation...')
             analyzer = Analyzer(cfg)
-            analyzer.symbolic_execution(0, Path(), State())
+            analyzer.start()
+            # analyzer.symbolic_execution(0, Path(), State())
             # analyzer.symbolic_execution_from_other_head()
             analyzer.set_paths_id()
             logging.info('CFG node count = %s' % cfg.node_num())

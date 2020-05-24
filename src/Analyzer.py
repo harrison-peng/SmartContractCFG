@@ -18,13 +18,21 @@ class Analyzer:
         self.paths = list()
         self.variables = Variables()
         self.count_path = 0
+    
+    def start(self):
+        for node in self.cfg.nodes:
+            if node.color == 'yellow':
+                s = State()
+                s.memory = {64:128}
+                logging.debug('Start From Tag %s' % node.tag)
+                self.symbolic_execution(node.tag, Path(), s)
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
         from src.Result import Result
         # logging.debug('TAG: %s' % tag)
 
-        if settings.DETECT_LOOP:
-            return 
+        # if settings.DETECT_LOOP:
+        #     return 
 
         node = self.cfg.get_node(tag)
         if not node:
@@ -40,9 +48,9 @@ class Analyzer:
         for opcode in node.opcodes:
             # NOTE: state simulation
             result = state.simulate(opcode, self.variables)
-            # if tag in [3618, 6086]:
+            # if tag in [1133]:
             #     logging.debug('%s: %s' % (opcode.pc, opcode.name))
-            #     logging.debug('Stack: %s' % self.to_string(state.stack))
+            #     logging.debug('Stack: %s\n' % self.to_string(state.stack))
             #     logging.debug('MEM: %s' % self.to_string(state.memory))
             #     logging.debug('STO: %s\n' % self.to_string(state.storage))
             path.add_path_constraints(result.path_constraints)

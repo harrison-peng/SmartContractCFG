@@ -16,6 +16,7 @@ class Cfg:
         self.opcodes = list()
         self.graph = None
         self.count = 0
+        self.function_map = dict()
 
     def build_cfg(self, opcode_data: str) -> None:
         logging.info('Constructing CFG...')
@@ -33,9 +34,13 @@ class Cfg:
         pre_opcode = None
         start_idx = 0
         start_pc = 0
+        end_start_tag = 0
+        add_start = True
         function_start = False
+        function_hashes = ''
         for index, opcode in enumerate(self.opcodes):
-            if opcode.pc == 9:
+            if opcode.pc == 9 and opcode.name.startswith('PUSH'):
+                end_start_tag = int(str(opcode.value), 16)
                 start_list.append(int(str(opcode.value), 16))
             if opcode.name == 'JUMPDEST' and start_idx != index:
                 content = self.opcodes[start_idx:index]
@@ -47,11 +52,15 @@ class Cfg:
                 start_idx = index
                 start_pc = opcode.pc
             elif opcode.name.startswith('PUSH'):
-                if opcode.name == 'PUSH4' and opcode.value != '0xFFFFFFFF':
-                    function_start = True
-                if function_start and opcode.name == 'PUSH2':
-                    start_list.append(int(str(opcode.value), 16))
-                    function_start = False
+                if add_start:
+                    if opcode.name == 'PUSH4' and opcode.value != '0xFFFFFFFF':
+                        function_hashes = opcode.value
+                        function_start = True
+                    if function_start and opcode.name == 'PUSH2':
+                        self.function_map[function_hashes] = int(str(opcode.value), 16)
+                        start_list.append(int(str(opcode.value), 16))
+                        function_start = False
+                        function_hashes = ''
                 push_value = opcode.value
             elif opcode.name == 'JUMP':
                 content = self.opcodes[start_idx:index+1]
@@ -74,6 +83,9 @@ class Cfg:
                 self.edges.append(edge)
                 start_idx = index + 1
                 start_pc = opcode.pc + 1
+
+                if opcode.pc == end_start_tag - 1:
+                    add_start = False
             elif opcode.name in ['STOP', 'RETURN', 'REVERT', 'INVALID', 'SELFDESTRUCT']:
                 content = self.opcodes[start_idx:index+1]
                 node = Node(start_pc, content)
