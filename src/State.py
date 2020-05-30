@@ -45,7 +45,7 @@ class State:
                     second = BitVecVal(second, 256)
                     computed = first + second
                 else:
-                    computed = (first + second) % (2 ** 256)
+                    computed = first + second
 
                 self.stack[str(len(self.stack))] = computed
                 result.set_gas(gas_table[opcode.name])
@@ -79,7 +79,7 @@ class State:
                     second = BitVecVal(second, 256)
                     computed = first - second
                 else:
-                    computed = (first - second) % (2 ** 256)
+                    computed = first - second
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
@@ -842,7 +842,6 @@ class State:
             if len(self.stack) > 1:
                 address = self.stack.pop(str(len(self.stack) - 1))
                 value = self.stack.pop(str(len(self.stack) - 1))
-                self.storage[address] = value
 
                 # NOTE: GAS
                 if len(self.storage) == 0:
@@ -865,6 +864,7 @@ class State:
                                 cond = Or(cond, k == address)
                             gas = simplify(BV2Int(self.__get_if_expression(Or(value == 0, cond), BitVecVal(5000, 256), BitVecVal(20000, 256))))
                 result.set_gas(gas)
+                self.storage[str(address)] = value
             else:
                 raise ValueError('STACK underflow')
         elif opcode.name == 'JUMP':
@@ -1159,7 +1159,7 @@ class State:
         elif opcode.name == 'SUB':
             first = self.stack.pop(str(len(self.stack) - 1))
             second = self.stack.pop(str(len(self.stack) - 1))
-            self.stack[str(len(self.stack))] = (first - second) % (2 ** 256)
+            self.stack[str(len(self.stack))] = first - second
             gas = gas_table[opcode.name]
         elif opcode.name == 'DIV':
             first = self.stack.pop(str(len(self.stack) - 1))
