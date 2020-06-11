@@ -24,6 +24,8 @@ def main():
     parser.add_argument('-o', '--output', dest='output', help='the output path')
     parser.add_argument('-d', '--debug', dest='debug', help='set logger to DEBUG mode', action='store_true')
     parser.add_argument('-l', '--linux-mode', dest='linuxmode', help='to run on linux, use linux mode', action='store_true')
+    parser.add_argument('-fm', '--function-mode', dest='functionmode', help='Symbolic execution by function', action='store_true')
+
 
     args = parser.parse_args()
 
@@ -45,6 +47,9 @@ def main():
 
     if args.linuxmode:
         settings.LINUX_MODE = True
+    
+    if args.functionmode:
+        settings.FUNCTION_MODE = True
 
     if args.format in ['html', 'svg']:
         settings.CFG_FORMAT = args.format
@@ -112,8 +117,10 @@ def opcodes_analysis(contract_name):
             # NOTE: Analysis
             logging.info('Symbolic simulation...')
             analyzer = Analyzer(cfg)
-            analyzer.start()
-            # analyzer.symbolic_execution(0, Path(), State())
+            if settings.FUNCTION_MODE:
+                analyzer.start()
+            else:
+                analyzer.symbolic_execution(0, Path(), State())
             # analyzer.symbolic_execution_from_other_head()
             analyzer.set_paths_id()
             logging.info('CFG node count = %s' % cfg.node_num())
