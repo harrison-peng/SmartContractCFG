@@ -132,6 +132,30 @@ class Cfg:
         else:
             logging.error('CFG format error')
 
+    def render_loop(self, file: str, path: Path) -> None:
+        G = nx.DiGraph()
+        path_tag = [node.tag for node in path.path]
+        if settings.CFG_FORMAT == 'html':
+            for node in path.path:
+                G.add_node(node.tag, id=node.tag, color=node.color, tooltip=self.__path_node_to_graph_content(node))
+            for edge in self.edges:
+                if edge.from_ in path_tag and edge.to_ in path_tag:
+                    label = '[Path Constraint]\n\n%s' % edge.path_constraint
+                    G.add_edge(edge.from_, edge.to_, tooltip=label, color=edge.color)
+
+            with open('%s.html' % file, 'w') as f:
+                f.write(self.svg_to_html(nx.nx_pydot.to_pydot(G).create_svg().decode("utf-8")))
+        elif settings.CFG_FORMAT == 'svg':
+            for node in self.nodes:
+                G.add_node(node.tag, id=node.tag, color=node.color, shape='box', label=self.__path_node_to_graph_content(node))
+            for edge in self.edges:
+                if edge.from_ in path_tag and edge.to_ in path_tag:
+                    G.add_edge(edge.from_, edge.to_, label=edge.path_constraint if edge.path_constraint else '', color=edge.color)
+
+            with open('%s.svg' % file, 'wb') as f:
+                f.write(nx.nx_pydot.to_pydot(G).create_svg())
+        else:
+            logging.error('CFG format error')
 
     def __node_to_graph_content(self, node: Node, node_list: list = None) -> str:
         seg = '-+-+' * 10
@@ -143,14 +167,38 @@ class Cfg:
         if not (isinstance(node.gas, int) and node.gas == 0):
             content += '\n[GAS]: %s' % self.to_string(node.gas)
         if node_list and CFG_STATE:
-            content += '\n%s\n\n' % seg
-            for path_id, state in node_list:
-                logging.debug('Add node to result: %s' % path_id)
+            content += '\n\n%s\n\n' % seg
+            for path_id, init_state, state in node_list:
                 content += '[Path: %s]\n\n' % path_id
+                content += '+------+\n|BEFORE|\n+------+\n\n'
+                content += 'Stack: %s\n\n' % self.to_string(init_state.stack)
+                content += 'Memory: %s\n\n' % self.to_string(init_state.memory)
+                content += 'Storage: %s\n' % self.to_string(init_state.storage)
+                content += '+-----+\n|AFTER|\n+-----+\n\n'
                 content += 'Stack: %s\n\n' % self.to_string(state.stack)
                 content += 'Memory: %s\n\n' % self.to_string(state.memory)
                 content += 'Storage: %s\n' % self.to_string(state.storage)
                 content += '%s\n\n' % sub_seg
+        return content
+
+    def __path_node_to_graph_content(self, node: Node) -> str:
+        seg = '-' * 50
+        content = '[ADDRESS: %s]\n\n' % str(node.tag)
+        opcdoes = node.opcodes
+        for opcode in opcdoes:
+            content += '%s: %s %s\n' % (opcode.pc, opcode.name, opcode.value if opcode.value else '')
+        if not (isinstance(node.gas, int) and node.gas == 0):
+            content += '\n[GAS]: %s' % self.to_string(node.gas)
+        if CFG_STATE:
+            content += '\n\n%s\n\n' % seg
+            content += '+------+\n|BEFORE|\n+------+\n\n'
+            content += 'Stack: %s\n\n' % self.to_string(node.init_state.stack)
+            content += 'Memory: %s\n\n' % self.to_string(node.init_state.memory)
+            content += 'Storage: %s\n' % self.to_string(node.init_state.storage)
+            content += '+-----+\n|AFTER|\n+-----+\n\n'
+            content += 'Stack: %s\n\n' % self.to_string(node.state.stack)
+            content += 'Memory: %s\n\n' % self.to_string(node.state.memory)
+            content += 'Storage: %s\n' % self.to_string(node.state.storage)
         return content
 
     def to_string(self, input: Any) -> str:
@@ -160,12 +208,11 @@ class Cfg:
         result = dict()
         for path in paths:
             for node in path.path:
-                logging.debug('NodeTag: %s' % node)
                 n = result.get(node.tag, None)
                 if n:
-                    n.append((path.id, node.state))
+                    n.append((path.id, node.init_state, node.state))
                 else:
-                    result[node.tag] = [(path.id, node.state)]
+                    result[node.tag] = [(path.id, node.init_state, node.state)]
         return result
 
     def node_num(self) -> int:

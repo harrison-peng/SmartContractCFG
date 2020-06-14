@@ -137,6 +137,12 @@ def opcodes_analysis(contract_name):
             logging.info('Satisfiability constant gas path: %s' % len(constant_path))
             logging.info('Satisfiability bound gas path: %s' % len(bound_path))
             logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
+
+            count_loop = 0
+            for upath in unbound_path:
+                count_loop += 1
+                cfg.render_loop('%s%s/cfg/loop/%s_%s' % (settings.OUTPUT_PATH, contract_name, file_name, count_loop), upath)
+
             gas_formula = None
             if len(unbound_path) > 0:
                 max_gas = unbound_path[-1].gas

@@ -22,7 +22,7 @@ FUNCTION_MODE = False
 # CFG format
 CFG_FORMAT = None
 # contain state information in CFG
-CFG_STATE = False
+CFG_STATE = True
 # Solver Timeout (millisecond)
 TIMEOUT = 30000
 # LOOP DETECTION

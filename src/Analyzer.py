@@ -38,6 +38,7 @@ class Analyzer:
         if not node:
             return
         node.visit()
+        node.init_state = deepcopy(state)
         gas = 0
 
         if node.count % 10 == 0:
