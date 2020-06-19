@@ -18,6 +18,7 @@ class Path:
         self.gas_type = None
         self.model = None
         self.model_gas = None
+        self.loop_info = None
 
     def __str__(self) -> str:
         return '[%s]: %s' % (self.id, self.path)
@@ -72,6 +73,15 @@ class Path:
             if node.tag == incoming_node.tag:
                 nodes.append(node)
         nodes.append(incoming_node)
+      
+        loop_constraint = list()
+        for node in nodes:
+            loop_constraint.append(node.path_constraint)
+        
+        self.loop_info = {
+            'node': incoming_node.tag,
+            'loop_constraint': loop_constraint
+        }
 
         loop_formula, loop_formula_n = self.__extrapolation(nodes[-2:], pc, variables)
         if loop_formula is None and len(nodes) > 2:
