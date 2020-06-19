@@ -113,11 +113,11 @@ class Analyzer:
                     
                     if path.contain_node(result.jump_tag):
                         jump_condition_n1 = 0 if jump_condition_n1 is None else jump_condition_n1
-                        path.add_path_constraints([result.jump_condition==0, jump_condition_n1==0])
+                        path.add_path_constraints([result.jump_condition==1, jump_condition_n1==1])
                         return self.symbolic_execution(opcode.get_next_pc(), deepcopy(path), deepcopy(state))
                     elif path.contain_node(opcode.get_next_pc()):
                         jump_condition_n1 = 1 if jump_condition_n1 is None else jump_condition_n1
-                        path.add_path_constraints([result.jump_condition==1, jump_condition_n1==1])
+                        path.add_path_constraints([result.jump_condition==0, jump_condition_n1==0])
                         return self.symbolic_execution(result.jump_tag, deepcopy(path), deepcopy(state))
                     else:
                         # LOG ERROR

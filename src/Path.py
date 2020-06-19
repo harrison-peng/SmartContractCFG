@@ -112,6 +112,7 @@ class Path:
         
         diff = simplify(formulae[1] - formulae[0])
         diff = int(diff.as_long()) if isinstance(diff, BitVecNumRef) else diff
+        diff = diff - 2**256 if diff > 2**255 else diff
         # logging.debug('Loop constraint diff: %s' % diff)
 
         if len(set(decl)) == 1:
@@ -119,8 +120,12 @@ class Path:
                 if diff != 0:
                     loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
                     self.path_constraint.append(ULT(loop_var, UNSIGNED_BOUND_NUMBER))
-                    loop_formula = If(decl[0](formulae[0] + diff*loop_var, 0), if_pair[0], if_pair[1])
-                    loop_formula_n = If(decl[0](formulae[0] + diff*(loop_var + 1), 0), if_pair[1], if_pair[0])
+                    if diff < 0:
+                        loop_formula = If(decl[0](formulae[0] - abs(diff)*loop_var, 0), if_pair[0], if_pair[1])
+                        loop_formula_n = If(decl[0](formulae[0] - abs(diff)*(loop_var + 1), 0), if_pair[1], if_pair[0])
+                    else:
+                        loop_formula = If(decl[0](formulae[0] + diff*loop_var, 0), if_pair[0], if_pair[1])
+                        loop_formula_n = If(decl[0](formulae[0] + diff*(loop_var + 1), 0), if_pair[1], if_pair[0])
                 else:
                     loop_formula = 'same'
                     loop_formula_n = None

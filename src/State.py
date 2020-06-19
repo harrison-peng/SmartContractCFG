@@ -60,7 +60,7 @@ class State:
                     first = BitVecVal(first, 256)
                 elif is_symbolic(first) and is_real(second):
                     second = BitVecVal(second, 256)
-                computed = first * second & UNSIGNED_BOUND_NUMBER
+                computed = first * second# & UNSIGNED_BOUND_NUMBER
                 # computed = simplify(computed) if is_expr(computed) else computed
 
                 self.stack[str(len(self.stack))] = computed
