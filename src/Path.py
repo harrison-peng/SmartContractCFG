@@ -78,11 +78,6 @@ class Path:
         for node in nodes:
             loop_constraint.append(node.path_constraint)
         
-        self.loop_info = {
-            'node': incoming_node.tag,
-            'loop_constraint': loop_constraint
-        }
-
         loop_formula, loop_formula_n = self.__extrapolation(nodes[-2:], pc, variables)
         if loop_formula is None and len(nodes) > 2:
             loop_formula = self.__switch_constraint(nodes[-3:])
@@ -109,6 +104,11 @@ class Path:
                 return None, None
             decl.append(formula.decl())
             formulae.append(formula.arg(0) - formula.arg(1))
+
+        self.loop_info = {
+            'node': nodes[0].tag,
+            'loop_constraint': formulae
+        }
         
         diff = simplify(formulae[1] - formulae[0])
         diff = int(diff.as_long()) if isinstance(diff, BitVecNumRef) else diff
