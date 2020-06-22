@@ -5,6 +5,7 @@ from z3 import *
 from src.Node import Node
 from src.State import State
 from src.Variable import Variable, Variables
+from src.RankingFunction import RankingFunction
 
 class Path:
 
@@ -105,6 +106,8 @@ class Path:
             decl.append(formula.decl())
             formulae.append(formula.arg(0) - formula.arg(1))
 
+        rf = RankingFunction(formulae)
+        rf.render_cfg()
         self.loop_info = {
             'node': nodes[0].tag,
             'loop_constraint': formulae

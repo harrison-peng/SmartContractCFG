@@ -96,6 +96,7 @@ def main():
 
 def opcodes_analysis(contract_name):
     settings.ADDRESS = contract_name
+    settings.COUNT_RANKING_FUNCTION = 0
     opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
     for file in os.listdir('%s/%s' % (opcodes_path, contract_name)):
         settings.DETECT_LOOP = False
@@ -105,7 +106,8 @@ def opcodes_analysis(contract_name):
             opcodes = f.read()
 
         if opcodes != '':
-            result_path = os.path.join(ROOT_PATH, 'result') 
+            result_path = os.path.join(ROOT_PATH, 'result')
+            settings.CONTRACT_NAME = contract_name
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
@@ -141,7 +143,7 @@ def opcodes_analysis(contract_name):
             count_loop = 0
             for upath in unbound_path:
                 count_loop += 1
-                cfg.render_loop('%s%s/cfg/loop/%s_%s' % (settings.OUTPUT_PATH, contract_name, file_name, count_loop), upath)
+                cfg.render_loop('%s/%s/cfg/loop/%s_%s' % (settings.OUTPUT_PATH, contract_name, file_name, count_loop), upath)
 
             gas_formula = None
             if len(unbound_path) > 0:

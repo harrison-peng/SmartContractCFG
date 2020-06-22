@@ -138,6 +138,7 @@ def set_up_dir(contract_name: str) -> None:
             call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name)])
             call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name, 'cfg')])
             call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name, 'cfg', 'loop')])
+            call(['sudo', 'mkdir', '-m', '777', os.path.join(result_path, contract_name, 'RankingFunciton')])
         else:
             if not os.path.isdir(settings.OUTPUT_PATH):
                 call(['mkdir', settings.OUTPUT_PATH])
@@ -152,6 +153,7 @@ def set_up_dir(contract_name: str) -> None:
             call(['mkdir', os.path.join(result_path, contract_name)])
             call(['mkdir', os.path.join(result_path, contract_name, 'cfg')])
             call(['mkdir', os.path.join(result_path, contract_name, 'cfg', 'loop')])
+            call(['mkdir', os.path.join(result_path, contract_name, 'RankingFunciton')])
 
     except Exception as e:
         err_result = Result()
