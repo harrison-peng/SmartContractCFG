@@ -106,8 +106,16 @@ class Path:
             decl.append(formula.decl())
             formulae.append(formula.arg(0) - formula.arg(1))
 
-        rf = RankingFunction(formulae)
-        rf.render_cfg()
+        rf = RankingFunction(formulae, str(decl[0]))
+        rf.create_cfg()
+        rf_exist = False
+        for rfs in settings.RANKING_FUNCTION_LIST:
+            if rf.cfg == rfs.cfg:
+                rf_exist = True
+                break
+        if not rf_exist:
+            settings.RANKING_FUNCTION_LIST.append(rf)
+
         self.loop_info = {
             'node': nodes[0].tag,
             'loop_constraint': formulae
@@ -115,7 +123,8 @@ class Path:
         
         diff = simplify(formulae[1] - formulae[0])
         diff = int(diff.as_long()) if isinstance(diff, BitVecNumRef) else diff
-        diff = diff - 2**256 if diff > 2**255 else diff
+        if isinstance(diff, int):
+            diff = diff - 2**256 if diff > 2**255 else diff
         # logging.debug('Loop constraint diff: %s' % diff)
 
         if len(set(decl)) == 1:
