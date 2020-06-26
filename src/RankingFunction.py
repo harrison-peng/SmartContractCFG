@@ -39,7 +39,7 @@ class RankingFunction:
                 variables.append(e)
             else:
                 if str(e.decl()) == '&':
-
+                    self.replace_pattern.append(e)
                 if str(e.decl()) == 'If' and e not in self.if_constraint:
                     self.if_constraint.append(e)
         return variables
