@@ -82,7 +82,7 @@ class Analyzer:
                 detect_loop = False
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) > 0 and is_expr(result.jump_condition):
-                        jump_condition, jump_condition_n1 = path.handle_loop(node, opcode.pc, self.variables)
+                        jump_condition, jump_condition_n1 = path.handle_loop(node, opcode.pc, self.variables, self.cfg)
                         
                         if jump_condition is not None:
                             detect_loop = True

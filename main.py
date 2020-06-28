@@ -12,6 +12,7 @@ from src.Path import Path
 from src.State import State
 from src.Result import Result
 from src.Variable import Variables
+from src.RankingFunction import RankingFunction
 
 
 def main():
@@ -140,16 +141,24 @@ def opcodes_analysis(contract_name):
             logging.info('Satisfiability bound gas path: %s' % len(bound_path))
             logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
 
+            for node in cfg.nodes:
+                if len(node.loop_condition) > 0:
+                    rf = RankingFunction()
+                    for constraint in node.loop_condition:
+                        rf.add_constraint(constraint['constraint'], constraint['decl'])
+                    rf.create_cfg()
+                    rf.render('loop_%s' % node.tag)
+
             count_loop = 0
             for upath in unbound_path:
                 count_loop += 1
                 cfg.render_loop('%s/%s/cfg/loop/%s_%s' % (settings.OUTPUT_PATH, contract_name, file_name, count_loop), upath)
 
-            logging.debug('Ranking Function CFG: %s' % len(settings.RANKING_FUNCTION_LIST))
-            count_rf = 0
-            for rfs in settings.RANKING_FUNCTION_LIST:
-                count_rf += 1
-                rfs.render(count_rf)
+            # logging.debug('Ranking Function CFG: %s' % len(settings.RANKING_FUNCTION_LIST))
+            # count_rf = 0
+            # for rfs in settings.RANKING_FUNCTION_LIST:
+            #     count_rf += 1
+            #     rfs.render(count_rf)
 
             gas_formula = None
             if len(unbound_path) > 0:

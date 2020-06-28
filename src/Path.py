@@ -5,7 +5,7 @@ from z3 import *
 from src.Node import Node
 from src.State import State
 from src.Variable import Variable, Variables
-from src.RankingFunction import RankingFunction
+# from src.RankingFunction import RankingFunction
 
 class Path:
 
@@ -68,7 +68,7 @@ class Path:
                 c2 = incoming_node.path_constraint
                 return (c1, c2)
 
-    def handle_loop(self, incoming_node: Node, pc: int, variables: list) -> ArithRef:
+    def handle_loop(self, incoming_node: Node, pc: int, variables: list, cfg) -> ArithRef:
         nodes = list()
         for node in self.path:
             if node.tag == incoming_node.tag:
@@ -79,7 +79,7 @@ class Path:
         for node in nodes:
             loop_constraint.append(node.path_constraint)
         
-        loop_formula, loop_formula_n = self.__extrapolation(nodes[-2:], pc, variables)
+        loop_formula, loop_formula_n = self.__extrapolation(nodes[-2:], pc, variables, cfg)
         if loop_formula is None and len(nodes) > 2:
             loop_formula = self.__switch_constraint(nodes[-3:])
         
@@ -90,7 +90,7 @@ class Path:
                 self.__fix_loop_path(incoming_node.tag, len(nodes))
         return loop_formula, loop_formula_n
 
-    def __extrapolation(self, nodes: list, pc: int, variables: list) -> (ArithRef, ArithRef):
+    def __extrapolation(self, nodes: list, pc: int, variables: list, cfg) -> (ArithRef, ArithRef):
         from src.Result import Result
         decl, constraint, formulae = list(), list(), list()
         
@@ -106,15 +106,22 @@ class Path:
             decl.append(formula.decl())
             formulae.append(formula.arg(0) - formula.arg(1))
 
-        rf = RankingFunction(formulae, str(decl[0]))
-        rf.create_cfg()
-        rf_exist = False
-        for rfs in settings.RANKING_FUNCTION_LIST:
-            if rf.cfg == rfs.cfg:
-                rf_exist = True
-                break
-        if not rf_exist:
-            settings.RANKING_FUNCTION_LIST.append(rf)
+        for node in cfg.nodes:
+            if node.tag == nodes[0].tag:
+                node.loop_condition.append({
+                    'decl': str(decl[0]),
+                    'constraint': formulae
+                })
+
+        # rf = RankingFunction(formulae, str(decl[0]))
+        # rf.create_cfg()
+        # rf_exist = False
+        # for rfs in settings.RANKING_FUNCTION_LIST:
+        #     if rf.cfg == rfs.cfg:
+        #         rf_exist = True
+        #         break
+        # if not rf_exist:
+        #     settings.RANKING_FUNCTION_LIST.append(rf)
 
         self.loop_info = {
             'node': nodes[0].tag,
