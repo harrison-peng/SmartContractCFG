@@ -143,6 +143,7 @@ def opcodes_analysis(contract_name):
 
             for node in cfg.nodes:
                 if len(node.loop_condition) > 0:
+                    logging.debug('Create iRankFinder CFG of node %s' % node.tag)
                     rf = RankingFunction()
                     for constraint in node.loop_condition:
                         rf.add_constraint(constraint['constraint'], constraint['decl'])
@@ -199,6 +200,7 @@ def opcodes_analysis(contract_name):
 
 
 def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
+    logging.debug('classify path....')
     paths = analyzer.paths
     constant_path = list()
     bound_path = list()

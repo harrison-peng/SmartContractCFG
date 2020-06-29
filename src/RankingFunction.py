@@ -32,11 +32,11 @@ class RankingFunction:
             c = '%s = %s' % (c_prime, rfc.constraints[0])
             self.cfg_constraint.append(c)
             if rfc.decl == 'UGT':
-                self.cfg_constraint.append('%s > 0' % rfc.constraints[0])
-            elif rfc.decl == 'ULT':
                 self.cfg_constraint.append('%s < 0' % rfc.constraints[0])
+            elif rfc.decl == 'ULT':
+                self.cfg_constraint.append('%s > 0' % rfc.constraints[0])
             else:
-                raise Error('Ranking Function Error')
+                raise ValueError('Ranking Function Error')
         self.__cfg_format()
 
     def get_z3_variable(self, constraint: BitVecRef) -> ([BitVecRef], [BitVecRef]):
