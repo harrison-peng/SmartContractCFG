@@ -92,7 +92,8 @@ class Analyzer:
                             err_result = Result()
                             err_message = 'Loop Error:[%s] %s' % (tag, result.jump_condition)
                             err_result.log_error(settings.ADDRESS, err_message)
-                            raise ValueError(err_message)
+                            logging.error(err_message)
+                            return
                 else:
                     path_cond = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):

@@ -148,7 +148,7 @@ def opcodes_analysis(contract_name):
                     for constraint in node.loop_condition:
                         rf.add_constraint(constraint['constraint'], constraint['decl'])
                     rf.create_cfg()
-                    rf.render('loop_%s' % node.tag)
+                    rf.render('final_%s' % node.tag)
 
             count_loop = 0
             for upath in unbound_path:

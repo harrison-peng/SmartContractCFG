@@ -1,9 +1,11 @@
-from z3 import *
 import src.settings as settings
+from z3 import *
+from src.settings import logging
 
 class RankingFunction:
 
     def __init__(self):
+        self.cfg = None
         self.RankingFunctionConstraints = list()
         self.if_constraint = list()
         self.cfg_vars = list()
@@ -36,7 +38,8 @@ class RankingFunction:
             elif rfc.decl == 'ULT':
                 self.cfg_constraint.append('%s > 0' % rfc.constraints[0])
             else:
-                raise ValueError('Ranking Function Error')
+                logging.error('Ranking Function DECL Error: %s' % rfc.decl)
+                return
         self.__cfg_format()
 
     def get_z3_variable(self, constraint: BitVecRef) -> ([BitVecRef], [BitVecRef]):
@@ -92,8 +95,9 @@ class RankingFunction:
         ''' % (','.join(self.cfg_vars), ','.join(self.cfg_pvars), ','.join(self.cfg_constraint), ','.join(["%s' = %s" % (x,x) for x in self.cfg_vars]))
 
     def render(self, name: str) -> None:
-        with open('%s/%s/RankingFunciton/%s.fc' % (settings.OUTPUT_PATH, settings.CONTRACT_NAME, name), 'w') as f:
-            f.write(self.cfg)
+        if self.cfg is not None:
+            with open('%s/%s/RankingFunciton/%s.fc' % (settings.OUTPUT_PATH, settings.CONTRACT_NAME, name), 'w') as f:
+                f.write(self.cfg)
 
 class RankingFunctionConstraint:
 

@@ -5,7 +5,7 @@ from z3 import *
 from src.Node import Node
 from src.State import State
 from src.Variable import Variable, Variables
-# from src.RankingFunction import RankingFunction
+from src.RankingFunction import RankingFunction
 
 class Path:
 
@@ -82,6 +82,13 @@ class Path:
         loop_formula, loop_formula_n = self.__extrapolation(nodes[-2:], pc, variables, cfg)
         if loop_formula is None and len(nodes) > 2:
             loop_formula = self.__switch_constraint(nodes[-3:])
+
+            if loop_formula is None:
+                formulae, decl, if_pair = self.__get_loop_formulae_info(nodes[-2:])
+                rf = RankingFunction()
+                rf.add_constraint(formulae, str(decl[0]))
+                rf.create_cfg()
+                rf.render('loop_%s' % nodes[0].tag)
         
         if loop_formula is not None and str(loop_formula) != 'same':
             loop_var = variables.get_variable(Variable('loop_%s' % pc, 'Loop iteration of pc: %s' % pc, BitVec('loop_%s' % pc, 256)))
@@ -93,35 +100,22 @@ class Path:
     def __extrapolation(self, nodes: list, pc: int, variables: list, cfg) -> (ArithRef, ArithRef):
         from src.Result import Result
         decl, constraint, formulae = list(), list(), list()
-        
+
         for node in nodes:
+            if isinstance(node.path_constraint, int):
+                return None, None
             constraint.append(self.to_string(node.path_constraint))
+
         if len(set(constraint)) == 1:
             return 'same', None
 
-        for i, node in enumerate(nodes):
-            formula, if_pair = self.__unpack_z3_if(node.path_constraint)
-            if formula is None:
-                return None, None
-            decl.append(formula.decl())
-            formulae.append(formula.arg(0) - formula.arg(1))
-
+        formulae, decl, if_pair = self.__get_loop_formulae_info(nodes)
         for node in cfg.nodes:
             if node.tag == nodes[0].tag:
                 node.loop_condition.append({
                     'decl': str(decl[0]),
                     'constraint': formulae
                 })
-
-        # rf = RankingFunction(formulae, str(decl[0]))
-        # rf.create_cfg()
-        # rf_exist = False
-        # for rfs in settings.RANKING_FUNCTION_LIST:
-        #     if rf.cfg == rfs.cfg:
-        #         rf_exist = True
-        #         break
-        # if not rf_exist:
-        #     settings.RANKING_FUNCTION_LIST.append(rf)
 
         self.loop_info = {
             'node': nodes[0].tag,
@@ -165,6 +159,9 @@ class Path:
         return loop_formula, loop_formula_n
 
     def __switch_constraint(self, nodes: list) -> ArithRef:
+        if isinstance(nodes[0].path_constraint, int) or isinstance(nodes[1].path_constraint, int) or isinstance(nodes[2].path_constraint, int):
+            return None
+
         formula_1, if_pair = self.__unpack_z3_if(nodes[0].path_constraint)
         formula_2, if_pair = self.__unpack_z3_if(nodes[1].path_constraint)
         formula_3, if_pair = self.__unpack_z3_if(nodes[2].path_constraint)
@@ -172,6 +169,16 @@ class Path:
             return If(Or(formula_1, formula_2), if_pair[0], if_pair[1])
         else:
             return None
+
+    def __get_loop_formulae_info(self, nodes: list) -> (list, list, list):
+        formulae, decls = list(), list()
+        for i, node in enumerate(nodes):
+            formula, if_pair = self.__unpack_z3_if(node.path_constraint)
+            if formula is None:
+                return None, None
+            decls.append(formula.decl())
+            formulae.append(formula.arg(0) - formula.arg(1))
+        return formulae, decls, if_pair
 
     def __unpack_z3_if(self, formula: ArithRef) -> ArithRef:
         from src.Result import Result
