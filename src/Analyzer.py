@@ -22,10 +22,14 @@ class Analyzer:
     def start(self):
         for node in self.cfg.nodes:
             if node.color == 'yellow':
-                s = State()
-                s.memory = {64:128}
-                logging.debug('Start From Tag %s' % node.tag)
-                self.symbolic_execution(node.tag, Path(), s)
+                try:
+                    s = State()
+                    s.stack = {'0': 0}
+                    s.memory = {64:128}
+                    logging.debug('Start From Tag %s' % node.tag)
+                    self.symbolic_execution(node.tag, Path(), s)
+                except:
+                    continue
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
         from src.Result import Result

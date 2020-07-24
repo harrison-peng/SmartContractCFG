@@ -141,14 +141,15 @@ def opcodes_analysis(contract_name):
             logging.info('Satisfiability bound gas path: %s' % len(bound_path))
             logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
 
-            for node in cfg.nodes:
-                if len(node.loop_condition) > 0:
-                    logging.debug('Create iRankFinder CFG of node %s' % node.tag)
-                    rf = RankingFunction()
-                    for constraint in node.loop_condition:
-                        rf.add_constraint(constraint['constraint'], constraint['decl'])
-                    rf.create_cfg()
-                    rf.render('final_%s' % node.tag)
+            if settings.LOOP_DETECTION:
+                for node in cfg.nodes:
+                    if len(node.loop_condition) > 0:
+                        logging.debug('Create iRankFinder CFG of node %s' % node.tag)
+                        rf = RankingFunction()
+                        for constraint in node.loop_condition:
+                            rf.add_constraint(constraint['constraint'], constraint['decl'])
+                        rf.create_cfg()
+                        rf.render('final_%s' % node.tag)
 
             count_loop = 0
             for upath in unbound_path:
@@ -172,7 +173,7 @@ def opcodes_analysis(contract_name):
             logging.info('Max gas: %s' % max_gas)
 
             # NOTE: Output Result File
-            logging.info('Writting analysis result into file...')
+            logging.info('Writing analysis result into file...')
             if gas_formula is None:
                 result = Result(
                     analyzer = analyzer,

@@ -146,9 +146,11 @@ class Path:
                 loop_formula = None
                 loop_formula_n = None
         else:
-            result = Result()
-            result.log_error(settings.ADDRESS, 'Operators are not same')
-            raise ValueError('Operators are not same: %s' % decl)
+            loop_formula = None
+            loop_formula_n = None
+            # result = Result()
+            # result.log_error(settings.ADDRESS, 'Operators are not same')
+            # raise ValueError('Operators are not same: %s, %s' % (decl, formulae))
             
         if loop_formula is not None:
             for i, node in enumerate(nodes):
