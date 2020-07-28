@@ -22,10 +22,14 @@ class Analyzer:
     def start(self):
         for node in self.cfg.nodes:
             if node.color == 'yellow':
-                s = State()
-                s.memory = {64:128}
-                logging.debug('Start From Tag %s' % node.tag)
-                self.symbolic_execution(node.tag, Path(), s)
+                try:
+                    s = State()
+                    s.stack = {'0': 0}
+                    s.memory = {64:128}
+                    logging.debug('Start From Tag %s' % node.tag)
+                    self.symbolic_execution(node.tag, Path(), s)
+                except:
+                    continue
 
     def symbolic_execution(self, tag: int, path: Path, state: State) -> None:
         from src.Result import Result
@@ -38,6 +42,7 @@ class Analyzer:
         if not node:
             return
         node.visit()
+        node.init_state = deepcopy(state)
         gas = 0
 
         if node.count % 10 == 0:
@@ -81,7 +86,7 @@ class Analyzer:
                 detect_loop = False
                 if LOOP_DETECTION:
                     if path.count_specific_node_num(node.tag) > 0 and is_expr(result.jump_condition):
-                        jump_condition, jump_condition_n1 = path.handle_loop(node, opcode.pc, self.variables)
+                        jump_condition, jump_condition_n1 = path.handle_loop(node, opcode.pc, self.variables, self.cfg)
                         
                         if jump_condition is not None:
                             detect_loop = True
@@ -91,7 +96,8 @@ class Analyzer:
                             err_result = Result()
                             err_message = 'Loop Error:[%s] %s' % (tag, result.jump_condition)
                             err_result.log_error(settings.ADDRESS, err_message)
-                            raise ValueError(err_message)
+                            logging.error(err_message)
+                            return
                 else:
                     path_cond = simplify(node.path_constraint) if is_expr(node.path_constraint) else node.path_constraint
                     if path.count_specific_node_num(node.tag) >= MAX_LOOP_ITERATIONS and is_expr(path_cond):

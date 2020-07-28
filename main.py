@@ -12,6 +12,7 @@ from src.Path import Path
 from src.State import State
 from src.Result import Result
 from src.Variable import Variables
+from src.RankingFunction import RankingFunction
 
 
 def main():
@@ -96,6 +97,7 @@ def main():
 
 def opcodes_analysis(contract_name):
     settings.ADDRESS = contract_name
+    settings.RANKING_FUNCTION_LIST = list()
     opcodes_path = os.path.join(ROOT_PATH, 'opcodes')
     for file in os.listdir('%s/%s' % (opcodes_path, contract_name)):
         settings.DETECT_LOOP = False
@@ -105,7 +107,8 @@ def opcodes_analysis(contract_name):
             opcodes = f.read()
 
         if opcodes != '':
-            result_path = os.path.join(ROOT_PATH, 'result') 
+            result_path = os.path.join(ROOT_PATH, 'result')
+            settings.CONTRACT_NAME = contract_name
             # NOTE: Build CFG
             cfg = Cfg()
             cfg.build_cfg(opcodes)
@@ -137,6 +140,28 @@ def opcodes_analysis(contract_name):
             logging.info('Satisfiability constant gas path: %s' % len(constant_path))
             logging.info('Satisfiability bound gas path: %s' % len(bound_path))
             logging.info('Satisfiability unbound gas path: %s' % len(unbound_path))
+
+            if settings.LOOP_DETECTION:
+                for node in cfg.nodes:
+                    if len(node.loop_condition) > 0:
+                        logging.debug('Create iRankFinder CFG of node %s' % node.tag)
+                        rf = RankingFunction()
+                        for constraint in node.loop_condition:
+                            rf.add_constraint(constraint['constraint'], constraint['decl'])
+                        rf.create_cfg()
+                        rf.render('final_%s' % node.tag)
+
+            count_loop = 0
+            for upath in unbound_path:
+                count_loop += 1
+                cfg.render_loop('%s/%s/cfg/loop/%s_%s' % (settings.OUTPUT_PATH, contract_name, file_name, count_loop), upath)
+
+            # logging.debug('Ranking Function CFG: %s' % len(settings.RANKING_FUNCTION_LIST))
+            # count_rf = 0
+            # for rfs in settings.RANKING_FUNCTION_LIST:
+            #     count_rf += 1
+            #     rfs.render(count_rf)
+
             gas_formula = None
             if len(unbound_path) > 0:
                 max_gas = unbound_path[-1].gas
@@ -148,7 +173,7 @@ def opcodes_analysis(contract_name):
             logging.info('Max gas: %s' % max_gas)
 
             # NOTE: Output Result File
-            logging.info('Writting analysis result into file...')
+            logging.info('Writing analysis result into file...')
             if gas_formula is None:
                 result = Result(
                     analyzer = analyzer,
@@ -176,6 +201,7 @@ def opcodes_analysis(contract_name):
 
 
 def classify_path(analyzer: Analyzer) -> ([Path], [Path], [Path]):
+    logging.debug('classify path....')
     paths = analyzer.paths
     constant_path = list()
     bound_path = list()

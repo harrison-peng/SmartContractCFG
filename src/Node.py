@@ -7,6 +7,7 @@ class Node:
     def __init__(self, tag: int, opcodes: [Opcode]):
         self.tag = tag
         self.opcodes = opcodes
+        self.init_state = State()
         self.state = State()
         self.gas = 0
         self.path_constraint = None
