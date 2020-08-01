@@ -265,12 +265,13 @@ class Path:
             self.model = self.solver.model()
             return True
         else:
-            if is_sat:
-                result = Result()
-                result.log_error(settings.ADDRESS, 'Solver Error')
-                raise ValueError('Solver Error')
-            else:
-                return False
+            return False
+            # if is_sat:
+            #     result = Result()
+            #     result.log_error(settings.ADDRESS, 'Solver Error')
+            #     raise ValueError('Solver Error')
+            # else:
+            #     return False
 
     def solve_unbound(self) -> bool:
         self.solver.add(self.gas > GAS_LIMIT)
