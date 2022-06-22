@@ -24,7 +24,7 @@ lru-dict==1.1.6
 macholib==1.11
 matplotlib==3.1.2
 networkx==2.4
-numpy==1.17.4
+numpy==1.22.0
 parsimonious==0.8.1
 pefile==2018.8.8
 psycopg2==2.7.6.1
