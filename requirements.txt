@@ -31,7 +31,7 @@ psycopg2==2.7.6.1
 pycryptodome==3.19.1
 pydot==1.4.1
 pyevmasm==0.2.0
-PyInstaller==5.13.1
+PyInstaller==6.0.0
 pymongo==4.6.3
 Pympler==0.8
 pyparsing==2.4.5
