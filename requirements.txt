@@ -42,7 +42,7 @@ requests==2.33.0
 rlp==1.0.3
 selenium==3.141.0
 six==1.11.0
-soupsieve==2.8.4
+soupsieve==2.9
 toolz==0.9.0
 urllib3==2.7.0
 web3==4.8.2
